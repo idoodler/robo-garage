@@ -2,6 +2,8 @@
 # Coordinates in mm, KiCad board coords (x right, y down); board 100 x 100 mm, top-left at (0, 0).
 # rot = KiCad footprint rotation in degrees (CCW).
 
+VERSION = '1.1.1'   # PCB version: silkscreen title + release zip name (pcb/gen/package.sh)
+
 W, H = 100.0, 100.0
 
 # ---- ESP32 DevKitC V4: top row = DevKit J3 side, bottom row = J2 side (dual column 22.86 / 25.4 mm) ----
@@ -299,6 +301,6 @@ T('12 V IN', 83.6, 7.0, 0.9, just='r')
 T('BUTTON', 83.6, 23.0, 0.9, just='r')
 T('REEDS', 83.6, 47.5, 0.9, just='r')
 T('EXP: 3V3 GND 5V IO4 IO35 IO14', 37.35, 37.6, 0.8)
-T('ROBO-GARAGE CTRL v1.1.1', 42.0, 46.0, 1.4)
+T('ROBO-GARAGE CTRL v' + VERSION, 42.0, 46.0, 1.4)
 T('ESP32 DevKitC V4  (antenna <-)  USB-C ->', 26.0, 2.4, 0.8)
 T('DevKit rows: outer 25.4 / inner 22.86', 14.5, 33.6, 0.8)

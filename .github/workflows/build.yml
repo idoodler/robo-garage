@@ -1,0 +1,78 @@
+# Build PCB + case on every push. On a tag "v*": publish a GitHub release with both zips.
+name: Build & release
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    # Ubuntu 24.04 apt = KiCad 7.0.11 + OpenSCAD 2021.01, the versions the scripts are tested with
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write   # only used by the release step (tags)
+    env:
+      PY: /usr/bin/python3   # system Python: has the KiCad "pcbnew" module
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install KiCad 7, OpenSCAD and tools
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends \
+            kicad kicad-footprints openscad librsvg2-bin zip fonts-dejavu-core python3-pip
+          $PY -m pip install -q --user --break-system-packages shapely==2.2.0
+          $PY -c "import pcbnew, shapely; print('KiCad', pcbnew.GetBuildVersion(), '| shapely', shapely.__version__)"
+
+      - name: "PCB: board, tracks, GND pour, DRC (fails on any DRC issue)"
+        run: |
+          $PY pcb/gen/build.py
+          $PY pcb/gen/finish.py
+
+      - name: "PCB: gerbers, BOM, CPL, renders, zip"
+        run: |
+          $PY pcb/gen/fab.py pcb/robo-garage/robo-garage_routed.kicad_pcb pcb/out
+          pcb/gen/package.sh
+
+      - name: "Case: STL, zip"
+        run: case/build.sh
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: robo-garage
+          path: |
+            pcb/out/robo-garage-pcb_v*.zip
+            case/robo-garage-case_v*.zip
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          PCB_V=$(sed -n "s/^VERSION = '\([^']*\)'.*/\1/p" pcb/gen/parts.py)
+          CASE_V=$(sed -n 's/^version = "\([^"]*\)".*/\1/p' case/robo-garage-case.scad)
+          PCB_ZIP=pcb/out/robo-garage-pcb_v$PCB_V.zip
+          CASE_ZIP=case/robo-garage-case_v$CASE_V.zip
+          cat > notes.md <<EOF
+          | File | What is inside |
+          |---|---|
+          | \`robo-garage-pcb_v$PCB_V.zip\` | PCB v$PCB_V: JLCPCB gerbers zip, BOM + CPL, KiCad project, ESPHome config, renders, order guide (\`README.md\`) |
+          | \`robo-garage-case_v$CASE_V.zip\` | Case v$CASE_V: STL (base + lid), OpenSCAD source, print guide, pictures |
+
+          Built by GitHub Actions from ${GITHUB_SHA::7}. PCB DRC (KiCad 7): 0 errors, 0 warnings, 0 unconnected.
+          EOF
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$PCB_ZIP" "$CASE_ZIP" --clobber
+          else
+            gh release create "$TAG" "$PCB_ZIP" "$CASE_ZIP" --verify-tag \
+              --title "$TAG – PCB v$PCB_V + case v$CASE_V" --notes-file notes.md
+          fi

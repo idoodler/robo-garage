@@ -4,6 +4,7 @@
 // The front-right corner is a separate vented chamber for the SHT40 (measures cabinet air, not box air).
 // part = "base" | "lid" | "lid_print" (lid flipped for printing) | "assembly" | "check_base" | "check_lid"
 part = "assembly";
+version = "1.1";   // case version: release zip name (case/build.sh)
 
 include <pcb_data.scad>
 

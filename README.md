@@ -27,23 +27,36 @@ ESP32 + ESPHome + Home Assistant: motorised door, light barrier, reed contacts, 
 
 ## Build
 
-Run from the repo root. Tested with KiCad 7.0.11 (Python `pcbnew`), Python 3, OpenSCAD.
+GitHub Actions runs all of this on every push (`.github/workflows/build.yml`).
+Locally: run from the repo root. Tested with KiCad 7.0.11 (Python `pcbnew`), Python 3 + shapely 2.2, OpenSCAD 2021.01.
 
 | Step | Command |
 |---|---|
 | PCB: bare board | `python3 pcb/gen/build.py` |
-| PCB: tracks + GND pour + DRC | `python3 pcb/gen/finish.py` |
+| PCB: tracks + GND pour + DRC | `python3 pcb/gen/finish.py` (stops with an error on any DRC issue) |
 | PCB: gerbers, BOM, CPL, renders | `python3 pcb/gen/fab.py pcb/robo-garage/robo-garage_routed.kicad_pcb pcb/out` |
 | PCB: copy to `pcb/out` + zip | `pcb/gen/package.sh` |
 | PCB: re-route (optional) | `pcb/gen/pipeline.sh` |
-| Case: PCB data | `python3 case/gen_pcb_data.py` |
-| Case: STL | `openscad -D 'part="base"' -o case/base.stl case/robo-garage-case.scad` |
-| | `openscad -D 'part="lid_print"' -o case/lid_print.stl case/robo-garage-case.scad` |
+| Case: PCB data, STL, zip | `case/build.sh` |
 | Simulator page | `python3 simulator/build_page.py` |
 | Flash ESP32 | `esphome run esphome/robo-garage-pcb.yaml` |
 
 | Tool | Needed for |
 |---|---|
+| Python package `shapely` 2.2 | `finish.py` |
 | `kicad-cli`, `rsvg-convert` | `fab.py` |
-| `zip` | `package.sh` |
+| `zip` | `package.sh`, `case/build.sh` |
+| `openscad`, font DejaVu Sans | `case/build.sh` |
 | Java, `xvfb-run`, `pcb/tools/freerouting-1.9.0.jar` ([Freerouting releases](https://github.com/freerouting/freerouting/releases)) | `pipeline.sh` only |
+
+Moved a part in `parts.py`? Then the old tracks no longer fit: run `pcb/gen/pipeline.sh` and commit the new `pcb/robo-garage/robo-garage.ses`.
+
+## Release
+
+| Step | What to do |
+|---|---|
+| 1 | Set the versions: `VERSION` in `pcb/gen/parts.py` (also printed on the board), `version` in `case/robo-garage-case.scad` |
+| 2 | Push to `main` → GitHub Actions builds everything and checks the DRC |
+| 3 | Push a tag: `git tag v1.2.0 && git push origin v1.2.0` → GitHub Actions publishes the release with both zips |
+
+Every build also keeps both zips for 30 days: *Actions* → run → *Artifacts*.
