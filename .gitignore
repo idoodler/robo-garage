@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# ESPHome
+secrets.yaml
+.esphome/
+
+# PCB work folder (build.py / finish.py output): keep only the Freerouting result
+pcb/robo-garage/*
+!pcb/robo-garage/robo-garage.ses
+
+# Freerouting jars (download, see README)
+pcb/tools/
+
+# Release bundles made by package.sh
+pcb/out/robo-garage-pcb_v*.zip
+case/robo-garage-case_v*.zip
+
+# KiCad local files
+*.kicad_prl
+*.lck
+fp-info-cache
+*-backups/
+.history/

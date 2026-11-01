@@ -1,0 +1,257 @@
+# ESPHome config for the Robo-Garage controller PCB v1.1 (ESP32 DevKitC V4 plugged in)
+# v1.1: SHT40 cabinet temperature / humidity (auto vent), door light barrier with self-test.
+# Pin changes vs. the module build: DRV8871 instead of BTS7960 (no EN pin), INA219 on the board,
+# fan tach on GPIO27, external pull-ups on reeds / button (internal pull-ups stay on, harmless).
+substitutions:
+  stall_current: "0.8"   # A: set ~0.3 A above the running current you see in HA ("Door motor current")
+  beam_inverted: "true"  # NPN Light-ON receiver (recommended, often sold as "NC") = true; Dark-ON ("NO") = false.
+                         # Check: beam clear -> HA "Door beam" must show "Clear". If not, flip this value.
+
+esphome:
+  name: robo-garage
+  friendly_name: Robo-Garage
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+
+logger:
+api:
+ota:
+  - platform: esphome
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+i2c:
+  sda: GPIO21          # pull-ups 4.7k on the PCB
+  scl: GPIO22
+  frequency: 100kHz
+
+globals:
+  - {id: beam_testing, type: bool, initial_value: "false"}   # emitter is off for the self-test
+  - {id: beam_dark_ok, type: bool, initial_value: "true"}    # last self-test: receiver saw "no light"
+
+output:
+  - {platform: ledc, pin: GPIO25, id: door_open_out}          # DRV8871 IN1 -> actuator extends
+  - {platform: ledc, pin: GPIO26, id: door_close_out}         # DRV8871 IN2 -> actuator retracts
+  - {platform: ledc, pin: GPIO23, id: btn_ring_out}           # AO3400A -> button ring (12 V)
+  - {platform: ledc, pin: GPIO17, id: fan_pwm, frequency: 25000Hz, inverted: true}  # 2N7002 open drain
+
+switch:
+  - platform: gpio                                             # AO3400A -> light barrier emitter (TX-)
+    id: beam_tx
+    pin: GPIO13
+    restore_mode: ALWAYS_ON
+    internal: true
+  - platform: template
+    id: vent_auto
+    name: "Vent auto"                                          # off = fan only from HA / manual
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+    on_turn_off:
+      - fan.turn_off: rear_fan
+
+number:
+  - platform: template
+    id: vent_hum_on
+    name: "Vent humidity limit"
+    unit_of_measurement: "%"
+    min_value: 40
+    max_value: 90
+    step: 1
+    initial_value: 65
+    optimistic: true
+    restore_value: true
+    entity_category: config
+  - platform: template
+    id: vent_temp_on
+    name: "Vent temperature limit"
+    unit_of_measurement: "°C"
+    min_value: 20
+    max_value: 45
+    step: 0.5
+    initial_value: 30
+    optimistic: true
+    restore_value: true
+    entity_category: config
+
+binary_sensor:
+  - {platform: gpio, id: door_closed_reed, name: "Door closed", pin: {number: GPIO32, mode: INPUT_PULLUP, inverted: true}}
+  - {platform: gpio, id: door_open_reed, name: "Door open", pin: {number: GPIO33, mode: INPUT_PULLUP, inverted: true}}
+  - {platform: gpio, id: drawer_reed, name: "Drawer", device_class: opening,
+     pin: {number: GPIO18, mode: INPUT_PULLUP, inverted: false}}            # on = drawer out
+  - {platform: gpio, name: "Clean button", pin: {number: GPIO19, mode: INPUT_PULLUP, inverted: true},
+     filters: [delayed_on: 30ms]}
+  - platform: template                                         # stall stop (INA219 on the PCB)
+    id: door_stall
+    name: "Door stall"
+    lambda: return id(motor_current).state > ${stall_current};
+    filters: [delayed_on: 400ms]                               # ignores the start-up inrush
+    on_press:
+      - cover.stop: door
+      - logger.log: "Door stall -> stopped"
+  # ---- light barrier (BEAM clamp): IO34 low = SIG high = receiver output off ----
+  - platform: gpio
+    id: beam_raw
+    internal: true
+    pin: {number: GPIO34, inverted: "${beam_inverted}"}       # input-only pin, pull-up R36 on the PCB
+    filters: [delayed_on_off: 5ms]
+    on_press:                                                  # unfiltered edge: beam broken while closing
+      - if:
+          condition:
+            lambda: 'return !id(beam_testing) && id(door).current_operation == cover::COVER_OPERATION_CLOSING;'
+          then:
+            - logger.log: "Beam blocked while closing -> reopen"
+            - cover.stop: door
+            - delay: 300ms
+            - cover.open: door
+  - platform: template
+    id: beam
+    name: "Door beam"                                          # on = something in the door opening (HA display)
+    device_class: occupancy
+    lambda: |-
+      if (id(beam_testing)) return {};                         // self-test running: keep the last state
+      return id(beam_raw).state;
+    filters: [delayed_off: 300ms]
+  - platform: template
+    id: beam_fault
+    name: "Door beam fault"                                    # on = receiver did not react to the emitter
+    device_class: problem
+
+script:
+  - id: beam_selftest                                          # emitter off -> receiver must report "no light"
+    mode: single
+    then:
+      - lambda: 'id(beam_testing) = true;'
+      - switch.turn_off: beam_tx
+      - wait_until:                                            # receiver must drop out (max 0.5 s)
+          condition:
+            binary_sensor.is_on: beam_raw
+          timeout: 500ms
+      - lambda: 'id(beam_dark_ok) = id(beam_raw).state;'
+      - switch.turn_on: beam_tx
+      - wait_until:                                            # and see the beam again (max 1 s)
+          condition:
+            binary_sensor.is_off: beam_raw
+          timeout: 1s
+      - lambda: 'id(beam_testing) = false;'
+      - binary_sensor.template.publish:
+          id: beam_fault
+          state: !lambda 'return !id(beam_dark_ok);'
+
+sensor:
+  - platform: ina219                                           # on the PCB, shunt 0.1 ohm
+    address: 0x40
+    shunt_resistance: 0.1 ohm
+    max_voltage: 16V
+    max_current: 3.2A
+    update_interval: 100ms
+    current:
+      name: "Door motor current"
+      id: motor_current
+    bus_voltage:
+      name: "12 V supply"
+  - platform: sht4x                                            # SHT40 on the PCB island
+    address: 0x44
+    update_interval: 30s
+    temperature:
+      name: "Cabinet temperature"
+      id: cab_temp
+      filters: [offset: 0.0]                                   # set after a check with a reference thermometer
+    humidity:
+      name: "Cabinet humidity"
+      id: cab_hum
+  - platform: pulse_counter                                    # fan tach, 2 pulses per turn
+    pin: {number: GPIO27, mode: INPUT_PULLUP}
+    name: "Rear fan speed"
+    unit_of_measurement: rpm
+    filters: [multiply: 0.5]
+    update_interval: 10s
+
+fan:
+  - {platform: speed, id: rear_fan, output: fan_pwm, name: "Rear fan"}
+
+interval:
+  - interval: 30s                                              # auto vent from the SHT40
+    then:
+      - if:
+          condition:
+            switch.is_on: vent_auto
+          then:
+            - lambda: |-
+                if (id(drawer_reed).state) {                       // drawer out: no fan while you work at the station
+                  if (id(rear_fan).state) id(rear_fan).turn_off().perform();
+                  return;
+                }
+                const float h = id(cab_hum).state, t = id(cab_temp).state;
+                if (std::isnan(h) || std::isnan(t)) return;
+                const float h_on = id(vent_hum_on).state, t_on = id(vent_temp_on).state;
+                static bool running = false;
+                if (h > h_on || t > t_on) running = true;
+                else if (h < h_on - 5.0f && t < t_on - 1.0f) running = false;   // 5 %RH / 1 degC hysteresis
+                if (!running) {
+                  if (id(rear_fan).state) id(rear_fan).turn_off().perform();
+                  return;
+                }
+                // 30 % at the switch-off point, 100 % at limit + 15 %RH or + 6 degC, in 10 % steps
+                const float x = std::max((h - h_on + 5.0f) / 20.0f, (t - t_on + 1.0f) / 7.0f);
+                const float s = 30.0f + 70.0f * std::min(std::max(x, 0.0f), 1.0f);
+                const int speed = 10 * (int) roundf(s / 10.0f);
+                if (!id(rear_fan).state || id(rear_fan).speed != speed)
+                  id(rear_fan).turn_on().set_speed(speed).perform();
+  - interval: 10min                                            # beam self-test while the door is idle
+    then:
+      - if:
+          condition:
+            lambda: 'return id(door).current_operation == cover::COVER_OPERATION_IDLE;'
+          then:
+            - script.execute: beam_selftest
+
+cover:
+  - platform: endstop
+    id: door
+    name: "Robo-Garage Door"
+    device_class: garage
+    open_action:
+      - output.turn_off: door_close_out
+      - output.turn_on: door_open_out
+    open_endstop: door_open_reed
+    open_duration: 11s
+    close_action:
+      - output.turn_off: door_open_out
+      - script.execute: beam_selftest                          # 0.1-1.5 s before every close
+      - script.wait: beam_selftest
+      - if:
+          condition:
+            lambda: 'return id(beam_dark_ok) && !id(beam_raw).state;'   # sensor works and beam is clear
+          then:
+            - output.turn_on: door_close_out
+          else:
+            - logger.log: "Door stays open: beam blocked or beam fault"
+            - cover.open: door                                 # back to fully open (no-op if already open)
+    close_endstop: door_closed_reed
+    close_duration: 11s
+    max_duration: 15s
+    stop_action:
+      - output.turn_off: door_open_out
+      - output.turn_off: door_close_out
+
+light:
+  - {platform: monochromatic, name: "Clean button ring", output: btn_ring_out}
+  - platform: esp32_rmt_led_strip
+    id: status_led
+    name: "Robo-Garage Status LED"
+    pin: GPIO16                                                # via 74AHCT1G125 level shifter
+    num_leds: 16
+    chipset: WS2812
+    channel_colors: GRB
+    effects:
+      - pulse: {name: "Slow pulse", transition_length: 1s, update_interval: 1s}
+      - strobe: {name: "Error strobe"}
+      - addressable_scan: {name: "Chase"}
+      - addressable_color_wipe: {name: "Spinner"}
+
+# Optional VL53L1X (robot in bay) on the I2C clamp: needs an external ESPHome component.

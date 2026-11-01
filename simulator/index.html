@@ -1,0 +1,1792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Robo-Garage Simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}
+</script>
+<style>
+:root{
+  --bg:#e9edf1; --surface:#ffffff; --ink:#131820; --muted:#5a6576; --line:#d3dae3; --accent:#0b6cf0;
+  --font:"Space Grotesk",system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,monospace;
+  --scene:#dfe5ec; --wallc:#e3e7ec; --floorc:#c4a37c; --carc:#f2f2ef; --cavity:#2a2f37; --dockc:#e9ebee; --dockline:#9aa3ae;
+  --robotc:#f7f7f7; --robotline:#5b6370; --pcb:#1f6f4a; --front:#f3f3f1; --wood:#dcc199;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0d1015; --surface:#161b22; --ink:#e7ebf1; --muted:#97a1b0; --line:#28303b; --accent:#58a6ff;
+    --scene:#121820; --wallc:#1d232b; --floorc:#5a4836; --carc:#c9ccd0; --cavity:#07090c; --dockc:#cfd3d8; --dockline:#6d7681;
+    --robotc:#e4e6e9; --robotline:#3b424c; --wood:#b59a74; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0d1015; --surface:#161b22; --ink:#e7ebf1; --muted:#97a1b0; --line:#28303b; --accent:#58a6ff;
+  --scene:#121820; --wallc:#1d232b; --floorc:#5a4836; --carc:#c9ccd0; --cavity:#07090c; --dockc:#cfd3d8; --dockline:#6d7681;
+  --robotc:#e4e6e9; --robotline:#3b424c; --wood:#b59a74; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.45}
+a{color:var(--accent)}
+.wrap{max-width:1240px;margin:0 auto;padding:16px 18px 40px}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;margin-bottom:14px}
+h1{font-size:1.45rem;margin:0;letter-spacing:-.01em}
+h2{font-size:1rem;margin:0 0 10px}
+.sub{color:var(--muted);font-size:.9rem;margin:0}
+.grow{flex:1}
+.pill{font-family:var(--mono);font-size:.78rem;padding:4px 10px;border-radius:99px;background:var(--surface);border:1px solid var(--line);white-space:nowrap}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;min-width:0}
+.grid{display:grid;gap:14px}
+.views{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr)}
+.main{grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);margin-top:14px}
+@media (max-width:900px){.views,.main{grid-template-columns:minmax(0,1fr)}}
+.vhead{display:flex;align-items:baseline;gap:8px 12px;margin-bottom:8px;flex-wrap:wrap}
+.vhead h2{margin:0}
+.lbl{font-size:.8rem;color:var(--muted)}
+.tools{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center;margin-bottom:8px}
+.tg{display:inline-flex;align-items:center;gap:6px}
+.three{position:relative;width:100%;aspect-ratio:4/3;border-radius:10px;overflow:hidden;background:var(--scene);touch-action:none}
+@media (max-width:640px){.three{aspect-ratio:1/1}}
+.three canvas{display:block;width:100%;height:100%;outline:none}
+.three .fallback{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:16px;color:var(--muted);font-size:.9rem}
+.three .badge{position:absolute;left:8px;top:8px;font-family:var(--mono);font-size:.72rem;padding:3px 9px;border-radius:99px;background:color-mix(in srgb,var(--surface) 85%,transparent);border:1px solid var(--line);pointer-events:none;max-width:calc(100% - 16px)}
+.three .cap{position:absolute;left:8px;right:8px;bottom:8px;padding:8px 12px;border-radius:10px;background:color-mix(in srgb,var(--surface) 92%,transparent);border:1px solid var(--accent);font-size:.9rem;font-weight:500;pointer-events:none;display:none}
+.three .cap b{color:var(--accent);margin-right:6px;font-family:var(--mono)}
+svg.view{width:100%;height:auto;display:block;border-radius:10px;background:var(--wallc)}
+svg text{font-family:var(--mono);fill:var(--muted)}
+.swatches{display:flex;gap:6px}
+.sw{width:22px;height:22px;border-radius:50%;border:2px solid var(--line);cursor:pointer;padding:0}
+.sw[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 2px var(--surface) inset}
+button{font:inherit;color:var(--ink)}
+button:focus-visible,[tabindex]:focus-visible,summary:focus-visible,a:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+.btn{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 12px;cursor:pointer;font-weight:500}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);color:var(--accent)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.row{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-top:10px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;flex-wrap:wrap}
+.seg button{background:var(--bg);border:0;padding:6px 10px;cursor:pointer;font-size:.85rem}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#fff}
+.phases{display:flex;gap:6px;overflow-x:auto;padding:4px 0 6px;margin-top:12px}
+.chip{flex:0 0 auto;border:1px solid var(--line);border-radius:10px;padding:6px 9px;font-size:.78rem;background:var(--bg);min-width:96px}
+.chip b{display:block;font-size:.8rem}
+.chip span{font-family:var(--mono);color:var(--muted);font-size:.72rem}
+.chip.on{border-color:var(--accent);background:var(--accent);color:#fff}
+.chip.on span{color:#fff}
+.bar{height:6px;border-radius:6px;background:var(--bg);border:1px solid var(--line);overflow:hidden;margin-top:8px}
+.bar i{display:block;height:100%;width:0;background:var(--accent)}
+.status{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.stat{background:var(--bg);border-radius:10px;padding:8px 10px}
+.stat small{display:block;color:var(--muted);font-size:.72rem}
+.stat b{font-family:var(--mono);font-size:.95rem}
+@media (max-width:420px){.status{grid-template-columns:1fr 1fr}}
+table{width:100%;border-collapse:collapse;font-size:.84rem}
+th,td{text-align:left;padding:6px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:.74rem;color:var(--muted);font-weight:500}
+td.m,code{font-family:var(--mono);font-size:.76rem;word-break:break-all}
+td.num,th.num{text-align:right;white-space:nowrap;font-family:var(--mono);font-size:.78rem}
+tr.hl td{background:color-mix(in srgb,var(--accent) 14%,transparent)}
+tr.grp td{font-weight:700;background:var(--bg);font-size:.8rem}
+tr.opt td{color:var(--muted)}
+.tag{font-size:.66rem;padding:1px 6px;border-radius:99px;border:1px solid var(--line);color:var(--muted);margin-left:4px;white-space:nowrap}
+.tablewrap{overflow-x:auto}
+.doorcmp th button{background:none;border:1px solid var(--line);border-radius:8px;padding:5px 9px;cursor:pointer;font-weight:700;font-size:.82rem}
+.doorcmp .sel{background:color-mix(in srgb,var(--accent) 12%,transparent)}
+.doorcmp th.sel button{background:var(--accent);border-color:var(--accent);color:#fff}
+.doorcmp td:first-child{color:var(--muted);font-size:.78rem;white-space:nowrap}
+.ent td{display:block;border:0;padding:0}
+.ent tr{display:block;padding:6px 4px;border-bottom:1px solid var(--line)}
+.ent td.m{color:var(--muted);font-size:.7rem}
+.ent td.v{font-family:var(--mono);font-size:.8rem}
+.sq{display:inline-block;width:12px;height:12px;border-radius:50%;vertical-align:-1px;margin-right:6px}
+.auto ul{list-style:none;margin:0;padding:0}
+.auto li{padding:7px 8px;border-radius:8px;border:1px solid transparent;margin-bottom:4px;font-size:.84rem}
+.auto li code{display:block;color:var(--muted)}
+.auto li.on{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,transparent)}
+.log{font-family:var(--mono);font-size:.74rem;max-height:220px;overflow:auto;margin:0;padding:0;list-style:none}
+.log li{padding:3px 0;border-bottom:1px dashed var(--line)}
+.log li.err{color:#e5484d}
+.info{margin-top:10px;background:var(--bg);border-radius:10px;padding:10px 12px;font-size:.86rem;min-height:58px}
+.info b{display:block}
+.part{cursor:pointer}
+details{margin-top:14px}
+summary{cursor:pointer;font-weight:700}
+pre{background:var(--bg);padding:10px;border-radius:10px;overflow:auto;font-size:.74rem;font-family:var(--mono);margin:0}
+.ledbig{width:100%;max-width:340px;height:auto;background:#0b0d10;border-radius:10px;display:block}
+.cols2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
+@media (max-width:700px){.cols2{grid-template-columns:minmax(0,1fr)}}
+.note{font-size:.78rem;color:var(--muted);margin:6px 0 0}
+.steps{margin:0;padding-left:22px;font-size:.88rem}
+.steps li{margin:3px 0;padding:3px 6px;border-radius:6px}
+.steps li.on{background:color-mix(in srgb,var(--accent) 14%,transparent);font-weight:600}
+h3{font-size:.86rem;margin:0 0 6px}
+.status.s4{grid-template-columns:repeat(4,1fr)}
+@media (max-width:700px){.status.s4{grid-template-columns:1fr 1fr}}
+.shot{margin:0;border-radius:10px;overflow:hidden;background:#0b3d1e;border:1px solid var(--line);align-self:start}
+.shot.light{background:#f8f8f8}
+.shot img{display:block;width:100%;height:auto}
+.shot figcaption{font-size:.78rem;color:var(--muted);padding:6px 10px;background:var(--surface)}
+.dl{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center;margin-top:12px}
+.kv td:first-child{color:var(--muted);white-space:nowrap}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="grow">
+    <h1>Robo-Garage · kitchen cabinet simulator</h1>
+    <p class="sub">METOD 60×60×80 · pull-out robot drawer on soft wheels · 4 door options · ramp · light barrier · rear fan with auto vent · own controller PCB · Dreame L10s Pro Ultra Heat · ESPHome + Home Assistant</p>
+  </div>
+  <span class="pill" id="clock">10:00</span>
+  <button class="btn" id="themeBtn" aria-label="Toggle light or dark theme">Theme</button>
+</header>
+
+<section class="grid views">
+  <div class="card">
+    <div class="vhead"><h2>3D model</h2><span class="lbl">drag = rotate · pinch / scroll = zoom · two fingers / right-drag = pan</span></div>
+    <div class="tools">
+      <div class="seg" id="cam" role="group" aria-label="Camera views">
+        <button data-v="iso">3D</button><button data-v="front">Front</button><button data-v="side">Side</button><button data-v="back">Back</button><button data-v="top">Top</button>
+      </div>
+      <div class="seg" id="vmode" role="group" aria-label="Render mode">
+        <button data-v="solid" aria-pressed="false">Solid</button><button data-v="xray" aria-pressed="false">X-ray</button><button data-v="cut" aria-pressed="true">Cut</button>
+      </div>
+    </div>
+    <div class="tools">
+      <div class="tg"><span class="lbl">Door</span>
+      <div class="seg doorseg" role="group" aria-label="Door type">
+        <button data-v="lift" aria-pressed="false">Lift door</button><button data-v="flap" aria-pressed="true">Flap out</button><button data-v="upover" aria-pressed="false">Up &amp; over</button><button data-v="parallel" aria-pressed="false">Parallel lift</button>
+      </div></div>
+      <div class="tg"><span class="lbl">LED</span>
+      <div class="seg ledseg" data-cam="1" role="group" aria-label="LED style">
+        <button data-v="dot" aria-pressed="false">Dot</button><button data-v="ring" aria-pressed="false">Ring</button><button data-v="line" aria-pressed="true">Line</button><button data-v="under" aria-pressed="false">Underglow</button>
+      </div></div>
+      <div class="swatches" role="group" aria-label="Front colour">
+        <button class="sw" data-c="#f3f3f1" style="background:#f3f3f1" aria-label="White" aria-pressed="true"></button>
+        <button class="sw" data-c="#c49b69" style="background:#c49b69" aria-label="Oak" aria-pressed="false"></button>
+        <button class="sw" data-c="#8ea58b" style="background:#8ea58b" aria-label="Sage" aria-pressed="false"></button>
+        <button class="sw" data-c="#3a3e44" style="background:#3a3e44" aria-label="Anthracite" aria-pressed="false"></button>
+      </div>
+    </div>
+    <div class="three" id="three"><div class="fallback" id="fb">Loading 3D…</div><span class="badge" id="badge3d">Docked</span><div class="cap" id="cap3d"></div></div>
+    <div class="info" id="info"><b>Tap any part</b>door, ramp, actuator, drawer, wheels, tanks, LED, rear fan, light barrier, controller, sensors – to see what it is and what to buy.</div>
+  </div>
+
+  <div class="card">
+    <div class="vhead"><h2>How it works · side cut-away</h2></div>
+    <svg class="view" id="side" viewBox="-36 -110 112 118" aria-label="Side cut-away of the cabinet">
+      <defs>
+        <filter id="gS" x="-300%" y="-300%" width="700%" height="700%"><feGaussianBlur stdDeviation="1.2"/></filter>
+        <marker id="ar" viewBox="0 0 6 6" refX="5" refY="3" markerWidth="4" markerHeight="4" orient="auto"><path d="M0,0 L6,3 L0,6 z" fill="#4aa3ff"/></marker>
+        <marker id="arP" viewBox="0 0 6 6" refX="5" refY="3" markerWidth="4" markerHeight="4" orient="auto"><path d="M0,0 L6,3 L0,6 z" fill="#a855f7"/></marker>
+      </defs>
+      <rect x="-400" y="0" width="600" height="40" fill="var(--floorc)"/>
+      <rect x="64" y="-300" width="40" height="300" fill="var(--wallc)" stroke="var(--dockline)" stroke-width=".2"/>
+      <!-- fixed carcass -->
+      <g class="part" data-part="cabinet" tabindex="0" role="button" aria-label="Cabinet">
+        <rect x="0" y="-80" width="60" height="80" fill="var(--carc)" opacity=".3"/>
+        <rect x="58.2" y="-80" width="1.8" height="80" fill="var(--carc)" stroke="var(--dockline)" stroke-width=".15"/>
+        <rect x="58.2" y="-76" width="1.8" height="12" fill="var(--cavity)"/>
+      </g>
+      <g class="part" data-part="top" tabindex="0" role="button" aria-label="Worktop">
+        <rect x="-3.5" y="-82.8" width="63.5" height="2.8" fill="var(--front)" stroke="var(--dockline)" stroke-width=".15"/>
+        <path d="M31,-94.8 L43,-94.8 L41.8,-82.8 L32.2,-82.8 Z" fill="#d8d2c8"/>
+        <circle cx="37" cy="-99" r="4.6" fill="#4f7d4a"/><circle cx="33.5" cy="-96.5" r="3.4" fill="#5b8c55"/><circle cx="40.6" cy="-96.8" r="3.4" fill="#4a7445"/><circle cx="37.5" cy="-103.5" r="3.2" fill="#5b8c55"/>
+        <path d="M8,-86.8 L26,-86.8 L23,-82.8 L11,-82.8 Z" fill="#e9e4dc"/>
+        <circle cx="13.5" cy="-88.6" r="2.6" fill="#f08a24"/><circle cx="18" cy="-88.9" r="2.6" fill="#f08a24"/><circle cx="22" cy="-88.4" r="2.4" fill="#f08a24"/>
+      </g>
+      <g class="part" data-part="fascia" tabindex="0" role="button" aria-label="Fixed fascia">
+        <rect x="-1.9" y="-79.7" width="1.9" height="17.2" fill="var(--front)" stroke="var(--dockline)" stroke-width=".15"/>
+      </g>
+      <g class="part" data-part="button" tabindex="0" role="button" aria-label="Clean button"><rect x="-2.15" y="-72.25" width=".25" height="2.3" rx=".1" fill="#2b2e34"/><rect id="btnRingS" x="-2.22" y="-72.5" width=".12" height="2.8" fill="#2f8cff" opacity="0"/></g>
+      <g class="part" data-part="esp" tabindex="0" role="button" aria-label="Controller PCB in its case">
+        <rect x="6.5" y="-79.7" width="12.5" height="2.9" rx=".5" fill="#dfe3e8" stroke="var(--dockline)" stroke-width=".2"/>
+        <rect x="7.3" y="-78.6" width="10.9" height=".4" fill="var(--pcb)"/>
+        <text x="12.2" y="-74.9" font-size="1.4" text-anchor="middle">controller</text>
+      </g>
+      <g class="part" data-part="th" tabindex="0" role="button" aria-label="Temperature and humidity sensor">
+        <rect x="16.9" y="-79.5" width="1.9" height="2.5" rx=".2" fill="none" stroke="var(--accent)" stroke-width=".22" stroke-dasharray=".45 .3"/>
+        <text id="thTxt" x="12.2" y="-72.8" font-size="1.4" text-anchor="middle">22.0 °C · 50 %</text>
+      </g>
+      <g class="part" data-part="psu" tabindex="0" role="button" aria-label="Power strip and 12 V adapter">
+        <rect x="53.7" y="-67" width="4.5" height="3.6" fill="#f4f4f4" stroke="var(--dockline)" stroke-width=".2"/>
+        <rect x="47" y="-66.6" width="6.5" height="3.2" rx=".5" fill="#222"/>
+        <text x="50.2" y="-64.5" font-size="1.4" text-anchor="middle" style="fill:#ddd">12V</text>
+        <path d="M54,-63.4 L57.4,-63.4 L57.4,-5.6 L55.5,-5.6" fill="none" stroke="var(--robotline)" stroke-width=".35"/>
+      </g>
+      <g class="part" data-part="fan" tabindex="0" role="button" aria-label="Rear fan">
+        <rect x="56.6" y="-76" width="1.6" height="12" fill="#30343b"/>
+        <circle cx="49.5" cy="-72" r="4.3" fill="var(--dockc)" stroke="var(--dockline)" stroke-width=".3"/>
+        <g id="fanBlades">
+          <ellipse cx="49.5" cy="-74.2" rx="1" ry="2.1" fill="var(--robotline)"/>
+          <ellipse cx="49.5" cy="-69.8" rx="1" ry="2.1" fill="var(--robotline)"/>
+          <ellipse cx="51.7" cy="-72" rx="2.1" ry="1" fill="var(--robotline)"/>
+          <ellipse cx="47.3" cy="-72" rx="2.1" ry="1" fill="var(--robotline)"/>
+        </g>
+        <circle cx="49.5" cy="-72" r=".7" fill="var(--dockc)"/>
+        <text id="fanTxt" x="49.5" y="-77.6" font-size="1.6" text-anchor="middle">rear fan</text>
+      </g>
+      <g id="airflow" opacity="0">
+        <path d="M58.5,-70 L62.6,-70" stroke="#4aa3ff" stroke-width=".5" marker-end="url(#ar)"/>
+        <path d="M62,-72 L62,-104" stroke="#4aa3ff" stroke-width=".5" marker-end="url(#ar)"/>
+        <path d="M-12,-2.6 C -6,-2.6 -2,-3.4 3,-6" fill="none" stroke="#4aa3ff" stroke-width=".4" stroke-dasharray="1 .8" marker-end="url(#ar)"/>
+      </g>
+      <path id="chainS" class="part" data-part="chain" d="" fill="none" stroke="#2b2f36" stroke-width="1.3" stroke-dasharray=".9 .35"/>
+      <g class="part" data-part="slides" tabindex="0" role="button" aria-label="Drawer slides">
+        <rect x="1" y="-4.9" width="55" height="4.5" fill="#9ba2ac" opacity=".75"/>
+      </g>
+      <g id="ledSfix" class="part" data-part="led"></g>
+
+      <!-- drawer: robot + station + front + door -->
+      <g id="drawerS">
+        <rect id="legsS" style="display:none" class="part" data-part="drawer" x="-1.9" y="-22.5" width="1.9" height="20.8" fill="var(--front)" opacity=".55" stroke="var(--dockline)" stroke-width=".12"/>
+        <g class="part" data-part="tray" tabindex="0" role="button" aria-label="Tray">
+          <polygon points="0,-0.3 0.9,-1.5 56.5,-1.5 56.5,-0.3" fill="var(--wood)" stroke="#a88d66" stroke-width=".15"/>
+          <rect x="1" y="-4.4" width="55" height="3.2" fill="#c8cdd4" opacity=".8"/>
+        </g>
+        <g class="part" data-part="ramp" tabindex="0" role="button" aria-label="Ramp">
+          <polygon points="-10,-0.3 0,-1.5 0,-0.3" fill="#7a5c3c" stroke="#5a4028" stroke-width=".12"/>
+          <text x="-5.5" y="3.4" font-size="1.7" text-anchor="middle">ramp</text>
+        </g>
+        <g class="part" data-part="drawer" tabindex="0" role="button" aria-label="Drawer">
+          <polygon points="0,-1.5 25,-1.5 25,-4.7 10,-24.7 10,-62.2 0,-62.2" fill="var(--wood)" opacity=".45" stroke="#a88d66" stroke-width=".15"/><rect x="25" y="-4.7" width="31.5" height="3.2" fill="var(--wood)" opacity=".45" stroke="#a88d66" stroke-width=".15"/><rect x="0" y="-62.2" width="1.8" height="4" fill="var(--wood)" stroke="#a88d66" stroke-width=".15"/>
+          <rect x="-1.9" y="-62.2" width="1.6" height="39.7" fill="var(--front)" stroke="var(--dockline)" stroke-width=".15"/><rect x="-.3" y="-61" width=".2" height="4" fill="#9ba2ac"/><rect x="-.3" y="-27.5" width=".2" height="4" fill="#9ba2ac"/>
+          <rect x="-3.4" y="-58.1" width="1.2" height="1.2" fill="#22252a"/>
+          <line x1="-2.2" y1="-57.5" x2="-1.9" y2="-57.5" stroke="#22252a" stroke-width=".6"/>
+        </g>
+        <g class="part" data-part="wheels" tabindex="0" role="button" aria-label="Front wheels">
+          <circle cx="7" cy="-1.5" r="1.5" fill="#2b2f36"/>
+          <line id="wheelSpk" x1="7" y1="-.1" x2="7" y2="-2.9" stroke="#c8cdd4" stroke-width=".35"/>
+          <circle cx="7" cy="-1.5" r=".5" fill="#c8cdd4"/>
+        </g>
+        <g class="part" data-part="dock" tabindex="0" role="button" aria-label="Station">
+          <polygon points="2,-1.5 8,-2.7 8,-1.5" fill="var(--dockline)"/>
+          <rect x="8" y="-2.7" width="48.5" height="1.2" fill="var(--dockline)"/>
+          <rect x="38" y="-13.7" width="18.5" height="11" rx="1" fill="var(--dockc)" stroke="var(--dockline)" stroke-width=".2"/>
+          <rect x="24" y="-59.5" width="32.5" height="45.8" rx="2" fill="var(--dockc)" stroke="var(--dockline)" stroke-width=".2"/>
+          <rect x="28" y="-37" width="25" height="15" rx="1" fill="none" stroke="var(--dockline)" stroke-dasharray="1 .8" stroke-width=".25"/>
+          <rect id="bagFill" x="28.3" y="-24" width="24.4" height="1.7" fill="#a58c6a" opacity=".6"/>
+          <text x="40.5" y="-29" font-size="1.7" text-anchor="middle">dust bag</text>
+        </g>
+        <g id="tankC" class="part" data-part="tanks" tabindex="0" role="button" aria-label="Clean water tank">
+          <rect x="26.5" y="-58.5" width="13" height="18" rx=".8" fill="var(--dockc)" stroke="var(--dockline)" stroke-width=".25"/>
+          <rect id="cleanFill" x="26.8" y="-45" width="12.4" height="4" fill="#4aa3ff" opacity=".8"/>
+          <rect x="30.5" y="-59.6" width="5" height="1.1" rx=".4" fill="#3d4450"/>
+          <text x="33" y="-55.6" font-size="1.7" text-anchor="middle">clean</text>
+        </g>
+        <g id="tankD" class="part" data-part="tanks" tabindex="0" role="button" aria-label="Dirty water tank">
+          <rect x="41.5" y="-58.5" width="13" height="18" rx=".8" fill="var(--dockc)" stroke="var(--dockline)" stroke-width=".25"/>
+          <rect id="dirtyFill" x="41.8" y="-43" width="12.4" height="2" fill="#8a7a5c" opacity=".85"/>
+          <rect x="45.5" y="-59.6" width="5" height="1.1" rx=".4" fill="#3d4450"/>
+          <text x="48" y="-55.6" font-size="1.7" text-anchor="middle">dirty</text>
+        </g>
+        <g id="lidS" class="part" data-part="tanks"><rect x="24" y="-60.7" width="32.5" height="1.2" rx=".5" fill="var(--dockc)" stroke="var(--dockline)" stroke-width=".2"/></g>
+        <path id="emptyFx" d="M22,-8 C30,-12 36,-17 40,-22" fill="none" stroke="#a855f7" stroke-width=".7" stroke-dasharray="1.2 1" marker-end="url(#arP)" opacity="0"/>
+        <g id="washFx" opacity="0"></g>
+        <!-- door type: lift -->
+        <g id="dLift" style="display:none">
+          <g class="part" data-part="channels" tabindex="0" role="button" aria-label="Door channels"><rect x=".2" y="-39.5" width="1" height="38" fill="#c8cdd4" opacity=".9"/></g>
+          <g class="part" data-part="actuator" tabindex="0" role="button" aria-label="Linear actuator">
+            <line id="rodS" x1="3.2" y1="-21.2" x2="3.2" y2="-23.9" stroke="#9aa3ae" stroke-width=".9" stroke-linecap="round"/>
+            <rect x="1.6" y="-8.9" width="3.2" height="6.7" rx=".6" fill="#3d4450"/>
+            <rect x="2" y="-21.2" width="2.4" height="12.3" rx=".5" fill="#5b6370"/>
+            <circle cx="3.2" cy="-2.2" r=".7" fill="#e5a50a"/>
+          </g>
+          <g class="part" data-part="door" tabindex="0" role="button" aria-label="Lift door">
+            <rect id="doorS" x=".4" y="-23.5" width=".6" height="22" fill="var(--front)" stroke="var(--dockline)" stroke-width=".12"/>
+            <path id="brS" d="" fill="#9ba2ac"/>
+          </g>
+        </g>
+        <!-- door type: flap out -->
+        <g id="dFlap">
+          <g class="part" data-part="actuator" tabindex="0" role="button" aria-label="Flap actuator">
+            <line id="flapRod" x1="0" y1="0" x2="0" y2="0" stroke="#9aa3ae" stroke-width=".9" stroke-linecap="round"/>
+            <line id="flapBody" x1="0" y1="0" x2="0" y2="0" stroke="#5b6370" stroke-width="2.4" stroke-linecap="round"/>
+            <rect x="1.2" y="-55.6" width="2.4" height="3.2" fill="#9ba2ac"/><circle cx="2.4" cy="-54" r=".8" fill="#e5a50a"/>
+            <polyline id="flapCrank" points="" fill="none" stroke="#3d4450" stroke-width=".7" stroke-linejoin="round"/>
+          </g>
+          <g class="part" data-part="flap" tabindex="0" role="button" aria-label="Outward flap">
+            <polygon id="flapP" points="" fill="var(--front)" stroke="var(--dockline)" stroke-width=".15"/>
+            <circle cx="-1.9" cy="-22.4" r=".6" fill="#e5a50a"/>
+          </g>
+        </g>
+        <!-- door type: up & over -->
+        <g id="dUO" style="display:none">
+          <g class="part" data-part="uo" tabindex="0" role="button" aria-label="Up and over mechanism">
+            <rect x="-.95" y="-22.7" width="12.5" height="1" fill="#c8cdd4"/>
+            <line x1="33.2" y1="-1.5" x2="33.2" y2="-24.5" stroke="#9ba2ac" stroke-width=".6"/>
+            <line x1="14.2" y1="-24.5" x2="33.2" y2="-24.5" stroke="#5b6370" stroke-width="2.2" stroke-linecap="round"/>
+            <line id="uoRod" x1="14.2" y1="-24.5" x2="10" y2="-24.5" stroke="#9aa3ae" stroke-width=".9" stroke-linecap="round"/>
+            <line id="uoLink" x1="0" y1="0" x2="0" y2="0" stroke="#9aa3ae" stroke-width=".5"/>
+            <line id="uoArm" x1="5.54" y1="-15.83" x2="0" y2="0" stroke="#3d4450" stroke-width=".8" stroke-linecap="round"/>
+            <circle cx="5.54" cy="-15.83" r=".6" fill="#e5a50a"/>
+          </g>
+          <g class="part" data-part="uo" tabindex="0" role="button" aria-label="Up and over flap">
+            <polygon id="uoDoor" points="" fill="var(--front)" stroke="var(--dockline)" stroke-width=".15"/>
+          </g>
+        </g>
+        <!-- door type: parallel lift -->
+        <g id="dPar" style="display:none">
+          <g class="part" data-part="par" tabindex="0" role="button" aria-label="Parallel lift door">
+            <g id="parDoorS">
+              <polygon points="0,-9.5 2.4,-9.5 5.4,-5.3 5,-3.6 3.6,-3.4 0,-3.4" fill="#9ba2ac"/>
+              <rect x="-1.9" y="-22.1" width="1.9" height="20.4" fill="var(--front)" stroke="var(--dockline)" stroke-width=".15"/>
+            </g>
+            <line id="parArm1" x1="1.4" y1="-18.4" x2="1.4" y2="-8.4" stroke="#5b6370" stroke-width="1.1" stroke-linecap="round"/>
+            <line id="parArm2" x1="4.44" y1="-14.43" x2="4.44" y2="-4.43" stroke="#3d4450" stroke-width="1.1" stroke-linecap="round"/>
+            <line id="parLever" x1="4.44" y1="-14.43" x2="10.2" y2="-21.93" stroke="#3d4450" stroke-width=".9" stroke-linecap="round"/>
+            <circle cx="1.4" cy="-18.4" r=".55" fill="#e5a50a"/><circle cx="4.44" cy="-14.43" r=".55" fill="#e5a50a"/>
+            <circle id="parA1" cx="1.4" cy="-8.4" r=".4" fill="#e5a50a"/><circle id="parA2" cx="4.44" cy="-4.43" r=".4" fill="#e5a50a"/>
+          </g>
+          <g class="part" data-part="actuator" tabindex="0" role="button" aria-label="Parallel lift actuator">
+            <line id="parRod" x1="0" y1="0" x2="0" y2="0" stroke="#9aa3ae" stroke-width=".9" stroke-linecap="round"/>
+            <line id="parBody" x1="0" y1="0" x2="0" y2="0" stroke="#5b6370" stroke-width="2.4" stroke-linecap="round"/>
+            <circle cx="9" cy="-44.4" r=".8" fill="#e5a50a"/>
+          </g>
+        </g>
+        <g class="part" data-part="reed" tabindex="0" role="button" aria-label="Reed switches">
+          <rect x="1.2" y="-2.6" width="1.4" height=".8" fill="#e5a50a"/>
+          <rect x="54.6" y="-3.4" width="1.4" height="1.2" fill="#e5a50a"/>
+        </g>
+        <g class="part" data-part="tof" tabindex="0" role="button" aria-label="Distance sensor">
+          <rect x="5" y="-58.6" width="2.4" height="1.2" fill="#7c3aed"/>
+          <line id="tofBeam" x1="6.2" y1="-57.4" x2="6.2" y2="-1.5" stroke="#e5484d" stroke-width=".3" stroke-dasharray=".8 .6"/>
+        </g>
+        <path d="M56,-11.6 C 40,-12 20,-30 6,-40" fill="none" stroke="var(--robotline)" stroke-width=".3" stroke-dasharray="1 .6"/>
+        <ellipse id="floorGlowS" cx="-8" cy=".9" rx="9" ry="1.5" filter="url(#gS)" opacity="0"/>
+        <g id="ledSdr" class="part" data-part="led"></g>
+      </g>
+      <!-- fixed: toy test + light barrier (sender + receiver at the front corners, beam 12 cm in front, 2 cm high) -->
+      <g class="part" data-part="obstacle" id="obstS" style="display:none" transform="translate(-11,1.2)"><rect x="-4" y="-9" width="8" height="7.5" rx=".6" fill="#ff8a00"/><text x="0" y="-4.6" font-size="1.5" text-anchor="middle" style="fill:#fff">toy</text></g>
+      <g class="part" data-part="beam" tabindex="0" role="button" aria-label="Light barrier">
+        <rect x="-13.3" y="-3.7" width="2.6" height="3.1" rx=".35" fill="#2b2f36"/>
+        <circle id="beamGlow" cx="-12" cy="-2.1" r="2.2" fill="#3ddc84" filter="url(#gS)" opacity=".6"/>
+        <circle id="beamDot" cx="-12" cy="-2.1" r=".75" fill="#3ddc84"/>
+        <text x="-12" y="3.4" font-size="1.5" text-anchor="middle">beam</text>
+      </g>
+      <g id="robotS" class="part" data-part="robot" tabindex="0" role="button" aria-label="Robot">
+        <rect x="0" y="-8" width="35" height="7.2" rx="3" fill="var(--robotc)" stroke="var(--robotline)" stroke-width=".3"/>
+        <rect x="20" y="-9.7" width="8" height="1.8" rx=".8" fill="var(--robotc)" stroke="var(--robotline)" stroke-width=".3"/>
+        <rect x="-.6" y="-7" width="1.4" height="5" rx=".6" fill="var(--robotline)"/>
+        <circle cx="8" cy="-1.5" r="1.5" fill="var(--robotline)"/><circle cx="26" cy="-1.5" r="1.5" fill="var(--robotline)"/>
+        <rect x="27.5" y="-1.1" width="7" height=".8" fill="#6aa0c8"/>
+      </g>
+      <text id="outTxtS" x="-34" y="-104" font-size="2.2" opacity="0">Robot is out cleaning…</text>
+    </svg>
+    <p class="note" id="sideNote"></p>
+  </div>
+</section>
+
+<section class="card" style="margin-top:14px">
+  <h2>Door options</h2>
+  <div class="tablewrap"><table class="doorcmp" id="doorCmp"></table></div>
+  <p class="note">Tap a column or use the Door switch above the 3D model. All four share the drawer, ramp and wheels and use the same 150 mm actuator.</p>
+</section>
+
+<section class="grid main">
+  <div class="card">
+    <h2>Simulation</h2>
+    <div class="btns">
+      <button class="btn primary" id="bStart">▶ Start cleaning</button><button class="btn" id="bAlu" title="Aluminium push button in the fascia">🔘 Alu button</button>
+      <button class="btn" id="bReturn">⟲ Send home</button>
+      <button class="btn" id="bAuto" aria-pressed="false">Auto demo</button>
+    </div>
+    <div class="row">
+      <span class="lbl">Speed</span>
+      <div class="seg" id="speed"><button data-v="1" aria-pressed="true">1×</button><button data-v="2" aria-pressed="false">2×</button><button data-v="4" aria-pressed="false">4×</button></div>
+    </div>
+    <div class="row">
+      <span class="lbl">Test</span>
+      <div class="btns">
+        <button class="btn rfbtn" id="bRefill">▶ Refill demo</button>
+        <button class="btn" id="bDrawer" aria-pressed="false">Pull drawer</button>
+        <button class="btn" id="bBlock" aria-pressed="false">Toy in front</button>
+        <button class="btn" id="bFault" aria-pressed="false">Beam fault</button>
+        <button class="btn" id="bTank" aria-pressed="false">Tank alert</button>
+        <button class="btn" id="bNight" aria-pressed="false">Night 22–08</button>
+      </div>
+    </div>
+    <div class="phases" id="phases"></div>
+    <div class="bar"><i id="phBar"></i></div>
+    <div class="status s4">
+      <div class="stat"><small>Phase</small><b id="sPhase">Docked</b></div>
+      <div class="stat"><small>Real duration</small><b id="sReal">—</b></div>
+      <div class="stat"><small>Battery · progress</small><b id="sBat">100 % · 0 %</b></div>
+      <div class="stat"><small>Cabinet air · fan</small><b id="sAir">22.0 °C · 50 %</b></div>
+    </div>
+
+    <h2 style="margin-top:16px">Status LED</h2>
+    <div class="row" style="margin-top:0">
+      <span class="lbl">Style</span>
+      <div class="seg ledseg" role="group" aria-label="LED style">
+        <button data-v="dot" aria-pressed="false">Dot</button><button data-v="ring" aria-pressed="false">Ring 12</button><button data-v="line" aria-pressed="true">Line</button><button data-v="under" aria-pressed="false">Underglow</button>
+      </div>
+    </div>
+    <div class="row">
+      <svg class="ledbig" id="ledBig" viewBox="0 0 120 36" aria-label="LED preview">
+        <defs><filter id="gB" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="2.4"/></filter></defs>
+        <g id="ledBigG"></g>
+      </svg>
+      <div><b id="ledName">All fine (docked &amp; full)</b><div class="note" id="ledFx">Off</div></div>
+    </div>
+    <p class="note">Dot and Ring sit in the fixed fascia, Line glows in the gap between fascia and drawer – all three need no moving cable. Underglow sits under the ramp edge.</p>
+    <table style="margin-top:10px" aria-label="LED legend">
+      <thead><tr><th>LED</th><th>Meaning</th><th>ESPHome effect</th></tr></thead>
+      <tbody id="legend"></tbody>
+    </table>
+  </div>
+
+  <div class="grid" style="align-content:start">
+    <div class="card">
+      <h2>Home Assistant · live entities</h2>
+      <table class="ent"><tbody id="ents"></tbody></table>
+    </div>
+    <div class="card auto">
+      <h2>Automations</h2>
+      <ul id="autos"></ul>
+    </div>
+    <div class="card">
+      <h2>Event log</h2>
+      <ul class="log" id="log"></ul>
+    </div>
+  </div>
+</section>
+
+<section class="card" style="margin-top:14px">
+  <div class="vhead"><h2>Refill the tanks – nothing to take apart</h2><button class="btn primary rfbtn" id="bRefill2">▶ Refill demo</button></div>
+  <ol class="steps" id="rfSteps"></ol>
+  <p class="note">The demo plays in the 3D model and the side view. While the drawer is open, HA blocks cleaning, the LED turns white and the fan stops. The station ships with its own ramp plate; the wedge on the drawer bridges floor → tray. Two soft wheels carry the drawer front, so nothing scrapes the floor. Tank positions are drawn schematically.</p>
+</section>
+
+<section class="card" style="margin-top:14px" id="shop">
+  <h2>Shopping list</h2>
+  <div class="status">
+    <div class="stat"><small>Core build · <span id="totDoor">Flap out · Line LED</span></small><b id="totCore">≈ €231–304</b></div>
+    <div class="stat"><small>Optional extras</small><b>≈ €24–31</b></div>
+    <div class="stat"><small>Water kit (optional)</small><b>≈ €199</b></div>
+  </div>
+  <div class="tablewrap" style="margin-top:10px">
+  <table class="shop">
+    <thead><tr><th>Item</th><th>Qty</th><th class="num">≈ €</th><th>Link</th></tr></thead>
+    <tbody>
+      <tr class="grp"><td colspan="4">IKEA</td></tr>
+      <tr><td>METOD base cabinet frame 60×60×80, white <span class="tag">leave out the bottom panel</span></td><td>1</td><td class="num">29.00</td><td><a href="https://www.ikea.com/de/de/p/metod-unterschrank-weiss-50205626/">DE</a> · <a href="https://www.ikea.com/at/de/p/metod-unterschrank-weiss-50205626/">AT</a></td></tr>
+      <tr><td>VEDDINGE drawer front 60×40, white <span class="tag">on 2 mm shims → flush</span></td><td>1</td><td class="num">21.00</td><td><a href="https://www.ikea.com/de/de/p/veddinge-schubladenfront-weiss-30205439/">DE</a></td></tr>
+      <tr><td>HACKÅS handle 100 mm (2-pack) – drawer front</td><td>1</td><td class="num">7.00</td><td><a href="https://www.ikea.com/de/de/p/hackas-griff-anthrazit-30342479/">DE</a></td></tr>
+      <tr><td>JÄRSTORP worktop 186×2.8, white – the top <span class="tag">cut to 60 cm</span></td><td>1</td><td class="num">37.00</td><td><a href="https://www.ikea.com/de/de/p/jaerstorp-arbeitsplatte-weiss-laminat-10589650/">DE</a></td></tr>
+      <tr><td>KOPPLA 3-way power strip 16 A (2-pack) – station + 12 V adapter</td><td>1</td><td class="num">5.99</td><td><a href="https://www.ikea.com/de/de/p/koppla-mehrfachsteckdose-3-fach-geerdet-weiss-80412016/">DE</a></td></tr>
+      <tr class="opt"><td>MYGGBETT sensor + LADDA AAA <span class="tag">optional</span> – drawer sensor instead of a reed</td><td>1</td><td class="num">≈ 13</td><td><a href="https://www.ikea.com/at/de/p/myggbett-tuer-fenstersensor-smart-00603864/">MYGGBETT</a> · <a href="https://www.ikea.com/de/de/p/ladda-akku-aufladbar-hr03-aaa-1-2-v-90509819/">LADDA</a></td></tr>
+      <tr class="grp"><td colspan="4">Amazon.de</td></tr>
+      <tr><td>Full-extension slides, soft-close, 45 kg – pick <b>550 mm</b></td><td>1 pair</td><td class="num">20–25</td><td><a href="https://www.amazon.de/SO-TECH%C2%AE-Vollausz%C3%BCge-SoftClosing-Schubladenschienen-Teleskopschienen/dp/B007P0RIVW">SO-TECH</a></td></tr>
+      <tr><td>Linear actuator 12 V, 150 mm, 15 mm/s, 50 N, built-in end stops – used by every door</td><td>1</td><td class="num">27–31</td><td><a href="https://www.amazon.de/Linearantrieb-Eingebaute-Endschalter-Medizinisches-150mm-15mm/dp/B09FTH5YP6">15 mm/s</a> · <a href="https://www.amazon.de/Linearantrieb-Eingebaute-Endschalter-Medizinisches-150mm-30mm/dp/B09FTJM4MX">30 mm/s</a></td></tr>
+      <tr><td>Drag chain 10×15 mm, R18, open type, 1 m – cables to the drawer</td><td>1</td><td class="num">11.99</td><td><a href="https://www.amazon.de/Zeberoxyz-Schleppkettenl%C3%A4nge-Kunststoff-Kabeltr%C3%A4ger-Endverbindern-CNC-Maschinen/dp/B09PG6BP71">link</a></td></tr>
+      <tr><td>Mean Well GST36E12-P1J 12 V 3 A plug-in adapter</td><td>1</td><td class="num">16.90</td><td><a href="https://www.amazon.de/Unbekannt-GST36E12-P1J-Steckernetzteil-Festspannung-3000mA/dp/B01H0X80PG">link</a></td></tr>
+      <tr><td>DC jack with screw terminals (8-pack)</td><td>1</td><td class="num">5.19</td><td><a href="https://www.amazon.de/JZK-DC-Netzteilstecker-Schraubklemmen-Klinkenadapter-CCTV-%C3%9Cberwachungskameras/dp/B0FYFMYHFK">link</a></td></tr>
+      <tr><td>ARCTIC P12 Slim fan, 12 V PWM – rear fan</td><td>1</td><td class="num">7.19</td><td><a href="https://www.amazon.de/ARCTIC-P12-Slim-Geh%C3%A4usel%C3%BCfter-PST-Anschluss/dp/B08QDKGCCW">link</a></td></tr>
+      <tr><td>Silicone mat 60×40 – under the station on the tray</td><td>1</td><td class="num">4.97</td><td><a href="https://www.amazon.de/Hitzebest%C3%A4ndige-Unterlage-60-Feuerfeste-Hitzeschutzmatte/dp/B0GKG8SKD5">link</a></td></tr>
+      <tr class="opt"><td>Rubber threshold ramp 15×140 mm <span class="tag">optional</span> – instead of the wooden wedge, cut to 50 cm</td><td>1</td><td class="num">27.49</td><td><a href="https://www.amazon.de/T%C3%BCrschwellenrampe-15x140x900mm-Rollstuhl-rutschfeste-Oberfl%C3%A4che/dp/B0842YRQWC">link</a></td></tr>
+      <tr class="opt"><td>Fan grille 120 mm (4-pack) <span class="tag">optional</span></td><td>1</td><td class="num">8.99</td><td><a href="https://www.amazon.de/DAOKAI-L%C3%BCftergitter-Schutzgitter-L%C3%BCfterabdeckung-Luftstrom-durchl%C3%A4ssig/dp/B0CTML72YM">link</a></td></tr>
+      <tr data-led="line under"><td>WS2812B strip 30 LED/m, 5 m – status LED (Line / Underglow)</td><td>1</td><td class="num">27.99</td><td><a href="https://www.amazon.de/BTF-LIGHTING-WS2812B-adressierbare-Streifen-NichtWasserdicht/dp/B01CDTE9AW">link</a></td></tr>
+      <tr class="grp"><td colspan="4">Caseking.de</td></tr>
+      <tr><td>Impactics vandal push button 19 mm, black aluminium, blue LED ring 12 V, pre-wired – manual full clean</td><td>1</td><td class="num">19.90</td><td><a href="https://www.caseking.de/en/impactics-vandalism-switch-19mm-ip65-blue-led-black/MOIP-004.html">link</a></td></tr>
+      <tr class="grp"><td colspan="4">AliExpress (1–3 weeks)</td></tr>
+      <tr><td>ESP32 DevKitC V4 (CH340C, USB-C)</td><td>1</td><td class="num">4–6</td><td><a href="https://de.aliexpress.com/item/1005001838731651.html">item</a></td></tr>
+      <tr><td>MC-38 reed + magnet – door closed, door open, drawer</td><td>3</td><td class="num">1–3</td><td><a href="https://www.aliexpress.com/item/32966237966.html">item</a></td></tr>
+      <tr><td>PU wheel Ø30 mm with 608 bearing – 2 front wheels, the drawer rolls instead of dragging (+ M8 bolts)</td><td>2</td><td class="num">4–6</td><td><a href="https://www.aliexpress.com/item/32980733634.html">item</a> · <a href="https://www.amazon.de/Aexit-Au%C3%9Fendurchmesser-Gewinde-Riemenscheibe-Kugellager/dp/B07MGG4Z4K">Amazon (M8 stud)</a></td></tr>
+      <tr data-led="dot ring"><td>WS2812B ring, 12 LEDs, 37 mm – status LED (Dot / Ring)</td><td>1</td><td class="num">2–4</td><td><a href="https://www.aliexpress.com/item/4000048479575.html">item</a> · <a href="https://www.aliexpress.com/w/wholesale-rgb-led-ring-12-bits-ws2812.html">deals</a></td></tr>
+      <tr class="opt"><td>VL53L1X distance sensor <span class="tag">optional</span> – robot in bay</td><td>1</td><td class="num">2–8</td><td><a href="https://www.aliexpress.com/item/1005003262753252.html">item</a></td></tr>
+      <tr class="opt"><td>Dreame water kit RAW7 <span class="tag">optional</span> – auto fill/drain; hoses need a loop for the drawer</td><td>1</td><td class="num">≈ 199</td><td><a href="https://www.aliexpress.com/i/3256806223995986.html?gatewayAdapt=fra2glo4itemAdapt">AliExpress</a> · <a href="https://www.amazon.de/L10sProUltra-X30Ultra-X40Ultra-L40Ultra-L10sUltraGen2/dp/B0DTJ8FD2R">Amazon</a></td></tr>
+      <tr class="grp"><td colspan="4">Controller PCB v1.1.1 – <a href="#pcb">files below</a></td></tr>
+      <tr><td>JLCPCB: 5 PCBs, 2 assembled (Economic PCBA) – Gerber zip, BOM, CPL from the download <span class="tag">15 extended parts × $3</span></td><td>1 order</td><td class="num">80–110</td><td><a href="https://jlcpcb.com/">JLCPCB</a></td></tr>
+      <tr><td>WAGO 804 push-in clamps: 3× 804-102, 804-103, 2× 804-104, 804-105, 804-106</td><td>8</td><td class="num">15–22</td><td><a href="https://octopart.com/search?q=WAGO%20804">compare</a></td></tr>
+      <tr><td>2× female header 1×19, 8.5 mm (DevKitC socket) + Molex 47053-1000 fan header</td><td>3</td><td class="num">2–4</td><td>–</td></tr>
+      <tr><td>Light barrier pair 12–24 V, through-beam, NPN, Light-ON ("NC") – door safety</td><td>1 pair</td><td class="num">9–15</td><td><a href="https://www.aliexpress.com/w/wholesale-through-beam-photoelectric-sensor.html">AliExpress</a></td></tr>
+      <tr><td>Case: PETG ≈ 70 g + 4× M3×25 screws (STL in the download)</td><td>–</td><td class="num">2–4</td><td>–</td></tr>
+      <tr class="grp"><td colspan="4">Hardware store (cut to size)</td></tr>
+      <tr><td>MDF 18 mm: fascia 59.6×17.2 + white paint to match VEDDINGE</td><td>≈ 0.1 m²</td><td class="num">10–16</td><td>–</td></tr>
+      <tr><td>Birch plywood 12 mm: tray 53.8×56.5</td><td>1</td><td class="num">10–15</td><td>–</td></tr>
+      <tr><td>Birch plywood 18 mm: 2 cheeks (25 cm foot → 10 cm top, 60.7 tall, one diagonal cut), 2 side rails 31.5×3.2, top rail 50.2×4 <span class="tag">stiff drawer</span></td><td>≈ 0.35 m²</td><td class="num">15–25</td><td>–</td></tr>
+      <tr><td>Ramp wedge 50×10 cm, 15 mm → 0 (hardwood) – screwed to the tray front</td><td>1</td><td class="num">2–5</td><td>–</td></tr>
+      <tr><td>Wire 0.5 mm², screws, wood glue, 4 steel angles 30 mm, zip ties</td><td>–</td><td class="num">8–15</td><td>–</td></tr>
+      <tr class="grp"><td colspan="4">Door parts – <span id="doorGrpName">Flap out</span></td></tr>
+      <tr data-door="lift"><td>Alu U-profile 10×10×1 mm, 1 m – 2 door channels (38 cm)</td><td>1</td><td class="num">3.09 + ship.</td><td><a href="https://www.amazon.de/Aluminiumprofil-Aluprofil-silber-eloxiert-10mmx10mmx10mmx1mmx1000mm/dp/B0044678QK">Amazon</a></td></tr>
+      <tr data-door="lift"><td>MDF 6 mm door 49.6×22, small L-bracket, PTFE tape, 2 front legs 4.9×20.8 from the 18 mm MDF</td><td>–</td><td class="num">5–10</td><td>store</td></tr>
+      <tr data-door="flap"><td>Piano hinge, stainless, 2× 30 cm</td><td>1</td><td class="num">6.79</td><td><a href="https://www.amazon.de/Klavierband-Klavierscharnier-Stangenscharnier-Schrankt%C3%BCren-Aufbewahrungs/dp/B0CT5HX4K7">Amazon</a></td></tr>
+      <tr data-door="flap"><td>Flap 59.6×20.7 from the 18 mm MDF, L-bracket bent from flat steel 25×4 (17.5 + 4.4 cm), clevis bracket on the left cheek, 2 clevis pins</td><td>–</td><td class="num">5–9</td><td>store</td></tr>
+      <tr data-door="upover"><td>Alu U-profile 10×10×1 mm, 1 m – 2 tracks (15 cm)</td><td>1</td><td class="num">3.09 + ship.</td><td><a href="https://www.amazon.de/Aluminiumprofil-Aluprofil-silber-eloxiert-10mmx10mmx10mmx1mmx1000mm/dp/B0044678QK">Amazon</a></td></tr>
+      <tr data-door="upover"><td>Flap 49.6×20.5 + 2 front legs 4.9×20.8 from the 18 mm MDF, 2 flat-bar arms, 608 bearings as rollers, actuator post</td><td>–</td><td class="num">10–19</td><td>store</td></tr>
+      <tr data-door="parallel"><td>Alu flat bar 20×3 mm, 1 m – 4 arms (12 cm), lever, 2 door brackets</td><td>1</td><td class="num">3.15 + ship.</td><td><a href="https://www.amazon.de/Aluminium-Flachmaterial-Flach-Flachstange-1000mm/dp/B01N0QNIOG">Amazon</a></td></tr>
+      <tr data-door="parallel"><td>Door 49.2×20.4 + 2 front legs 4.9×20.8 from the 18 mm MDF, 8 M6 shoulder bolts + nylon washers, actuator bracket</td><td>–</td><td class="num">6–12</td><td>store</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="note">IKEA/Amazon prices from current listings; AliExpress changes daily; the PCB price is an estimate (get the exact quote at JLCPCB). Core = all rows without a tag, plus the LED and door parts you picked above the 3D model.</p>
+</section>
+
+<section class="card" style="margin-top:14px" id="pcb">
+  <div class="vhead"><h2>Controller PCB v1.1.1 + 3D-printed case</h2><span class="lbl">KiCad + OpenSCAD · all files open</span></div>
+  <div class="cols2">
+    <figure class="shot"><img src="img/pcb-v1.1.1-top.webp" width="1200" height="1240" loading="lazy" alt="PCB v1.1.1 top view: ESP32 DevKitC socket at the top, push-in clamps on the left, right and bottom edge, SHT40 on a slotted island in the bottom-right corner"><figcaption>PCB 100 × 100 mm, 2 layers · JLCPCB places all SMD parts · DRC: 0 errors, 0 warnings</figcaption></figure>
+    <figure class="shot light"><img src="img/case-v1.1.webp" width="1002" height="691" loading="lazy" alt="3D-printed case: base with wire shelves, lid with clamp cut-outs, vented sensor corner at the front right"><figcaption>Case: base + lid, PETG, no supports · vented SHT40 corner</figcaption></figure>
+  </div>
+  <div class="dl">
+    <button class="btn primary" data-dl="pcb" disabled>⬇ PCB v1.1.1 · JLCPCB files, KiCad, YAML (zip, 1.3 MB)</button>
+    <button class="btn primary" data-dl="case" disabled>⬇ Case v1.1 · STL + OpenSCAD (zip, 0.4 MB)</button>
+    <span class="note" id="dlNote" role="status">Checking downloads…</span>
+  </div>
+  <div class="cols2" style="margin-top:14px">
+    <div>
+      <h3>On the board</h3>
+      <table class="kv"><tbody>
+        <tr><td>ESP32</td><td>DevKitC V4 plugs into a socket · USB for the first flash, then OTA</td></tr>
+        <tr><td>Power</td><td>12 V in → PTC, reverse protection, TVS → 5.1 V buck on board (no 5 V adapter)</td></tr>
+        <tr><td>Door</td><td>DRV8871 driver (1.9 A limit) + INA219 current sense → stall stop</td></tr>
+        <tr><td>Sensors</td><td>SHT40 temperature + humidity on a slotted island · light-barrier input (12 V safe, self-test)</td></tr>
+        <tr><td>Outputs</td><td>Fan PWM + tach · WS2812 level shifter · 12 V button ring</td></tr>
+        <tr><td>Clamps</td><td>8 WAGO push-in blocks on 3 edges</td></tr>
+      </tbody></table>
+    </div>
+    <div>
+      <h3>ESP32 pins</h3>
+      <table><tbody>
+        <tr><td class="m">25 / 26</td><td>DRV8871 IN1 (open) / IN2 (close)</td></tr>
+        <tr><td class="m">32 / 33 / 18</td><td>Reed door closed / door open / drawer</td></tr>
+        <tr><td class="m">19 / 23</td><td>Clean button / button ring</td></tr>
+        <tr><td class="m">16</td><td>WS2812 data (level shifter)</td></tr>
+        <tr><td class="m">17 / 27</td><td>Fan PWM / fan tach</td></tr>
+        <tr><td class="m">21 / 22</td><td>I²C: INA219 0x40, SHT40 0x44, VL53L1X (clamp)</td></tr>
+        <tr><td class="m">34 / 13</td><td>Light barrier input / sender on-off</td></tr>
+        <tr><td class="m">4, 14, 35</td><td>Spare (EXP header)</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+  <div class="cols2" style="margin-top:14px">
+    <div>
+      <h3>Order at JLCPCB</h3>
+      <ol class="steps">
+        <li>PCB: upload <code>robo-garage_gerbers_JLCPCB.zip</code> → 2 layers, 1.6 mm, HASL.</li>
+        <li>Assembly: Economic, top side, 2 boards → upload BOM + CPL.</li>
+        <li>Check the preview: pin 1 of U1–U5 (SHT40 pin 1 top left).</li>
+        <li>Solder yourself: WAGO clamps, DevKit sockets, fan header.</li>
+      </ol>
+    </div>
+    <div>
+      <h3>Print the case</h3>
+      <table class="kv"><tbody>
+        <tr><td>Material</td><td>PETG</td></tr>
+        <tr><td>Layer · walls · infill</td><td>0.2 mm · 3 · 20 %</td></tr>
+        <tr><td>Supports</td><td>none (the lid prints top face down)</td></tr>
+        <tr><td>Hardware</td><td>4× M3×25, 4 wood screws, zip ties</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+  <details>
+    <summary>ESPHome config v1.1</summary>
+    <div class="dl" style="margin-top:8px"><button class="btn" id="cpYaml">Copy YAML</button><span class="note" id="cpNote" role="status"></span></div>
+    <pre id="yaml" style="margin-top:8px;max-height:420px"># ESPHome config for the Robo-Garage controller PCB v1.1 (ESP32 DevKitC V4 plugged in)
+# v1.1: SHT40 cabinet temperature / humidity (auto vent), door light barrier with self-test.
+# Pin changes vs. the module build: DRV8871 instead of BTS7960 (no EN pin), INA219 on the board,
+# fan tach on GPIO27, external pull-ups on reeds / button (internal pull-ups stay on, harmless).
+substitutions:
+  stall_current: "0.8"   # A: set ~0.3 A above the running current you see in HA ("Door motor current")
+  beam_inverted: "true"  # NPN Light-ON receiver (recommended, often sold as "NC") = true; Dark-ON ("NO") = false.
+                         # Check: beam clear -&gt; HA "Door beam" must show "Clear". If not, flip this value.
+
+esphome:
+  name: robo-garage
+  friendly_name: Robo-Garage
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+
+logger:
+api:
+ota:
+  - platform: esphome
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+i2c:
+  sda: GPIO21          # pull-ups 4.7k on the PCB
+  scl: GPIO22
+  frequency: 100kHz
+
+globals:
+  - {id: beam_testing, type: bool, initial_value: "false"}   # emitter is off for the self-test
+  - {id: beam_dark_ok, type: bool, initial_value: "true"}    # last self-test: receiver saw "no light"
+
+output:
+  - {platform: ledc, pin: GPIO25, id: door_open_out}          # DRV8871 IN1 -&gt; actuator extends
+  - {platform: ledc, pin: GPIO26, id: door_close_out}         # DRV8871 IN2 -&gt; actuator retracts
+  - {platform: ledc, pin: GPIO23, id: btn_ring_out}           # AO3400A -&gt; button ring (12 V)
+  - {platform: ledc, pin: GPIO17, id: fan_pwm, frequency: 25000Hz, inverted: true}  # 2N7002 open drain
+
+switch:
+  - platform: gpio                                             # AO3400A -&gt; light barrier emitter (TX-)
+    id: beam_tx
+    pin: GPIO13
+    restore_mode: ALWAYS_ON
+    internal: true
+  - platform: template
+    id: vent_auto
+    name: "Vent auto"                                          # off = fan only from HA / manual
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
+    on_turn_off:
+      - fan.turn_off: rear_fan
+
+number:
+  - platform: template
+    id: vent_hum_on
+    name: "Vent humidity limit"
+    unit_of_measurement: "%"
+    min_value: 40
+    max_value: 90
+    step: 1
+    initial_value: 65
+    optimistic: true
+    restore_value: true
+    entity_category: config
+  - platform: template
+    id: vent_temp_on
+    name: "Vent temperature limit"
+    unit_of_measurement: "°C"
+    min_value: 20
+    max_value: 45
+    step: 0.5
+    initial_value: 30
+    optimistic: true
+    restore_value: true
+    entity_category: config
+
+binary_sensor:
+  - {platform: gpio, id: door_closed_reed, name: "Door closed", pin: {number: GPIO32, mode: INPUT_PULLUP, inverted: true}}
+  - {platform: gpio, id: door_open_reed, name: "Door open", pin: {number: GPIO33, mode: INPUT_PULLUP, inverted: true}}
+  - {platform: gpio, id: drawer_reed, name: "Drawer", device_class: opening,
+     pin: {number: GPIO18, mode: INPUT_PULLUP, inverted: false}}            # on = drawer out
+  - {platform: gpio, name: "Clean button", pin: {number: GPIO19, mode: INPUT_PULLUP, inverted: true},
+     filters: [delayed_on: 30ms]}
+  - platform: template                                         # stall stop (INA219 on the PCB)
+    id: door_stall
+    name: "Door stall"
+    lambda: return id(motor_current).state &gt; ${stall_current};
+    filters: [delayed_on: 400ms]                               # ignores the start-up inrush
+    on_press:
+      - cover.stop: door
+      - logger.log: "Door stall -&gt; stopped"
+  # ---- light barrier (BEAM clamp): IO34 low = SIG high = receiver output off ----
+  - platform: gpio
+    id: beam_raw
+    internal: true
+    pin: {number: GPIO34, inverted: "${beam_inverted}"}       # input-only pin, pull-up R36 on the PCB
+    filters: [delayed_on_off: 5ms]
+    on_press:                                                  # unfiltered edge: beam broken while closing
+      - if:
+          condition:
+            lambda: 'return !id(beam_testing) &amp;&amp; id(door).current_operation == cover::COVER_OPERATION_CLOSING;'
+          then:
+            - logger.log: "Beam blocked while closing -&gt; reopen"
+            - cover.stop: door
+            - delay: 300ms
+            - cover.open: door
+  - platform: template
+    id: beam
+    name: "Door beam"                                          # on = something in the door opening (HA display)
+    device_class: occupancy
+    lambda: |-
+      if (id(beam_testing)) return {};                         // self-test running: keep the last state
+      return id(beam_raw).state;
+    filters: [delayed_off: 300ms]
+  - platform: template
+    id: beam_fault
+    name: "Door beam fault"                                    # on = receiver did not react to the emitter
+    device_class: problem
+
+script:
+  - id: beam_selftest                                          # emitter off -&gt; receiver must report "no light"
+    mode: single
+    then:
+      - lambda: 'id(beam_testing) = true;'
+      - switch.turn_off: beam_tx
+      - wait_until:                                            # receiver must drop out (max 0.5 s)
+          condition:
+            binary_sensor.is_on: beam_raw
+          timeout: 500ms
+      - lambda: 'id(beam_dark_ok) = id(beam_raw).state;'
+      - switch.turn_on: beam_tx
+      - wait_until:                                            # and see the beam again (max 1 s)
+          condition:
+            binary_sensor.is_off: beam_raw
+          timeout: 1s
+      - lambda: 'id(beam_testing) = false;'
+      - binary_sensor.template.publish:
+          id: beam_fault
+          state: !lambda 'return !id(beam_dark_ok);'
+
+sensor:
+  - platform: ina219                                           # on the PCB, shunt 0.1 ohm
+    address: 0x40
+    shunt_resistance: 0.1 ohm
+    max_voltage: 16V
+    max_current: 3.2A
+    update_interval: 100ms
+    current:
+      name: "Door motor current"
+      id: motor_current
+    bus_voltage:
+      name: "12 V supply"
+  - platform: sht4x                                            # SHT40 on the PCB island
+    address: 0x44
+    update_interval: 30s
+    temperature:
+      name: "Cabinet temperature"
+      id: cab_temp
+      filters: [offset: 0.0]                                   # set after a check with a reference thermometer
+    humidity:
+      name: "Cabinet humidity"
+      id: cab_hum
+  - platform: pulse_counter                                    # fan tach, 2 pulses per turn
+    pin: {number: GPIO27, mode: INPUT_PULLUP}
+    name: "Rear fan speed"
+    unit_of_measurement: rpm
+    filters: [multiply: 0.5]
+    update_interval: 10s
+
+fan:
+  - {platform: speed, id: rear_fan, output: fan_pwm, name: "Rear fan"}
+
+interval:
+  - interval: 30s                                              # auto vent from the SHT40
+    then:
+      - if:
+          condition:
+            switch.is_on: vent_auto
+          then:
+            - lambda: |-
+                if (id(drawer_reed).state) {                       // drawer out: no fan while you work at the station
+                  if (id(rear_fan).state) id(rear_fan).turn_off().perform();
+                  return;
+                }
+                const float h = id(cab_hum).state, t = id(cab_temp).state;
+                if (std::isnan(h) || std::isnan(t)) return;
+                const float h_on = id(vent_hum_on).state, t_on = id(vent_temp_on).state;
+                static bool running = false;
+                if (h &gt; h_on || t &gt; t_on) running = true;
+                else if (h &lt; h_on - 5.0f &amp;&amp; t &lt; t_on - 1.0f) running = false;   // 5 %RH / 1 degC hysteresis
+                if (!running) {
+                  if (id(rear_fan).state) id(rear_fan).turn_off().perform();
+                  return;
+                }
+                // 30 % at the switch-off point, 100 % at limit + 15 %RH or + 6 degC, in 10 % steps
+                const float x = std::max((h - h_on + 5.0f) / 20.0f, (t - t_on + 1.0f) / 7.0f);
+                const float s = 30.0f + 70.0f * std::min(std::max(x, 0.0f), 1.0f);
+                const int speed = 10 * (int) roundf(s / 10.0f);
+                if (!id(rear_fan).state || id(rear_fan).speed != speed)
+                  id(rear_fan).turn_on().set_speed(speed).perform();
+  - interval: 10min                                            # beam self-test while the door is idle
+    then:
+      - if:
+          condition:
+            lambda: 'return id(door).current_operation == cover::COVER_OPERATION_IDLE;'
+          then:
+            - script.execute: beam_selftest
+
+cover:
+  - platform: endstop
+    id: door
+    name: "Robo-Garage Door"
+    device_class: garage
+    open_action:
+      - output.turn_off: door_close_out
+      - output.turn_on: door_open_out
+    open_endstop: door_open_reed
+    open_duration: 11s
+    close_action:
+      - output.turn_off: door_open_out
+      - script.execute: beam_selftest                          # 0.1-1.5 s before every close
+      - script.wait: beam_selftest
+      - if:
+          condition:
+            lambda: 'return id(beam_dark_ok) &amp;&amp; !id(beam_raw).state;'   # sensor works and beam is clear
+          then:
+            - output.turn_on: door_close_out
+          else:
+            - logger.log: "Door stays open: beam blocked or beam fault"
+            - cover.open: door                                 # back to fully open (no-op if already open)
+    close_endstop: door_closed_reed
+    close_duration: 11s
+    max_duration: 15s
+    stop_action:
+      - output.turn_off: door_open_out
+      - output.turn_off: door_close_out
+
+light:
+  - {platform: monochromatic, name: "Clean button ring", output: btn_ring_out}
+  - platform: esp32_rmt_led_strip
+    id: status_led
+    name: "Robo-Garage Status LED"
+    pin: GPIO16                                                # via 74AHCT1G125 level shifter
+    num_leds: <span id="numLeds">16</span>
+    chipset: WS2812
+    channel_colors: GRB
+    effects:
+      - pulse: {name: "Slow pulse", transition_length: 1s, update_interval: 1s}
+      - strobe: {name: "Error strobe"}
+      - addressable_scan: {name: "Chase"}
+      - addressable_color_wipe: {name: "Spinner"}
+
+# Optional VL53L1X (robot in bay) on the I2C clamp: needs an external ESPHome component.
+</pre>
+  </details>
+</section>
+
+<section class="card" style="margin-top:14px">
+  <details open>
+    <summary>Build notes</summary>
+    <ul class="steps" style="list-style:disc">
+      <li>Stand the cabinet 4 cm from the wall: exhaust for the rear fan and room for cables down the back-right corner.</li>
+      <li>No METOD bottom panel – the slides sit at the very bottom and the tray rides 3 mm above the floor. Robot path: floor → wedge (1.5 cm, ≈9°) → tray → the station's own ramp plate (+1.2 cm).</li>
+      <li><b>Floor-safe pull-out:</b> the loaded drawer weighs ≈30 kg. At full extension the slides sag a few mm – more than the 3 mm gap, so tray and wedge would scrape. Fix: 2 soft PU wheels (Ø30 mm) in the front corners, just inside the cheeks. They touch the floor and roll; the slides carry the back and keep it straight. Nothing else touches the floor. Keep the floor in front clean (grit under a wheel can still mark soft parquet).</li>
+      <li>Everything on the drawer stays below 62 cm, so it slides out under the fixed fascia. Electronics, adapter, strip and fan live in the fixed space above the station.</li>
+      <li>Lift door: PTFE tape in the channels; if it ever tilts, add a second actuator on the right, wired in parallel. Every door: the light barrier keeps it from closing on anything in front; the INA219 stall stop on the PCB is the backup.</li>
+      <li>Parallel lift: 4 arms, 10 cm hole to hole (12 cm pieces), all pivots on M6 shoulder bolts.</li>
+      <li><b>Stable pull-out:</b> a 100 N pull on the handle (57 cm high) levers ≈56 N·m onto the tray joint. With 10 cm cheeks that is ≈350 N on the rear screws of each cheek – MDF end grain loosens. Now: 18 mm birch plywood cheeks with a 25 cm foot (≈120 N per cheek), glued + 5 screws from below; side rails glued + screwed every 8 cm; top rail ties the cheek tops and takes 3 screws into VEDDINGE; 2 small steel angles per side hold VEDDINGE at the bottom.</li>
+      <li><b>Clean button:</b> Ø19 mm hole in the fascia, right side; from behind a Ø30 mm recess 8 mm deep so the nut grips (thread is shorter than 18 mm). Wire it to the BUTTON clamp (BTN, GND, 12V, LED−): GPIO19 reads the switch, a MOSFET on the PCB switches the ring (GPIO23). The fascia is fixed, so no wires through the drag chain.</li>
+      <li><b>Light barrier:</b> sender + receiver on 2 small L-brackets at the front corners of the cabinet sides. Beam ≈12 cm in front of the door, ≈2 cm above the floor – past the ramp wedge and under the door's swing, so the door never breaks it itself. Both cables go to the BEAM clamp.</li>
+      <li><b>Controller:</b> PCB in its printed case under the top, the vented SHT40 corner open to the cabinet air. Keep those vents free.</li>
+      <li><b>IKEA fronts:</b> VEDDINGE 60×40 (16 mm) sits on 2 mm shims, so it is flush with the 18 mm fascia, door and legs. Its top edge stays at 62.2 cm; the door row below is 1.5 cm taller to match. Top: JÄRSTORP 186 cm cut to 60 cm (63.5 deep → 1.6 cm overhang), cut edges sealed.</li>
+      <li>Still open: measure the <b>docked depth</b> (robot nose → back of station). It must be ≤ 55 cm.</li>
+    </ul>
+  </details>
+  <details>
+    <summary>Wiring · PCB v1.1.1 clamps</summary>
+    <div class="tablewrap" style="margin-top:8px"><table>
+      <thead><tr><th>Clamp</th><th>Pins</th><th>Connect</th></tr></thead>
+      <tbody>
+        <tr><td>12 V IN</td><td class="m">+12V, GND</td><td>Mean Well GST36E12 → DC jack adapter</td></tr>
+        <tr><td>ACTUATOR</td><td class="m">M+, M−</td><td>Linear actuator (wrong direction → swap the 2 wires)</td></tr>
+        <tr><td>FAN</td><td class="m">4-pin</td><td>ARCTIC P12 Slim PWM plug</td></tr>
+        <tr><td>LED</td><td class="m">5V, DAT, GND</td><td>WS2812B strip or ring (DIN)</td></tr>
+        <tr><td>BUTTON</td><td class="m">BTN, GND, 12V, LED−</td><td>Alu button: NO, C, LED+, LED−</td></tr>
+        <tr><td>REEDS</td><td class="m">CL/GND, OP/GND, DR/GND</td><td>Door closed, door open, drawer</td></tr>
+        <tr><td>BEAM</td><td class="m">RX+, RX−, SIG, TX+, TX−</td><td>Receiver brown, blue, black · sender brown, blue</td></tr>
+        <tr><td>I2C</td><td class="m">3V3, SDA, SCL, GND</td><td>VL53L1X (optional)</td></tr>
+      </tbody>
+    </table></div>
+    <p class="note">Full ESPHome config, pin table and files: <a href="#pcb">Controller PCB</a>.</p>
+  </details>
+</section>
+</div>
+
+<script>
+(()=>{
+const $=s=>document.querySelector(s);
+const E=id=>document.getElementById(id);
+const NS='http://www.w3.org/2000/svg';
+const mk=(tag,a,p)=>{const e=document.createElementNS(NS,tag);for(const k in a)e.setAttribute(k,a[k]);if(p)p.appendChild(e);return e;};
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const lerp=(a,b,t)=>a+(b-a)*t;
+const ease=x=>x<.5?2*x*x:1-Math.pow(-2*x+2,2)/2;
+const angLerp=(a,b,t)=>{const d=((b-a+Math.PI)%(2*Math.PI)+2*Math.PI)%(2*Math.PI)-Math.PI;return a+d*t;};
+const TRAVEL=15,DRAWER=55;
+const LEDN={dot:1,ring:12,line:16,under:16};
+const BF={lift:.5,flap:.52,upover:.53,parallel:.64};
+
+/* ---------- door types ---------- */
+const DOORS={
+ lift:{name:'Lift door',out:'0 cm',move:'0 cm',look:'recessed panel',drive:'actuator in the left corner pushes it straight up',safety:'drops by its own weight · light barrier',extra:'2 alu channels',total:'≈ €203–272',
+  note:'Lift door: a 6 mm panel rides in two alu channels behind the drawer front. The actuator in the left corner pushes it up from below; going down it simply follows by its own weight (≈5 N), so it can never pinch. The light barrier in front keeps it open while something is in the way.'},
+ flap:{name:'Flap out',out:'≈ 21 cm',move:'≈ 21 cm',look:'flush flap, full width',drive:'actuator on the left cheek pushes down and back on an L-bracket – the flap swings up and out to 90°',safety:'light barrier + stall stop (INA219)',extra:'piano hinge, L-bracket',total:'≈ €209–275',
+  note:'Flap out: a flush 18 mm flap on a piano hinge at the outer face. A steel L-bracket on its back reaches 9 cm above the hinge; the actuator stands right behind the drawer front on the left cheek, leans back 3–7° and pushes the bracket down and back – the way its tip wants to move – so the flap swings up and out to 90° (sticks out ≈21 cm). Max ≈25 N of its 50 N, at least 6 cm lever (no dead point), and the bay floor stays free. The light barrier in front stops it before it touches anything; the INA219 stall stop is the backup.'},
+ upover:{name:'Up & over',out:'≈ 8 cm',move:'≈ 11 cm',look:'flush flap, slim side strips',drive:'actuator pulls the top edge in along 2 short tracks; 2 arms tilt it up',safety:'light barrier + stall stop (INA219)',extra:'2 tracks, 2 arms, rollers',total:'≈ €209–284',
+  note:'Up & over: like a small garage door. The flap\'s top edge runs inward in two short tracks while two arms tilt it up – open, it forms a ≈8 cm canopy (≈11 cm while moving). The light barrier in front stops it before it touches anything; the INA219 stall stop is the backup.'},
+ parallel:{name:'Parallel lift',out:'≈ 10 cm',move:'≈ 10 cm',look:'flush panel, slim side strips',drive:'actuator + lever turn 4 parallel arms – door stays vertical, moves out, then up on a circle',safety:'light barrier + stall stop (INA219)',extra:'4 arms, 2 brackets, lever',total:'≈ €205–280',
+  note:'Parallel lift: 4 arms (2 per side, 10 cm) form a parallelogram, so the door stays vertical. It first moves straight out, then up on a circle and parks 12.6 cm higher in front of the drawer front (≈10 cm out). The actuator turns the rear-left arm via a lever. The light barrier in front stops it before it touches anything; the INA219 stall stop is the backup.'}
+};
+/* flap out geometry (cm, xs = depth from front, y = up) */
+const FL={px:-1.9,py:22.4,H:20.7,pin:[5.5,9],F:[2.4,54]};   /* pin: L-bracket tip 9 cm above the hinge, 3.6 cm behind the flap; F: actuator pin on the left cheek, right behind the drawer front – it leans back and pushes down-back */
+function rotP(rel,th){const u=-rel[0],y=rel[1];const ur=u*Math.cos(th)-y*Math.sin(th),yr=u*Math.sin(th)+y*Math.cos(th);return[FL.px-ur,FL.py+yr];}
+/* up & over geometry */
+const UO={y:22.2,H:20.5,a:6.4,F:[5.54,15.83],l:6.49};
+function uoState(f){const ph=f*Math.PI/2;const dy=UO.y-UO.a*Math.cos(ph)-UO.F[1];const t=UO.F[0]+UO.a*Math.sin(ph)-Math.sqrt(Math.max(0,UO.l*UO.l-dy*dy));return{ph,t};}
+/* parallel lift: 4 arms R=10, fixed pivots P1/P2 on the cheeks; arm angle -90° (hanging) → +15°. Door stays vertical. Lever on the rear arm, actuator from F. */
+const PL={R:10,P1:[1.4,18.4],P2:[4.44,14.43],a0:-90,a1:15,lev:9.45,beta:52.5,F:[9,44.4]};
+function plState(f){const a=(PL.a0+f*(PL.a1-PL.a0))*Math.PI/180,du=PL.R*Math.cos(a),dy=PL.R*(1+Math.sin(a)),g=(PL.beta-f*(PL.a1-PL.a0))*Math.PI/180;
+ return{du,dy,A1:[PL.P1[0]-du,PL.P1[1]-PL.R+dy],A2:[PL.P2[0]-du,PL.P2[1]-PL.R+dy],C:[PL.P2[0]+PL.lev*Math.cos(g),PL.P2[1]+PL.lev*Math.sin(g)]};}
+/* ---------- phases ---------- */
+const PH=[
+ {id:'idle',name:'Docked',dur:Infinity,real:'—',rate:30,msg:'Robot docked'},
+ {id:'opening',name:'Door opens',dur:3,real:'≈10 s',rate:10/3,msg:'script.robo_garage_start → cover.open_cover'},
+ {id:'leaving',name:'Robot leaves',dur:3,real:'≈10 s',rate:10/3,msg:'Door open (reed) → vacuum.start'},
+ {id:'closeOut',name:'Door closes',dur:3,real:'≈10 s',rate:10/3,msg:'Bay empty → cover.close_cover'},
+ {id:'cleaning',name:'Cleaning',dur:12,real:'≈45 min',rate:2700/12,msg:'Cabinet closed, robot cleaning'},
+ {id:'returning',name:'Returning',dur:4,real:'≈1–2 min',rate:90/4,msg:'vacuum → returning → cover.open_cover'},
+ {id:'docking',name:'Docking',dur:3,real:'≈20 s',rate:20/3,msg:'Robot reverses up the ramp into the station'},
+ {id:'closing',name:'Door closes',dur:3,real:'≈10 s',rate:10/3,msg:'Docked + robot in bay → cover.close_cover'},
+ {id:'emptying',name:'Auto-empty',dur:3,real:'≈15 s',rate:15/3,msg:'Station empties dust bin (1000 W)'},
+ {id:'washing',name:'Mop wash',dur:5,real:'≈3 min',rate:180/5,msg:'Hot mop wash (1150 W) → humidity rises'},
+ {id:'drying',name:'Mop drying',dur:8,real:'3 h',rate:10800/8,msg:'Mop drying with hot air → auto vent as needed'}
+];
+const IDX={};PH.forEach((p,i)=>IDX[p.id]=i);
+const RF=['Pull the drawer – robot + station roll out 55 cm on 2 soft wheels','Open the station\'s upper cover','Lift the clean-water tank straight up and out','Lift the dirty-water tank out','Refill clean water · empty dirty water','Put both tanks back','Close the cover','Push the drawer in – soft-close pulls it shut'];
+
+/* ---------- LED modes ---------- */
+const MODES={
+ charged:{label:'All fine (docked & full)',c:[34,37,42],fx:'off',desc:'Off',es:'light.turn_off'},
+ preview:{label:'Style preview',c:[40,210,90],fx:'steady',b:.6,desc:'Green, 3 s after you pick a style',es:'–'},
+ charging:{label:'Charging',c:[255,160,20],fx:'pulse',p:2.4,desc:'Amber, slow pulse',es:'pulse'},
+ door:{label:'Door moving',c:[255,130,0],fx:'blink',hz:3,desc:'Amber, fast blink',es:'strobe'},
+ transit:{label:'Leaving / returning',c:[0,215,255],fx:'chase',desc:'Cyan chase',es:'addressable_scan'},
+ cleaning:{label:'Cleaning (progress)',c:[30,115,255],fx:'progress',desc:'Blue bar = cleaning_progress',es:'addressable_lambda'},
+ emptying:{label:'Auto-empty',c:[175,70,255],fx:'pulse',p:.8,desc:'Purple, quick pulse',es:'pulse'},
+ washing:{label:'Mop washing',c:[0,205,170],fx:'spin',desc:'Teal spinner',es:'addressable_color_wipe'},
+ drying:{label:'Mop drying',c:[255,105,20],fx:'pulse',p:6,desc:'Orange, slow breathing',es:'pulse (6 s)'},
+ attention:{label:'Tanks / drawer attention',c:[255,210,0],fx:'dbl',desc:'Yellow double blink',es:'addressable_lambda'},
+ error:{label:'Error / door blocked',c:[255,35,35],fx:'strobe',desc:'Red strobe (ignores night mode)',es:'strobe'},
+ service:{label:'Drawer open (service)',c:[255,255,255],fx:'steady',b:.8,desc:'White work light',es:'static'}
+};
+
+/* ---------- parts info ---------- */
+const PARTS={
+ ramp:['Ramp wedge','10 cm hardwood wedge screwed to the tray front: floor → 1.5 cm tray (≈9°). Its toe floats 3 mm above the floor – the front wheels keep it there, even fully pulled out. The station\'s own ramp plate takes the robot the last 1.2 cm up.'],
+ drawer:['Robot + station drawer','IKEA VEDDINGE front (on 2 mm shims → flush) on a rigid frame: 2 plywood cheeks with a 25 cm foot, 2 side rails and a top rail, glued + screwed to the 12 mm tray. Pull the HACKÅS handle and everything rolls out 55 cm on 2 soft wheels – the tanks lift out from the top.'],
+ tray:['Tray','12 mm birch plywood 53.8×56.5 cm, 3 mm above the floor (no METOD bottom panel). Two wheel slots in the front corners. Cheek feet and side rails are glued on and screwed from below every 8 cm – the tray becomes a stiff U-channel.'],
+ wheels:['Front wheels · PU Ø30 mm','2 soft PU wheels with 608 bearings on M8 bolts, in slots in the tray corners just inside the cheeks. They roll on the floor and carry the drawer front, so tray and wedge keep their 3 mm gap even fully pulled out – nothing scrapes.'],
+ slides:['Full-extension slides 550 mm','45 kg per pair, soft-close, at the very bottom of the METOD sides. The drawer half screws to the cheek foot + side rail (one straight 56 cm face), so it also locks foot and rail together. They carry the back of the ≈30 kg drawer; the 2 front wheels carry the front, so the slide sag (a few mm at full extension) never reaches the floor.'],
+ chain:['Drag chain 10×15 mm','Open type, R18, right side. Carries the station power cable and sensor wires to the drawer.'],
+ door:['Lift door','6 mm MDF 49.6×22 cm in two alu channels behind the drawer front. Lifts 15 cm → 15 cm opening. Drops by its own weight – cannot pinch.'],
+ channels:['Alu U-profile 10×10×1 mm','Two 38 cm pieces on the drawer cheeks; 8 mm inside, so the 6 mm door slides freely (add PTFE tape).'],
+ actuator:['12 V linear actuator, 150 mm','15 mm/s, 50 N, built-in end stops, ≈22 cm long retracted – check yours and set the mount so the door is just shut at full retraction. Same part for every door, only mounted differently.'],
+ par:['Parallel lift (4 arms)','Two 10 cm arms per side, pivots on the cheeks below the drawer front. The parallelogram keeps the door vertical: out first, then up on a circle – parks 12.6 cm higher, ≈10 cm out. The actuator (max ≈27 N of its 50 N) turns the rear-left arm via a 9.5 cm lever. INA219 stall stop.'],
+ flap:['Flap out (90°)','Flush 18 mm flap on a piano hinge. The actuator stands right behind the drawer front on the left cheek, leans back slightly and pushes down and back on a steel L-bracket that reaches 9 cm above the hinge – the flap swings up and out to 90°, ≈21 cm. Max ≈25 N of its 50 N, at least 6 cm lever all the way (also to pull it shut). The self-locking actuator holds the flap shut while you pull the drawer. INA219 stall stop.'],
+ uo:['Up & over flap','Garage-style: top edge rolls inward in two short tracks, two arms tilt the flap up into a ≈8 cm canopy (≈11 cm while moving). Actuator pulls the top edge; INA219 stall stop.'],
+ esp:['Controller PCB v1.1.1','Own 100 × 100 mm board (JLCPCB-assembled) in a 3D-printed case under the top: ESP32 DevKitC socket, DRV8871 actuator driver + INA219 stall stop, 12 V → 5 V on board, SHT40 temperature/humidity, light-barrier input with self-test, fan PWM, LED level shifter, 8 push-in clamp blocks. Files and order steps: "Controller PCB" below.'],
+ psu:['Power strip + 12 V adapter','KOPPLA strip and Mean Well GST36E12 on the back panel above the station; cables run down the back-right corner into the drag chain.'],
+ fan:['Rear fan · ARCTIC P12 Slim','On the inside of the back panel, blows into the 4 cm wall gap – invisible from the front. Auto vent on the ESP32: above 65 % humidity or 30 °C (SHT40) it runs at 30–100 %, off again 5 %RH / 1 °C below. Stops while the drawer is open.'],
+ dock:['Dreame station RCLE0301','45.7 W × 34 D × 59 H cm on the drawer tray, with its own ramp plate. Lid, tanks, dust bag and wash tray are reachable once the drawer is out.'],
+ tanks:['Clean 4.5 L + dirty 4 L tank','Pull the drawer, open the upper cover, lift the tanks straight up. Press "Refill demo" to watch it.'],
+ robot:['Taylor Sweeper','Dreame L10s Pro Ultra Heat · 35×35×9.7 cm · vacuum.taylor_sweeper via Tasshack dreame_vacuum.'],
+ top:['Top · IKEA JÄRSTORP','White laminate worktop 186×63.5×2.8 cm, cut to 60 cm and screwed on from below. 63.5 cm deep → 1.6 cm overhang over the fronts. Seal the cut edges with edge tape. Use it as a shelf.'],
+ button:['Clean button · 19 mm aluminium','Black aluminium vandal push button with a blue 12 V LED ring, right side of the fascia. Press → ESPHome binary sensor → HA runs script.robo_garage_start: the flap opens, then vacuum.start = full clean of the flat (ignored if the drawer is open or the tanks need you). The ring blinks on press and stays on while the robot is out; off when all is fine, dim at night. Ø19 mm hole; the fascia is 18 mm, so drill a Ø30 mm recess 8 mm deep from behind for the nut.'],
+ fascia:['Fixed fascia + status LED','17 cm panel above the drawer, part of the carcass. Holds the LED ring; the drawer slides out underneath it.'],
+ cabinet:['IKEA METOD 60×60×80','€29 frame without bottom panel. 56.4 cm inside → 5.35 cm free beside the station. Stand it 4 cm from the wall.'],
+ led:['Status LED','Dot/Ring in the fascia, Line in the fascia gap, Underglow under the ramp edge · WS2812B · GPIO16 → level shifter + 330 Ω on the PCB, 470 µF at the LED clamp.'],
+ tof:['VL53L1X (optional)','Looks down from behind the drawer front: robot top ≈ 47 cm = robot in bay, tray ≈ 56 cm = bay empty.'],
+ reed:['MC-38 reed switches ×3','Door closed, door open, drawer closed.'],
+ obstacle:['Obstacle test','A toy on the floor in front of the door. The light barrier sees it: the door does not close, or stops and re-opens if it is already closing. It closes again 1.5 s after the beam is clear. Backup: INA219 stall stop.'],
+ beam:['Light barrier · door safety','12–24 V through-beam pair (NPN, Light-ON) on 2 small brackets at the front corners of the cabinet sides: beam ≈12 cm in front of the door, ≈2 cm above the floor – past the ramp wedge and under the door\'s swing, so the door never breaks it itself. Before every close the ESP32 switches the sender off for a moment: the receiver must react (self-test), else "Door beam fault" and the door stays open. Try "Toy in front" and "Beam fault".'],
+ th:['SHT40 · cabinet air','Temperature + humidity sensor on the controller PCB, on an island with a milled slot, in its own vented corner of the case – it measures cabinet air, not board heat. Drives the auto vent: hot mop drying → humid cabinet → rear fan.']
+};
+
+/* ---------- state ---------- */
+const S={btnT:-9,ph:0,pt:0,rod:0,door:0,rx:2,bat:100,prog:0,clean:80,dirty:10,cleanVis:80,dirtyVis:10,bag:10,
+ rf:0,rfPlay:false,rfPaused:false,refilled:false,drawerOpen:false,drawer:0,lidA:0,cOut:0,dOut:0,fill:0,
+ doorType:'flap',block:false,err:false,tank:false,night:false,auto:false,speed:1,style:'line',t:0,clock:36000,
+ mode:'',modeT:-9,ledPrev:0,fanA:0,wait:false,retK:0,retFrom:null,retHd:0,
+ tc:22,rh:50,fanS:0,vent:false,beamBlk:false,tx:true,test:0,fault:false,faultOn:false,errWhy:'',clrT:0,pose:{x:0,z:-19.5,h:2.7,pitch:0,hd:0}};
+const SIM=window.SIM={S,PH,MODES,FL,UO,PL,rotP,uoState,plState,led:null,phaseId:()=>PH[S.ph].id};
+const svc=()=>S.rf>.001||S.drawerOpen||S.rfPlay||S.rfPaused;
+SIM.svc=svc;
+
+/* ---------- robot: floor path + ramps ---------- */
+const PATH=[[0,44.5],[-100,44.5],[-100,64],[90,64],[90,84],[-100,84],[-100,104],[90,104],[90,122],[-40,122]];
+const SEG=[];let PLEN=0;
+for(let i=1;i<PATH.length;i++){const a=PATH[i-1],b=PATH[i],l=Math.hypot(b[0]-a[0],b[1]-a[1]);SEG.push({a,b,l,s0:PLEN});PLEN+=l;}
+function pathAt(s){s=clamp(s,0,PLEN);let g=SEG[SEG.length-1];for(const q of SEG){if(s<=q.s0+q.l){g=q;break;}}const t=g.l?clamp((s-g.s0)/g.l,0,1):0;return{x:lerp(g.a[0],g.b[0],t),z:lerp(g.a[1],g.b[1],t),hd:Math.atan2(g.b[0]-g.a[0],g.b[1]-g.a[1])};}
+function surf(x){if(x<=-10)return 0;if(x<=0)return 1.5*(x+10)/10;if(x<=2)return 1.5;if(x<=8)return 1.5+1.2*(x-2)/6;return 2.7;}
+function robotH(rx){const xc=rx+17.5,f=surf(xc-8),r=surf(xc+8);return{h:(f+r)/2,pitch:Math.atan2(r-f,16)};}
+const onPath=()=>{const id=PH[S.ph].id;return id==='closeOut'||id==='cleaning'||(id==='returning'&&S.retK<.4);};
+/* light barrier: fixed to the cabinet, 12 cm in front of the door, 2 cm above the floor */
+const BX=-12;
+function beamBlocked(){
+ if(S.block||S.drawer>8)return true;
+ if(!onPath()){const x0=S.rx-(S.rx>=1.9?S.drawer:0);if(x0<=BX&&x0+35>=BX)return true;}
+ return false;
+}
+/* cabinet air (SHT40) + auto vent on the ESP32 – same rule as the YAML */
+const ROOM=[22,50],SRC={idle:[22.6,50],emptying:[24,50],washing:[27,88],drying:[35,72]},V_H=65,V_T=30;
+function climate(dtr){
+ if(!(dtr>0))return;
+ const id=PH[S.ph].id,open=svc();let src=SRC[id]||[22.4,50];
+ if(id==='idle'&&S.bat<99.5)src=[24,50];
+ const ex=S.fanS/100/300+(open?1/60:0),a=1/900+ex,f=1-Math.exp(-a*dtr);
+ S.tc+=((src[0]/900+ex*ROOM[0])/a-S.tc)*f;S.rh+=((src[1]/900+ex*ROOM[1])/a-S.rh)*f;
+ if(S.rh>V_H||S.tc>V_T)S.vent=true;else if(S.rh<V_H-5&&S.tc<V_T-1)S.vent=false;
+ let sp=0;if(S.vent&&!open){const x=Math.max((S.rh-V_H+5)/20,(S.tc-V_T+1)/7);sp=10*Math.round((30+70*clamp(x,0,1))/10);}
+ if((sp>0)!==(S.fanS>0))log(sp?'Auto vent: '+Math.round(S.rh)+' % · '+S.tc.toFixed(1)+' °C → rear fan '+sp+' %':open?'Drawer open → rear fan off':'Auto vent off · '+Math.round(S.rh)+' % · '+S.tc.toFixed(1)+' °C');
+ S.fanS=sp;
+}
+function computePose(){
+ const id=PH[S.ph].id;let x=0,z,hd=0,h=0,pitch=0;
+ if(id==='closeOut'||id==='cleaning'){const q=pathAt(S.prog/100*PLEN);x=q.x;z=q.z;hd=q.hd;}
+ else if(id==='returning'&&S.retK<.4&&S.retFrom){const k=S.retK,A=S.retFrom;
+  if(k<.3){const t=ease(k/.3);x=lerp(A.x,0,t);z=lerp(A.z,62,t);hd=S.retHd;}
+  else{const t=(k-.3)/.1;x=0;z=lerp(62,44.5,t);hd=angLerp(S.retHd,0,t);}}
+ else{z=-(S.rx+17.5);const r=robotH(S.rx);h=r.h;pitch=r.pitch;if(S.rx>=1.9)z+=S.drawer;}
+ S.pose={x,z,h,pitch,hd};
+}
+
+/* ---------- log ---------- */
+const logEl=E('log');
+function hhmm(s){s=((s%86400)+86400)%86400;const h=Math.floor(s/3600),m=Math.floor(s%3600/60);return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');}
+function log(msg,err){const li=document.createElement('li');li.textContent=hhmm(S.clock)+'  '+msg;if(err)li.className='err';logEl.prepend(li);while(logEl.children.length>60)logEl.lastChild.remove();}
+
+/* ---------- phase chips + refill steps ---------- */
+const phEl=E('phases');
+PH.forEach((p,i)=>{const d=document.createElement('div');d.className='chip';d.innerHTML='<b>'+(i?i+'. ':'')+p.name+'</b><span>'+p.real+'</span>';phEl.appendChild(d);});
+const rfEl=E('rfSteps');RF.forEach(t=>{const li=document.createElement('li');li.textContent=t;rfEl.appendChild(li);});
+function go(id){
+ S.ph=IDX[id];S.pt=0;S.tx=true;S.test=(id==='closeOut'||id==='closing')?.7:0;
+ if(id==='returning'){const P=S.pose;S.retFrom={x:P.x,z:P.z,hd:P.hd};const dx=-P.x,dz=62-P.z;S.retHd=Math.hypot(dx,dz)>1?Math.atan2(dx,dz):P.hd;S.retK=0;}
+ log(PH[S.ph].msg);
+ [...phEl.children].forEach((c,i)=>c.classList.toggle('on',i===S.ph));
+ const on=phEl.children[S.ph];
+ if(on&&phEl.scrollWidth>phEl.clientWidth)phEl.scrollTo({left:on.offsetLeft-phEl.offsetLeft-20,behavior:RM?'auto':'smooth'});
+}
+
+/* ---------- door type UI ---------- */
+const BASE=[375.13,468.13],LEDP={dot:[2,4],ring:[2,4],line:[27.99,27.99],under:[27.99,27.99]},
+ DP={lift:[8.09,17.89],flap:[11.79,15.79],upover:[13.09,26.89],parallel:[9.15,23.05]},LEDNAME={dot:'Dot',ring:'Ring',line:'Line',under:'Underglow'};
+function updTotals(){const l=LEDP[S.style];Object.keys(DOORS).forEach(k=>{DOORS[k].total='≈ €'+Math.round(BASE[0]+l[0]+DP[k][0])+'–'+Math.round(BASE[1]+l[1]+DP[k][1]);});
+ document.querySelectorAll('#doorCmp td[data-tot]').forEach(c=>c.textContent=DOORS[c.dataset.d].total);
+ E('totCore').textContent=DOORS[S.doorType].total;E('totDoor').textContent=DOORS[S.doorType].name+' · '+LEDNAME[S.style]+' LED';
+ document.querySelectorAll('tr[data-led]').forEach(tr=>tr.style.display=tr.dataset.led.split(' ').includes(S.style)?'':'none');
+ E('numLeds').textContent=LEDN[S.style];}
+updTotals();
+const CMP=[['Sticks out when open','out'],['Sticks out while moving','move'],['Closed look','look'],['Drive','drive'],['Pinch protection','safety'],['Extra parts','extra'],['Core total','total']];
+(function buildCmp(){const t=E('doorCmp');let h='<thead><tr><th></th>';Object.entries(DOORS).forEach(([k,d])=>{h+='<th data-d="'+k+'"><button data-v="'+k+'">'+d.name+'</button></th>';});h+='</tr></thead><tbody>';
+ CMP.forEach(([lab,key])=>{h+='<tr><td>'+lab+'</td>';Object.entries(DOORS).forEach(([k,d])=>{h+='<td data-d="'+k+'"'+(key==='total'?' data-tot="1"':'')+'>'+d[key]+'</td>';});h+='</tr>';});t.innerHTML=h+'</tbody>';
+ t.addEventListener('click',e=>{const b=e.target.closest('button');if(b)setDoor(b.dataset.v);});})();
+function setDoor(v){
+ if(!DOORS[v])return;S.doorType=v;
+ document.querySelectorAll('.doorseg button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===v));
+ document.querySelectorAll('#doorCmp [data-d]').forEach(c=>c.classList.toggle('sel',c.dataset.d===v));
+ document.querySelectorAll('tr[data-door]').forEach(tr=>tr.style.display=tr.dataset.door===v?'':'none');
+ E('doorGrpName').textContent=DOORS[v].name;updTotals();
+ E('sideNote').textContent='Units cm. Robot + station sit on a drawer (55 cm slides); fascia and top stay fixed. Ramp: wedge floor → tray, station ramp plate → dock. '+DOORS[v].note;
+ E('dLift').style.display=v==='lift'?'':'none';E('dFlap').style.display=v==='flap'?'':'none';E('dUO').style.display=v==='upover'?'':'none';E('dPar').style.display=v==='parallel'?'':'none';E('legsS').style.display=v==='flap'?'none':'';
+ if(S.block){S.block=false;setP(E('bBlock'),false);}if(S.err){S.err=false;S.errWhy='';}
+ if(window.door3D)window.door3D(v);
+}
+document.querySelectorAll('.doorseg').forEach(g=>g.addEventListener('click',e=>{const b=e.target.closest('button');if(b){setDoor(b.dataset.v);log('Door type: '+DOORS[b.dataset.v].name);}}));
+
+/* ---------- controls ---------- */
+const setP=(b,v)=>b.setAttribute('aria-pressed',v);
+const pid=()=>PH[S.ph].id;
+function start(){
+ const id=pid();
+ if(id!=='idle'){log('Start ignored – not docked');return;}
+ if(svc()){log('Start blocked – drawer is open',true);return;}
+ if(S.tank){log('Start blocked – refill/empty the tanks first',true);return;}
+ if(S.night)log('DND 22–08: schedules paused, manual start allowed');
+ S.prog=0;go('opening');
+}
+E('bStart').onclick=start;
+function pressAlu(){S.btnT=S.t;log('Alu button → binary_sensor.robo_garage_clean_button on → script.robo_garage_start (full clean)');start();}
+E('bAlu').onclick=pressAlu;
+const RUNNING=['opening','leaving','closeOut','cleaning','returning','docking'];
+function btnRing(){const k=S.t-S.btnT;if(k>=0&&k<.6)return Math.floor(k*10)%2?0:1;return RUNNING.includes(pid())?(S.night?.15:1):0;}
+window.btnRing=btnRing;
+E('bReturn').onclick=()=>{const id=pid();if(id==='cleaning'||id==='closeOut'){log('User: vacuum.return_to_base');go('returning');}};
+E('bAuto').onclick=()=>{S.auto=!S.auto;setP(E('bAuto'),S.auto);log(S.auto?'Auto demo on':'Auto demo off');};
+E('bDrawer').onclick=()=>{
+ const id=pid();if(S.rfPlay||S.rfPaused)return;
+ if(!S.drawerOpen&&!(id==='idle'||id==='cleaning')){log('Drawer stays shut while the robot/station is busy');return;}
+ S.drawerOpen=!S.drawerOpen;setP(E('bDrawer'),S.drawerOpen);
+ log(S.drawerOpen?'Drawer pulled out, cover opened':'Drawer pushed in (soft-close)');
+};
+function rfToggle(){
+ const id=pid();
+ if(S.rfPlay){S.rfPlay=false;S.rfPaused=true;log('Refill demo paused');return;}
+ if(S.rfPaused){S.rfPaused=false;S.rfPlay=true;return;}
+ if(!(id==='idle'||id==='cleaning')){log('Refill works while docked or while the robot is out');return;}
+ S.rfPlay=true;S.drawerOpen=true;setP(E('bDrawer'),true);
+ if(window.cam3D)window.cam3D('refill');
+ log('Refill demo: drawer → cover → tanks');
+}
+document.querySelectorAll('.rfbtn').forEach(b=>b.onclick=rfToggle);
+E('bBlock').onclick=()=>{
+ S.block=!S.block;setP(E('bBlock'),S.block);
+ log(S.block?'Test: toy on the floor in front of the door':'Toy removed');
+};
+E('bFault').onclick=()=>{
+ S.fault=!S.fault;setP(E('bFault'),S.fault);
+ log(S.fault?'Test: beam receiver stuck on "clear" (shorted output)':'Beam receiver fixed');
+ if(!S.fault)S.faultOn=false;
+};
+E('bTank').onclick=()=>{S.tank=!S.tank;setP(E('bTank'),S.tank);if(S.tank){S.clean=6;S.dirty=92;log('Dreame: clean tank low / dirty tank full',true);}else{S.clean=80;S.dirty=10;log('Tank alert cleared');}};
+E('bNight').onclick=()=>{S.night=!S.night;setP(E('bNight'),S.night);S.clock=S.night?23*3600+15*60:10*3600;S.mode='';log(S.night?'Night mode: LED 3 %, schedules paused':'Day mode');};
+function seg(sel,fn,pressed=true){const g=$(sel);g.addEventListener('click',e=>{const b=e.target.closest('button');if(!b||!g.contains(b))return;if(pressed)[...g.querySelectorAll('button')].forEach(x=>x.setAttribute('aria-pressed',x===b));fn(b.dataset.v);});}
+seg('#speed',v=>{S.speed=+v;});
+seg('#cam',v=>{if(window.cam3D)window.cam3D(v);},false);
+seg('#vmode',v=>{if(window.mode3D)window.mode3D(v);});
+document.querySelectorAll('.ledseg').forEach(g=>g.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const v=b.dataset.v;S.style=v;S.mode='';
+ document.querySelectorAll('.ledseg button').forEach(x=>x.setAttribute('aria-pressed',x.dataset.v===v));build2DLeds();updTotals();S.ledPrev=S.t+3;
+ if(g.dataset.cam&&window.camLed)window.camLed(v);}));
+document.querySelectorAll('.sw').forEach(b=>b.onclick=()=>{document.documentElement.style.setProperty('--front',b.dataset.c);document.querySelectorAll('.sw').forEach(x=>x.setAttribute('aria-pressed',x===b));if(window.set3DFront)window.set3DFront(b.dataset.c);});
+E('themeBtn').onclick=()=>{const r=document.documentElement;const dark=getComputedStyle(r).colorScheme.includes('dark');r.setAttribute('data-theme',dark?'light':'dark');if(window.update3DTheme)window.update3DTheme();};
+const info=E('info');
+function showPart(k){const p=PARTS[k];if(!p)return;if(k==='button'&&window.pressAlu)window.pressAlu();info.innerHTML='';const b=document.createElement('b');b.textContent=p[0];info.append(b,document.createTextNode(p[1]));}
+window.showPart=showPart;window.pressAlu=pressAlu;
+document.querySelectorAll('svg .part').forEach(el=>{el.addEventListener('click',ev=>{ev.stopPropagation();showPart(el.dataset.part);});el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();showPart(el.dataset.part);}});});
+
+/* ---------- LED logic ---------- */
+function ledMode(){
+ if(S.err)return'error';
+ if(svc())return'service';
+ if(S.tank||S.wait)return'attention';
+ const id=pid();
+ switch(id){
+  case'idle':return S.bat<99.5?'charging':S.t<S.ledPrev?'preview':'charged';
+  case'opening':case'closeOut':case'closing':return'door';
+  case'returning':return S.rod<.999?'door':'transit';
+  case'leaving':case'docking':return'transit';
+  case'cleaning':return'cleaning';
+  default:return id;
+ }
+}
+function pixels(mode,n,t){
+ const m=MODES[mode],out=[];
+ for(let i=0;i<n;i++){
+  let b=1,fx=m.fx;
+  if(RM&&(fx==='pulse'||fx==='blink'||fx==='strobe'||fx==='dbl'))fx='steady';
+  const tt=RM?0:t;
+  switch(fx){
+   case'off':b=0;break;
+   case'steady':b=m.b||1;break;
+   case'pulse':b=.18+.82*(.5-.5*Math.cos(2*Math.PI*tt/m.p));break;
+   case'blink':b=(Math.floor(tt*m.hz*2)%2)?.05:1;break;
+   case'strobe':b=(Math.floor(tt*12)%2)?.03:1;break;
+   case'dbl':{const q=tt%1.4;b=(q<.15||(q>.3&&q<.45))?1:.04;}break;
+   case'progress':b=n===1?1:(i<Math.round(S.prog/100*n)?1:.07);break;
+   case'chase':{if(n===1){b=.3+.7*(.5-.5*Math.cos(tt*8));break;}const h=Math.floor(tt*14)%n;const d=((h-i)%n+n)%n;b=Math.max(.05,1-d*.3);}break;
+   case'spin':{if(n===1){b=.3+.7*(.5-.5*Math.cos(tt*6));break;}const h=(tt*9)%n;let dm=99;for(let k=0;k<3;k++){const x=((i-(h+k*n/3))%n+n)%n;dm=Math.min(dm,x,n-x);}b=Math.max(.05,1-dm*.45);}break;
+  }
+  out.push(b);
+ }
+ return out;
+}
+function paint(pair,c,v){const [g,core]=pair;const k=clamp(v,0,1);core.setAttribute('fill','rgb('+Math.round(34+(c[0]-34)*k)+','+Math.round(37+(c[1]-37)*k)+','+Math.round(42+(c[2]-42)*k)+')');g.setAttribute('fill','rgb('+c.join(',')+')');g.setAttribute('opacity',(k*.9).toFixed(3));}
+const ring=(cx,cy,r,n)=>{const a=[];for(let i=0;i<n;i++){const t=-Math.PI/2+i*2*Math.PI/n;a.push([cx+r*Math.cos(t),cy+r*Math.sin(t)]);}return a;};
+const row=(x0,x1,y,n)=>{const a=[];for(let i=0;i<n;i++)a.push([x0+i*(x1-x0)/(n-1),y]);return a;};
+let BIG=[],SL=null;
+function build2DLeds(){
+ const gb=E('ledBigG'),gf=E('ledSfix'),gd=E('ledSdr');gb.innerHTML='';gf.innerHTML='';gd.innerHTML='';BIG=[];
+ const st=S.style;let pts,rb=2.6;
+ if(st==='dot'){pts=[[60,18]];rb=6;}else if(st==='ring'){pts=ring(60,18,13,12);}else if(st==='line'){pts=row(8,112,18,16);}else{pts=row(8,112,14,16);mk('ellipse',{cx:60,cy:28,rx:56,ry:5,filter:'url(#gB)',id:'bigFloor'},gb);}
+ pts.forEach(([x,y])=>{const g=mk('circle',{cx:x,cy:y,r:rb*2,filter:'url(#gB)'},gb);const c=mk('circle',{cx:x,cy:y,r:rb},gb);BIG.push([g,c]);});
+ const fixed=st!=='under',host=fixed?gf:gd;
+ const x=st==='line'?-.6:(st==='under'?-9.5:-2.3),y=st==='line'?-62.35:(st==='under'?-.15:-71);
+ const g=mk('circle',{cx:x,cy:y,r:2.6,filter:'url(#gS)'},host);
+ const c=st==='ring'?mk('rect',{x:x-.4,y:y-1.85,width:.8,height:3.7,rx:.3},host):mk('circle',{cx:x,cy:y,r:.7},host);
+ SL=[g,c];
+}
+build2DLeds();
+
+/* ---------- legend, entities, automations ---------- */
+const legEl=E('legend'),legRows={};
+Object.entries(MODES).filter(([k])=>k!=='preview').forEach(([k,m])=>{const tr=document.createElement('tr');tr.innerHTML='<td><span class="sq" style="background:rgb('+m.c.join(',')+')"></span>'+m.desc+'</td><td>'+m.label+'</td><td class="m">'+m.es+'</td>';legEl.appendChild(tr);legRows[k]=tr;});
+{const tr=document.createElement('tr');tr.innerHTML='<td><span class="sq" style="background:#555"></span>Any colour at 3 %</td><td>Night mode 22–08</td><td class="m">brightness: 3%</td>';legEl.appendChild(tr);legRows.night=tr;}
+const ENTS=['vacuum.taylor_sweeper','cover.robo_garage_door','binary_sensor.robo_garage_door_closed','binary_sensor.robo_garage_door_beam','binary_sensor.robo_garage_door_beam_fault','binary_sensor.robo_garage_drawer','fan.robo_garage_rear_fan','sensor.robo_garage_cabinet_temperature','sensor.robo_garage_cabinet_humidity','light.robo_garage_status_led','binary_sensor.robo_garage_robot_in_bay','binary_sensor.robo_garage_clean_button','light.robo_garage_clean_button_ring'];
+const entCells={};
+ENTS.forEach(e=>{const tr=document.createElement('tr');const a=document.createElement('td');a.className='m';a.textContent=e;const b=document.createElement('td');b.className='v';tr.append(a,b);E('ents').appendChild(tr);entCells[e]=[tr,b];});
+const AUTOS=[
+ ['Start (script)','drawer closed? → cover.open → wait door-open reed → vacuum.start',()=>['opening','leaving'].includes(pid())],
+ ['Clean button','button pressed → run the start script (full clean) · ring on while the robot is out',()=>S.t-S.btnT<2.5],
+ ['Close after leave','robot_in_bay off for 5 s → cover.close',()=>pid()==='closeOut'],
+ ['Open on return','vacuum = returning → cover.open',()=>pid()==='returning'],
+ ['Close when docked','docked + robot_in_bay on 10 s → cover.close',()=>['docking','closing'].includes(pid())],
+ ['Auto vent (on the ESP32)','humidity > 65 % or temp > 30 °C → rear fan 30–100 % · off 5 %RH / 1 °C below · off while the drawer is open',()=>S.fanS>0],
+ ['Status LED','state change → light.turn_on effect · all fine → light.turn_off',()=>S.t-S.modeT<1.2],
+ ['Light barrier (on the ESP32)','before every close: sender off → receiver must react · beam blocked → stay open · broken while closing → stop + re-open',()=>S.test>0||(S.err&&(S.errWhy==='beam'||S.errWhy==='fault'))],
+ ['Door safety','beam fault / closed reed not reached / stall → cover.open + notify phone',()=>S.err&&S.errWhy!=='beam'],
+ ['Service mode','drawer open → block start · LED white · fan off',()=>svc()]
+];
+const autoEls=AUTOS.map(a=>{const li=document.createElement('li');const b=document.createElement('b');b.textContent=a[0];const c=document.createElement('code');c.textContent=a[1];li.append(b,c);E('autos').appendChild(li);return li;});
+function vacState(){const id=pid();
+ if(S.wait)return'returning · waiting (drawer open)';
+ if(['leaving','closeOut','cleaning'].includes(id))return'cleaning';
+ if(['returning','docking'].includes(id))return'returning';
+ let s='docked';if(id==='emptying')s+=' · auto_empty';else if(id==='washing')s+=' · washing';else if(id==='drying')s+=' · drying';else if(S.bat<99.5)s+=' · charging';return s;}
+function coverState(){const id=pid();
+ if(S.err)return S.errWhy==='beam'?'open (beam blocked)':S.errWhy==='fault'?'open (beam fault)':'opening (retry)';
+ if(['opening','returning'].includes(id)&&S.rod>.01&&S.rod<.99)return'opening '+Math.round(S.door*100)+' %';
+ if(['closeOut','closing'].includes(id)&&S.door>.01&&S.rod<.99)return'closing '+Math.round(S.door*100)+' %';
+ return S.door>.5?'open':'closed';}
+const robotUnder=()=>!onPath()&&S.rx<=6.2&&S.rx+35>=6.2;
+function updEnts(mode){
+ const id=pid(),set=(e,v)=>{const c=entCells[e];if(c[1].textContent!==v){c[1].textContent=v;c[0].classList.add('hl');setTimeout(()=>c[0].classList.remove('hl'),700);}};
+ set('binary_sensor.robo_garage_clean_button',S.t-S.btnT<1?'on (pressed)':'off');{const r=btnRing();set('light.robo_garage_clean_button_ring',r?'on · '+(S.night?15:100)+' %':'off');}
+ set('vacuum.taylor_sweeper',vacState()+' · '+Math.round(S.bat)+' %');
+ set('cover.robo_garage_door',coverState());
+ set('binary_sensor.robo_garage_door_closed',S.door<.02?'on (closed)':'off');
+ set('binary_sensor.robo_garage_drawer',svc()?'open (service)':'closed');
+ set('fan.robo_garage_rear_fan',svc()?'off (drawer open)':S.fanS?'on · '+S.fanS+' % (auto vent)':'off');
+ set('sensor.robo_garage_cabinet_temperature',S.tc.toFixed(1)+' °C');
+ set('sensor.robo_garage_cabinet_humidity',Math.round(S.rh)+' %');
+ set('binary_sensor.robo_garage_door_beam',S.beamBlk?'on (detected)':'off (clear)');
+ set('binary_sensor.robo_garage_door_beam_fault',S.faultOn?'on (problem)':'off');
+ const m=MODES[mode];set('light.robo_garage_status_led',m.fx==='off'?'off (all fine)':'on · '+m.es.split(' ')[0]+' · '+(S.night&&mode!=='error'?3:Math.round((m.b||1)*100))+' %');
+ const u=robotUnder();set('binary_sensor.robo_garage_robot_in_bay',(u?'on':'off')+' · '+Math.round((57.4-(u?robotH(S.rx).h+8.25:1.5))*10)+' mm');
+}
+
+/* ---------- simulation step ---------- */
+const sg=(a,b)=>ease(clamp((S.rf-a)/(b-a),0,1));
+let prevRf=0;
+function step(dt){
+ S.t+=dt;
+ // refill / drawer timeline (real time)
+ if(S.rfPlay){S.rf=Math.min(8,S.rf+dt*(RM?4:.55));
+  if(S.rf>=8){S.rf=0;S.rfPlay=false;S.drawerOpen=false;setP(E('bDrawer'),false);log('Refill done – drawer pushed in');}}
+ else if(!S.rfPaused){const tgt=S.drawerOpen?2:0;if(S.rf!==tgt){const v=dt*(RM?4:.8);S.rf=S.rf<tgt?Math.min(tgt,S.rf+v):Math.max(tgt,S.rf-v);}}
+ if(S.rf>=5&&!S.refilled){S.refilled=true;S.clean=100;S.dirty=0;if(S.tank){S.tank=false;setP(E('bTank'),false);}log('Clean tank filled · dirty tank emptied');}
+ if(S.rf<=0){if(prevRf>0&&!S.refilled&&S.tank){S.tank=false;S.clean=100;S.dirty=0;setP(E('bTank'),false);log('Drawer closed – tanks assumed refilled');}S.refilled=false;}
+ prevRf=S.rf;
+ S.drawer=DRAWER*(sg(0,1)-sg(7,8));S.lidA=sg(1,2)-sg(6,7);S.cOut=sg(2,3)-sg(5,6);S.dOut=sg(3,4)-sg(5,6);S.fill=sg(4,5);
+ S.cleanVis=S.refilled?S.clean:lerp(S.clean,100,S.fill);S.dirtyVis=S.refilled?S.dirty:lerp(S.dirty,0,S.fill);
+ const p=PH[S.ph],d=dt*S.speed;
+ S.beamBlk=beamBlocked();
+ const closingPh=p.id==='closeOut'||p.id==='closing';
+ if(S.err){S.rod=Math.min(1,S.rod+d*.4);S.door=S.rod;
+  const ok=(S.errWhy==='beam'&&!S.beamBlk)||(S.errWhy==='fault'&&!S.fault);
+  S.clrT=ok?S.clrT+dt:0;
+  if(ok&&S.clrT>1.5&&S.rod>.999){const w=S.errWhy;S.err=false;S.errWhy='';S.clrT=0;log(w==='beam'?'Beam clear for 1.5 s → close again':'Beam fault fixed → close again');go(p.id);}
+  computePose();return;}
+ if((p.id==='returning'||p.id==='docking')&&svc()){if(!S.wait){S.wait=true;log('Drawer open – robot waits outside',true);}computePose();return;}
+ if(S.wait){S.wait=false;log('Drawer closed – docking continues');}
+ if(closingPh&&S.test>0){                                   // light-barrier self-test before every close
+  S.test=Math.max(0,S.test-dt);S.tx=!(S.test>.2&&S.test<.5);
+  if(S.test===0){S.tx=true;
+   if(S.fault){S.err=true;S.errWhy='fault';S.faultOn=true;log('Beam self-test failed → "Door beam fault", door stays open + notify',true);}
+   else if(S.beamBlk){S.err=true;S.errWhy='beam';log('Light barrier blocked → door stays open',true);}
+   else{S.faultOn=false;log('Beam self-test OK · beam clear → closing');}}
+  S.door=S.rod;computePose();return;}
+ S.pt+=d;S.clock+=d*p.rate;climate(d*p.rate);
+ const k=isFinite(p.dur)?Math.min(S.pt/p.dur,1):0;
+ const docked=['closing','emptying','washing','drying','idle'].includes(p.id);
+ if(docked&&S.bat<100)S.bat=Math.min(100,S.bat+d*(p.id==='idle'?5:2));
+ switch(p.id){
+  case'idle':S.rod=0;S.rx=2;if(S.auto&&S.pt>2.5&&!S.tank&&!svc())start();break;
+  case'opening':S.rod=k;break;
+  case'leaving':S.rod=1;S.rx=2-ease(k)*64;break;
+  case'closeOut':S.rod=1-k;S.rx=-62;S.prog=Math.min(100,S.prog+d*1.3);S.bat=Math.max(5,S.bat-d*.5);break;
+  case'cleaning':S.rod=0;S.prog=Math.min(100,S.prog+d*8);S.bat=Math.max(5,S.bat-d*3.5);break;
+  case'returning':S.retK=k;S.rod=Math.min(1,k/.6);S.rx=k<.4?-62:-62+(k-.4)/.6*42;break;
+  case'docking':S.rod=1;S.rx=-20+ease(k)*22;break;
+  case'closing':S.rod=1-k;S.rx=2;break;
+  case'emptying':S.bag=Math.min(100,S.bag+d*1.2);break;
+  case'washing':S.clean=Math.max(0,S.clean-d*2.2);S.dirty=Math.min(100,S.dirty+d*1.8);break;
+ }
+ S.door=S.rod;
+ if(closingPh&&S.beamBlk&&S.rod<.999){S.err=true;S.errWhy='beam';log('Beam broken while closing → stop + re-open',true);computePose();return;}
+ if(k>=1){
+  if(closingPh&&S.door>.03){S.err=true;S.errWhy='timeout';log('Door not closed after 15 s → cover.open + notify phone',true);computePose();return;}
+  const n=p.id==='drying'?'idle':PH[S.ph+1].id;if(n==='idle')S.prog=100;go(n);
+ }
+ computePose();
+}
+
+/* ---------- render (2D + HUD) ---------- */
+const pts=a=>a.map(p=>p[0].toFixed(2)+','+(-p[1]).toFixed(2)).join(' ');
+const el={side:E('side'),drawer:E('drawerS'),door:E('doorS'),br:E('brS'),rod:E('rodS'),robot:E('robotS'),out:E('outTxtS'),tof:E('tofBeam'),obst:E('obstS'),chain:E('chainS'),fan:E('fanBlades'),air:E('airflow'),empty:E('emptyFx'),wash:E('washFx'),cleanF:E('cleanFill'),dirtyF:E('dirtyFill'),bagF:E('bagFill'),glow:E('floorGlowS'),lid:E('lidS'),tankC:E('tankC'),tankD:E('tankD'),
+ flapP:E('flapP'),flapCrank:E('flapCrank'),flapBody:E('flapBody'),flapRod:E('flapRod'),uoDoor:E('uoDoor'),uoArm:E('uoArm'),uoRod:E('uoRod'),uoLink:E('uoLink'),cap:E('cap3d'),spk:E('wheelSpk'),bDot:E('beamDot'),bGlow:E('beamGlow'),
+ parDoor:E('parDoorS'),parArm1:E('parArm1'),parArm2:E('parArm2'),parLever:E('parLever'),parA1:E('parA1'),parA2:E('parA2'),parBody:E('parBody'),parRod:E('parRod')};
+{for(let i=0;i<5;i++)mk('circle',{cx:30+i*1.4,cy:-2.6-(i%2)*.8,r:.45,fill:'#4aa3ff'},el.wash);}
+function tank2D(o,cx,targetWorld,d){if(o<=0)return'';
+ if(o<.45){const e=ease(o/.45);return'translate('+(-2*e).toFixed(2)+','+(-30*e).toFixed(2)+')';}
+ const e=ease((o-.45)/.55),dx=lerp(-2,targetWorld+d-cx,e),dy=lerp(-30,40.5,e)-16*Math.sin(Math.PI*e);
+ return'translate('+dx.toFixed(2)+','+dy.toFixed(2)+')';}
+function renderDoor2D(){
+ const t=S.doorType,ln=(e,p,q)=>{e.setAttribute('x1',p[0].toFixed(2));e.setAttribute('y1',(-p[1]).toFixed(2));e.setAttribute('x2',q[0].toFixed(2));e.setAttribute('y2',(-q[1]).toFixed(2));};
+ if(t==='lift'){
+  const L=TRAVEL*S.door,top=23.5+L,tip=23.9+TRAVEL*S.rod,leg=24.2+L;
+  el.door.setAttribute('y',(-top).toFixed(2));
+  el.br.setAttribute('d','M1,'+(-(top-1.6)).toFixed(2)+' L1.4,'+(-(top-1.6)).toFixed(2)+' L1.4,'+(-leg).toFixed(2)+' L4.6,'+(-leg).toFixed(2)+' L4.6,'+(-(leg+.5)).toFixed(2)+' L1,'+(-(leg+.5)).toFixed(2)+' Z');
+  el.rod.setAttribute('y2',(-tip).toFixed(2));
+ }else if(t==='flap'){
+  const th=S.door*Math.PI/2;
+  el.flapP.setAttribute('points',pts([rotP([0,0],th),rotP([0,-FL.H],th),rotP([1.9,-FL.H],th),rotP([1.9,0],th)]));
+  const P=rotP(FL.pin,th),F=FL.F,dx=P[0]-F[0],dy=P[1]-F[1],L=Math.hypot(dx,dy),be=[F[0]+dx/L*19,F[1]+dy/L*19];
+  el.flapCrank.setAttribute('points',pts([rotP([1.9,-8],th),rotP([1.9,FL.pin[1]],th),rotP([FL.pin[0]+.8,FL.pin[1]],th)]));ln(el.flapBody,F,be);ln(el.flapRod,be,P);
+ }else if(t==='upover'){
+  const st=uoState(S.door),s=Math.sin(st.ph),c=Math.cos(st.ph),T=[st.t,UO.y],dv=[-s,-c],pv=[c,-s],H=UO.H;
+  const P=(k,m)=>[T[0]+H*k*dv[0]+.95*m*pv[0],T[1]+H*k*dv[1]+.95*m*pv[1]];
+  el.uoDoor.setAttribute('points',pts([P(0,1),P(0,-1),P(1,-1),P(1,1)]));
+  const D=[T[0]+UO.a*dv[0],T[1]+UO.a*dv[1]];
+  el.uoArm.setAttribute('x2',D[0].toFixed(2));el.uoArm.setAttribute('y2',(-D[1]).toFixed(2));
+  el.uoRod.setAttribute('x2',st.t.toFixed(2));
+  el.uoLink.setAttribute('x1',st.t.toFixed(2));el.uoLink.setAttribute('y1',(-(UO.y+2.3)).toFixed(2));el.uoLink.setAttribute('x2',st.t.toFixed(2));el.uoLink.setAttribute('y2',(-UO.y).toFixed(2));
+ }else if(t==='parallel'){
+  const st=plState(S.door),F=PL.F,dx=st.C[0]-F[0],dy=st.C[1]-F[1],L=Math.hypot(dx,dy),be=[F[0]+dx/L*19,F[1]+dy/L*19];
+  el.parDoor.setAttribute('transform','translate('+(-st.du).toFixed(2)+','+(-st.dy).toFixed(2)+')');
+  ln(el.parArm1,PL.P1,st.A1);ln(el.parArm2,PL.P2,st.A2);ln(el.parLever,PL.P2,st.C);
+  el.parA1.setAttribute('cx',st.A1[0].toFixed(2));el.parA1.setAttribute('cy',(-st.A1[1]).toFixed(2));el.parA2.setAttribute('cx',st.A2[0].toFixed(2));el.parA2.setAttribute('cy',(-st.A2[1]).toFixed(2));
+  ln(el.parBody,F,be);ln(el.parRod,be,st.C);
+ }
+ el.obst.style.display=S.block?'':'none';
+}
+let entT=0;
+function render(){
+ const p=PH[S.ph],id=p.id,d=S.drawer,extra=40*Math.max(S.cOut,S.dOut);
+ const w=112+d+extra,h=w*118/112;
+ el.side.setAttribute('viewBox',(-36-d-extra).toFixed(2)+' '+(8-h).toFixed(2)+' '+w.toFixed(2)+' '+h.toFixed(2));
+ el.drawer.setAttribute('transform','translate('+(-d).toFixed(2)+',0)');
+ renderDoor2D();
+ el.spk.setAttribute('transform','rotate('+(-d/1.5*180/Math.PI).toFixed(1)+',7,-1.5)');
+ // drag chain (carcass coords): fixed end xs 55, moving end at drawer rear
+ {const Mv=56-d,U=(56-d)/2,R=3;el.chain.setAttribute('d','M55,-5.6 L'+U.toFixed(2)+',-5.6 A'+R+','+R+' 0 0 1 '+U.toFixed(2)+',-11.6 L'+Mv.toFixed(2)+',-11.6');}
+ // robot
+ const hidden=onPath(),docked=S.rx>=1.9&&!hidden,rh=robotH(S.rx);
+ el.robot.style.display=hidden?'none':'';
+ el.robot.setAttribute('transform','translate('+(S.rx-(docked?d:0)).toFixed(2)+','+(-rh.h).toFixed(2)+') rotate('+(-rh.pitch*180/Math.PI).toFixed(2)+',17.5,0)');
+ el.out.setAttribute('opacity',hidden?1:0);el.out.setAttribute('x',(-34-d-extra).toFixed(1));el.out.setAttribute('y',(8-h+5).toFixed(1));
+ el.tof.setAttribute('y2',robotUnder()?(-(rh.h+8)).toFixed(2):'-1.5');
+ // station: tanks, lid, bag
+ const cf=17.4*S.cleanVis/100,df=17.4*S.dirtyVis/100,bf=14.4*S.bag/100;
+ el.cleanF.setAttribute('y',(-40.8-cf).toFixed(2));el.cleanF.setAttribute('height',cf.toFixed(2));
+ el.dirtyF.setAttribute('y',(-40.8-df).toFixed(2));el.dirtyF.setAttribute('height',df.toFixed(2));
+ el.bagF.setAttribute('y',(-22.3-bf).toFixed(2));el.bagF.setAttribute('height',bf.toFixed(2));
+ el.lid.setAttribute('transform','rotate('+(70*S.lidA).toFixed(1)+',56.5,-60.1)');
+ el.tankC.setAttribute('transform',tank2D(S.cOut,33,-72,d));
+ el.tankD.setAttribute('transform',tank2D(S.dOut,48,-88,d));
+ // fan + effects
+ const fanOn=S.fanS>0;
+ if(fanOn&&!RM)S.fanA=(S.fanA+S.fanS*.28)%360;
+ el.fan.setAttribute('transform','rotate('+S.fanA+',49.5,-72)');E('btnRingS').setAttribute('opacity',btnRing().toFixed(2));
+ el.air.setAttribute('opacity',fanOn?(.3+.45*S.fanS/100+.2*Math.sin(S.t*4)).toFixed(2):0);
+ E('fanTxt').textContent='rear fan'+(fanOn?' '+S.fanS+' %':'');
+ E('thTxt').textContent=S.tc.toFixed(1)+' °C · '+Math.round(S.rh)+' %';
+ {const c=S.tx?(S.beamBlk?'#ff3b30':'#3ddc84'):'#5b6370';el.bDot.setAttribute('fill',c);el.bGlow.setAttribute('fill',c);el.bGlow.setAttribute('opacity',S.tx?.65:0);}
+ el.empty.setAttribute('opacity',id==='emptying'?(.5+.5*Math.sin(S.t*8)).toFixed(2):0);
+ el.wash.setAttribute('opacity',id==='washing'?1:0);
+ // LEDs
+ const mode=ledMode();
+ if(mode!==S.mode){S.mode=mode;S.modeT=S.t;log('LED → '+MODES[mode].label);E('ledName').textContent=MODES[mode].label;E('ledFx').textContent=MODES[mode].desc+(S.night&&mode!=='error'&&MODES[mode].fx!=='off'?' · night 3 %':'');Object.entries(legRows).forEach(([k,r])=>r.classList.toggle('hl',k===mode||(k==='night'&&S.night)));}
+ const dim=S.night&&mode!=='error'?.2:1,col=MODES[mode].c,n=LEDN[S.style],vals=pixels(mode,n,S.t);
+ SIM.led={style:S.style,col,vals,dim,mode};
+ BIG.forEach((pr,i)=>paint(pr,col,vals[i]*dim));
+ const avg=vals.reduce((a,b)=>a+b,0)/n;
+ if(SL)paint(SL,col,Math.min(1,avg*1.3)*dim);
+ const ug=S.style==='under';
+ el.glow.setAttribute('fill','rgb('+col.join(',')+')');el.glow.setAttribute('opacity',ug?(avg*.8*dim).toFixed(3):0);
+ const bf2=E('bigFloor');if(bf2){bf2.setAttribute('fill','rgb('+col.join(',')+')');bf2.setAttribute('opacity',(avg*.7*dim).toFixed(3));}
+ // refill caption + steps
+ const showRf=S.rfPlay||S.rfPaused,stage=showRf?Math.min(7,Math.floor(S.rf)):-1;
+ [...rfEl.children].forEach((li,i)=>li.classList.toggle('on',i===stage));
+ if(showRf){el.cap.style.display='block';el.cap.innerHTML='<b>'+(stage+1)+'/8</b>';el.cap.append(document.createTextNode(RF[stage]+(S.rfPaused?' (paused)':'')));}else el.cap.style.display='none';
+ document.querySelectorAll('.rfbtn').forEach(b=>{b.textContent=S.rfPlay?'⏸ Pause':S.rfPaused?'▶ Resume':'▶ Refill demo';b.disabled=!(S.rfPlay||S.rfPaused)&&!(id==='idle'||id==='cleaning');});
+ // HUD
+ const errTxt=S.errWhy==='beam'?'Waiting – beam blocked':S.errWhy==='fault'?'Error – beam fault':'Error – door blocked';
+ E('sPhase').textContent=S.err?errTxt:S.wait?'Waiting – drawer open':S.test>0&&(id==='closeOut'||id==='closing')?'Beam self-test':p.name;
+ E('sAir').textContent=S.tc.toFixed(1)+' °C · '+Math.round(S.rh)+' % · fan '+(S.fanS?S.fanS+' %':'off');
+ E('sReal').textContent=p.real;
+ E('sBat').textContent=Math.round(S.bat)+' % · '+Math.round(S.prog)+' %';
+ E('phBar').style.width=(isFinite(p.dur)?Math.min(100,S.pt/p.dur*100):0)+'%';
+ E('clock').textContent=hhmm(S.clock)+(S.night?' · DND':'');
+ E('badge3d').textContent=(svc()?'Service drawer':S.err?errTxt:S.wait?'Waiting – drawer open':p.name)+' · '+DOORS[S.doorType].name+' · LED: '+(MODES[mode].fx==='off'?'off':MODES[mode].label);
+ E('bStart').disabled=id!=='idle'||svc();
+ E('bReturn').disabled=!(id==='cleaning'||id==='closeOut');
+ E('bDrawer').disabled=S.rfPlay||S.rfPaused||(!S.drawerOpen&&!(id==='idle'||id==='cleaning'));
+ E('bDrawer').textContent=S.drawerOpen?'Push drawer in':'Pull drawer';
+ if(S.t-entT>.25){entT=S.t;updEnts(mode);AUTOS.forEach((a,i)=>autoEls[i].classList.toggle('on',!!a[2]()));}
+}
+
+/* ---------- loop ---------- */
+setDoor('flap');go('idle');computePose();
+let last=performance.now();
+function loop(now){
+ const dt=Math.min(.1,(now-last)/1000);last=now;
+ step(dt);render();
+ if(window.render3D){try{window.render3D(dt);}catch(e){console.error(e);window.render3D=null;E('fb').textContent='3D view stopped – the side view and simulation keep running.';}}
+ requestAnimationFrame(loop);
+}
+render();requestAnimationFrame(loop);
+setTimeout(()=>{if(!window.__3dReady){const f=E('fb');if(f)f.textContent='3D view could not load (needs WebGL and the three.js CDN). The side view and simulation still work.';}},9000);
+})();
+</script>
+
+<script>
+(()=>{
+ const E=id=>document.getElementById(id),note=E('dlNote'),btns=[...document.querySelectorAll('[data-dl]')];
+ const PKG={pcb:'files/pcb-v1.1.1.json',case:'files/case-v1.1.json'};
+ E('cpYaml').onclick=async()=>{try{await navigator.clipboard.writeText(E('yaml').textContent);E('cpNote').textContent='Copied.';}catch(e){E('cpNote').textContent='Copy is blocked here – select the text and copy it.';}};
+ let zipLib=null;
+ const loadZip=()=>zipLib||(zipLib=new Promise((res,rej)=>{if(window.JSZip)return res(window.JSZip);
+  const sc=document.createElement('script');sc.src='https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+  sc.onload=()=>window.JSZip?res(window.JSZip):rej({message:'zip library missing'});sc.onerror=()=>{zipLib=null;rej({message:'zip library did not load'});};document.head.appendChild(sc);}));
+ async function addAll(Z,zip,list){for(const f of list){
+  if(f.zip){const inner=new Z();await addAll(Z,inner,f.zip);zip.file(f.path,await inner.generateAsync({type:'uint8array',compression:'DEFLATE'}));}
+  else if(f.url){const r=await fetch(f.url);if(!r.ok)throw{message:'HTTP '+r.status};zip.file(f.path,await r.arrayBuffer());}
+  else if(f.b64)zip.file(f.path,f.b64,{base64:true});
+  else zip.file(f.path,f.text);}}
+ (async()=>{
+  let dl=null;
+  try{dl=window.claude&&typeof window.claude.use==='function'?await window.claude.use('downloads'):null;}catch(e){dl=null;}
+  if(!dl){note.textContent='Downloads work when the page is opened on claude.ai.';btns.forEach(b=>b.hidden=true);return;}
+  note.textContent='';
+  btns.forEach(b=>{b.disabled=false;b.onclick=async()=>{
+   b.disabled=true;note.textContent='Packing the files …';
+   try{const Z=await loadZip(),r=await fetch(PKG[b.dataset.dl]);if(!r.ok)throw{message:'HTTP '+r.status};
+    const man=await r.json(),zip=new Z();await addAll(Z,zip,man.files);
+    const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
+    await dl.save({filename:man.zip,data:blob});note.textContent='Saved: '+man.zip;}
+   catch(e){const c=e&&e.code;note.textContent=c==='declined'?'Download cancelled.':c==='rate_limited'?'Another download prompt is still open – try again.':'Download not possible here ('+(c||(e&&e.message)||'error')+').';}
+   finally{b.disabled=false;}};});
+ })();
+})();
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometry.js';
+
+const SIM=window.SIM,S=SIM.S;
+const host=document.getElementById('three'),fb=document.getElementById('fb');
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const ease=x=>x<.5?2*x*x:1-Math.pow(-2*x+2,2)/2,lerp=(a,b,t)=>a+(b-a)*t;
+let renderer;
+try{renderer=new THREE.WebGLRenderer({antialias:true});}
+catch(e){fb.textContent='3D needs WebGL – the side view and simulation still work.';throw e;}
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.0;
+const cvs=renderer.domElement;host.prepend(cvs);
+cvs.setAttribute('role','img');cvs.setAttribute('aria-label','Interactive 3D model of the robot cabinet');
+
+const scene=new THREE.Scene();
+const cssVar=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const themeBg=new THREE.Color(),nightBg=new THREE.Color(0x070c18);let nightK=0;
+function skyBg(){scene.background.copy(themeBg).lerp(nightBg,nightK);scene.fog.color.copy(scene.background);}
+function applyTheme(){themeBg.set(cssVar('--scene')||'#dfe5ec');if(!scene.background){scene.background=new THREE.Color();scene.fog=new THREE.Fog(0xffffff,560,1200);}skyBg();}
+applyTheme();window.update3DTheme=applyTheme;
+
+/* camera + controls */
+const camera=new THREE.PerspectiveCamera(38,1,1,3000);
+const controls=new OrbitControls(camera,cvs);
+controls.enableDamping=true;controls.dampingFactor=.08;controls.minDistance=25;controls.maxDistance=560;
+controls.maxPolarAngle=Math.PI*.495;controls.screenSpacePanning=true;
+const VIEWS={iso:[[160,128,215],[-8,28,8]],front:[[0,46,205],[0,38,0]],side:[[220,58,-20],[0,36,-26]],back:[[-80,125,-250],[0,52,-45]],top:[[0,290,45],[0,25,-15]],
+ refill:[[175,150,190],[22,40,28]],led_ring:[[30,84,78],[0,70,0]],led_dot:[[30,84,78],[0,70,0]],led_line:[[34,76,84],[0,60,0]],led_under:[[38,30,92],[0,4,10]]};
+camera.position.set(...VIEWS.iso[0]);controls.target.set(...VIEWS.iso[1]);controls.update();
+let tw=null;controls.addEventListener('start',()=>{tw=null;});
+window.cam3D=v=>{const P=VIEWS[v];if(!P)return;const p1=new THREE.Vector3(...P[0]),t1=new THREE.Vector3(...P[1]);if(RM){camera.position.copy(p1);controls.target.copy(t1);controls.update();return;}tw={p0:camera.position.clone(),t0:controls.target.clone(),p1,t1,k:0};};
+window.camLed=st=>window.cam3D('led_'+st);
+
+/* lights */
+const hemi=new THREE.HemisphereLight(0xffffff,0xb59a7a,1.35);scene.add(hemi);
+const sun=new THREE.DirectionalLight(0xffffff,2.3);sun.position.set(160,240,180);sun.target.position.set(0,30,-20);
+sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
+Object.assign(sun.shadow.camera,{left:-240,right:240,top:240,bottom:-240,near:20,far:900});sun.shadow.camera.updateProjectionMatrix();
+sun.shadow.bias=-.0004;sun.shadow.normalBias=.5;scene.add(sun,sun.target);
+const fillL=new THREE.DirectionalLight(0xdfe8ff,.6);fillL.position.set(-150,90,120);scene.add(fillL);
+/* night mode: dark sky, dim cool moonlight – the status LED does the rest */
+const NC={sky:new THREE.Color(0xffffff),skyN:new THREE.Color(0x4a5d92),gnd:new THREE.Color(0xb59a7a),gndN:new THREE.Color(0x15120f),sun:new THREE.Color(0xffffff),moon:new THREE.Color(0x9fb3ff)};
+function applyNight(k){hemi.intensity=lerp(1.35,.16,k);hemi.color.copy(NC.sky).lerp(NC.skyN,k);hemi.groundColor.copy(NC.gnd).lerp(NC.gndN,k);
+ sun.intensity=lerp(2.3,.42,k);sun.color.copy(NC.sun).lerp(NC.moon,k);fillL.intensity=lerp(.6,.05,k);skyBg();}
+
+/* textures */
+function canvasTex(w,h,draw,rep){const c=document.createElement('canvas');c.width=w;c.height=h;draw(c.getContext('2d'),w,h);const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;if(rep){t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(rep[0],rep[1]);t.anisotropy=8;}return t;}
+let seed=7;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+const floorTex=canvasTex(512,512,(g,w,h)=>{const cols=['#cdb08b','#c6a680','#d3b896','#bfa078'];const ph=64;for(let r=0;r<h/ph;r++){let x=-Math.floor(rnd()*200),j=0;while(x<w){const len=170+Math.floor(rnd()*150);g.fillStyle=cols[(r+j)%4];g.fillRect(x,r*ph,len,ph);g.fillStyle='rgba(60,40,20,.25)';g.fillRect(x,r*ph,2,ph);x+=len;j++;}g.fillStyle='rgba(60,40,20,.28)';g.fillRect(0,r*ph,w,2);}g.globalAlpha=.07;for(let i=0;i<500;i++){g.fillStyle=i%2?'#3a2a1a':'#fff';g.fillRect(rnd()*w,rnd()*h,30+rnd()*90,1);}g.globalAlpha=1;},[9,9]);
+const wallTex=canvasTex(256,256,(g,w,h)=>{g.fillStyle='#f1f2f3';g.fillRect(0,0,w,h);g.strokeStyle='rgba(0,0,0,.07)';g.lineWidth=3;for(let i=0;i<=w;i+=64){g.beginPath();g.moveTo(i,0);g.lineTo(i,h);g.stroke();g.beginPath();g.moveTo(0,i);g.lineTo(w,i);g.stroke();}},[18,5.2]);
+const glowTex=canvasTex(64,64,(g)=>{const r=g.createRadialGradient(32,32,0,32,32,32);r.addColorStop(0,'rgba(255,255,255,1)');r.addColorStop(.25,'rgba(255,255,255,.55)');r.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=r;g.fillRect(0,0,64,64);});
+
+/* materials */
+const std=(c,r=.7,m=0,x={})=>new THREE.MeshStandardMaterial(Object.assign({color:c,roughness:r,metalness:m},x));
+const M={carcass:std(0xf1f1ee,.85),front:std(0xf3f3f1,.5),wood:std(0xdcc199,.75),alu:std(0xc9ced5,.32,.75),steel:std(0x9ea5ae,.42,.6),
+ dock:std(0xeceef1,.42),dockDark:std(0x2b3038,.45),robot:std(0xf5f6f7,.32),robotDark:std(0x2d3239,.4),bump:std(0x3a4049,.5,0,{side:THREE.DoubleSide}),mop:std(0x9cc3e6,.9),
+ pcb:std(0x1f6f4a,.6),pcbRed:std(0xb23a3a,.6),pcbBlue:std(0x2b5fa8,.6),black:std(0x24272c,.55),fan:std(0x30343b,.55),chain:std(0x1c1f24,.6),ramp:std(0x7a5c3c,.7),
+ clean:std(0x3d98ff,.15,0,{transparent:true,opacity:.8}),dirty:std(0x8a7a5c,.5,0,{transparent:true,opacity:.9}),shell:std(0xd9e3ee,.2,0,{transparent:true,opacity:.6,depthWrite:false}),
+ pot:std(0xd8d2c8,.8),leaf:std(0x4f7d4a,.85),orange:std(0xf08a24,.55),bowl:std(0xe9e4dc,.5),reed:std(0xe5a50a,.5),tof:std(0x7c3aed,.5),toy:std(0xff8a00,.5),plug:std(0xf4f4f4,.6),
+ floor:std(0xffffff,.82,0,{map:floorTex}),wall:std(0xffffff,.95,0,{map:wallTex})};
+window.set3DFront=hex=>M.front.color.set(hex);
+
+/* helpers */
+const pick=[];
+function add(geo,mat,x,y,z,parent,part,o={}){const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);m.castShadow=o.cast!==false;m.receiveShadow=o.recv!==false;if(part){m.userData.part=part;pick.push(m);}parent.add(m);return m;}
+const B=(w,h,d)=>new THREE.BoxGeometry(w,h,d);
+const RB=(w,h,d,r)=>new RoundedBoxGeometry(w,h,d,3,r);
+const CY=(rt,rb,h,s=32)=>new THREE.CylinderGeometry(rt,rb,h,s);
+const SP=r=>new THREE.SphereGeometry(r,18,12);
+function lineObj(n,color,parent){const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(n*3),3));const l=new THREE.Line(g,new THREE.LineBasicMaterial({color}));l.frustumCulled=false;parent.add(l);return l;}
+function setLine(l,pts){const p=l.geometry.attributes.position;pts.forEach((v,i)=>p.setXYZ(i,v[0],v[1],v[2]));p.needsUpdate=true;}
+const UP=new THREE.Vector3(0,1,0),_v=new THREE.Vector3();
+function orient(m,a,b){_v.set(b[0]-a[0],b[1]-a[1],b[2]-a[2]);const L=_v.length();m.position.set((a[0]+b[0])/2,(a[1]+b[1])/2,(a[2]+b[2])/2);if(L>1e-6)m.quaternion.setFromUnitVectors(UP,_v.multiplyScalar(1/L));m.scale.set(1,Math.max(L,.001),1);}
+function wedge(pts,depth){const s=new THREE.Shape();s.moveTo(pts[0][0],pts[0][1]);for(let i=1;i<pts.length;i++)s.lineTo(pts[i][0],pts[i][1]);s.closePath();const g=new THREE.ExtrudeGeometry(s,{depth,bevelEnabled:false});g.rotateY(-Math.PI/2);g.translate(depth/2,0,0);return g;}
+
+/* room */
+const floor=add(new THREE.PlaneGeometry(900,900),M.floor,0,0,0,scene,null,{cast:false});floor.rotation.x=-Math.PI/2;
+add(new THREE.PlaneGeometry(900,260),M.wall,0,130,-64,scene,null,{cast:false});
+
+/* fixed carcass */
+const carcass=new THREE.Group();scene.add(carcass);
+add(B(1.8,80,60),M.carcass,-29.1,40,-30,carcass,'cabinet');
+const sideR=add(B(1.8,80,60),M.carcass,29.1,40,-30,carcass,'cabinet');
+add(B(56.4,80,1.8),M.carcass,0,40,-59.1,carcass,'cabinet');
+add(B(60,2.8,63.5),M.front,0,81.4,-28.25,carcass,'top');
+add(B(59.6,17.2,1.9),M.front,0,71.1,.95,carcass,'fascia');
+const btnMat=new THREE.MeshStandardMaterial({color:0x2b2e34,metalness:.75,roughness:.32}),ringMat=new THREE.MeshBasicMaterial({color:0x15181d,toneMapped:false});
+{const g=new THREE.Group();g.position.set(22,71.1,1.9);carcass.add(g);
+ add(CY(1.15,1.15,.2,32),btnMat,0,0,.1,g,'button').rotation.x=Math.PI/2;add(CY(.62,.62,.34,28),btnMat,0,0,.17,g,'button').rotation.x=Math.PI/2;
+ add(new THREE.TorusGeometry(.84,.075,8,40),ringMat,0,0,.21,g,'button',{cast:false});}
+const ringOff=new THREE.Color(0x15181d),ringOn=new THREE.Color(0x2f8cff);
+add(B(59.2,.32,.6),M.black,0,62.35,.3,carcass,'fascia',{cast:false});
+add(B(1.27,4.5,55),M.steel,-27.565,2.65,-28.6,carcass,'slides');
+const slideR=add(B(1.27,4.5,55),M.steel,27.565,2.65,-28.6,carcass,'slides');
+add(CY(6.5,5.2,12),M.pot,16,88.8,-34,carcass,'top');
+[[16,99.6,-34,6],[11.8,97,-31.5,4.4],[20.4,96.6,-36.5,4.4],[17,104.6,-35,3.8],[13.5,102,-37,3.6]].forEach(([x,y,z,r])=>add(SP(r),M.leaf,x,y,z,carcass,'top'));
+add(CY(10,7,4),M.bowl,-14,84.8,-22,carcass,'top');
+[[-16.2,87.7,-22.5],[-11.6,87.5,-24.2],[-13.6,87.8,-18.6]].forEach(([x,y,z])=>add(SP(3),M.orange,x,y,z,carcass,'top'));
+add(RB(2.8,10.5,11.2,.4),M.plug,-26.8,73,-12.5,carcass,'esp');
+add(B(2.85,.35,11.25),M.pcb,-26.8,71.6,-12.5,carcass,'esp',{cast:false});
+add(B(2.6,2.4,.12),M.black,-26.9,69.6,-6.85,carcass,'th',{cast:false});
+add(B(21,3.6,4.5),M.plug,10.5,65.2,-55.95,carcass,'psu');
+for(let i=0;i<3;i++)add(CY(1.4,1.4,.3,16),M.black,3.5+i*6.5,67.05,-55.95,carcass,'psu');
+add(B(5.5,3.2,8),M.black,25,64.9,-54.1,carcass,'psu');
+const feed=lineObj(5,0x2b2f36,carcass);setLine(feed,[[21,65,-56],[26.4,65,-57.2],[26.4,6,-57.2],[25.6,5.6,-56.5],[24.9,5.6,-55]]);
+const fanG=new THREE.Group();fanG.position.set(-12,70,-57.45);carcass.add(fanG);
+[[0,5.5,12,1],[0,-5.5,12,1],[5.5,0,1,12],[-5.5,0,1,12]].forEach(([x,y,w,h])=>add(B(w,h,1.5),M.fan,x,y,0,fanG,'fan'));
+add(new THREE.TorusGeometry(5.3,.3,8,40),M.fan,0,0,0,fanG,'fan');
+const hub=add(CY(1.9,1.9,1.3,24),M.fan,0,0,0,fanG,'fan');hub.rotation.x=Math.PI/2;
+const blades=new THREE.Group();fanG.add(blades);
+for(let i=0;i<7;i++){const a=i/7*Math.PI*2;const b=add(B(1.7,3.3,.25),M.black,Math.cos(a)*3.5,Math.sin(a)*3.5,0,blades,'fan');b.rotation.z=a-Math.PI/2;}
+const hole=add(new THREE.CircleGeometry(5.7,32),M.black,-12,70,-60.03,carcass,'fan',{cast:false});hole.rotation.y=Math.PI;
+add(new THREE.TorusGeometry(5.6,.25,6,40),M.steel,-12,70,-60.3,carcass,'fan');
+add(B(11,.3,.3),M.steel,-12,70,-60.3,carcass,'fan');add(B(.3,11,.3),M.steel,-12,70,-60.3,carcass,'fan');
+const chainLinks=[];for(let i=0;i<46;i++)chainLinks.push(add(B(2.2,1.4,1.25),M.chain,24.9,5.6,-55,carcass,'chain'));
+function updChain(d){const F=55,Mv=56-d,U=(56-d)/2,R=3,L1=F-U,La=Math.PI*R,L2=Mv-U,L=L1+La+L2,n=chainLinks.length;
+ chainLinks.forEach((m,i)=>{const s=i/(n-1)*L;let xs,y,a=0;
+  if(s<=L1){xs=F-s;y=5.6;}else if(s<=L1+La){const t=(s-L1)/R;xs=U-R*Math.sin(t);y=8.6-R*Math.cos(t);a=-t;}else{xs=U+(s-L1-La);y=11.6;}
+  m.position.set(24.9,y,-xs);m.rotation.x=a;});}
+
+/* drawer */
+const drawer=new THREE.Group();scene.add(drawer);
+add(B(53.8,1.2,56.5),M.wood,0,.9,-28.25,drawer,'tray');
+add(wedge([[0,.3],[0,1.5],[10,.3]],49.6),M.ramp,0,0,0,drawer,'ramp');
+add(B(.6,3.2,55),M.alu,-27.3,2.65,-28.6,drawer,'slides');
+const slideRi=add(B(.6,3.2,55),M.alu,27.3,2.65,-28.6,drawer,'slides');
+const CHK=[[0,1.5],[-25,1.5],[-25,4.7],[-10,24.7],[-10,62.2],[0,62.2]];   /* cheek profile (z=-xs, y): 25 cm foot, 10 cm top */
+add(wedge(CHK,1.8),M.wood,-26,0,0,drawer,'drawer');
+const cheekR=add(wedge(CHK,1.8),M.wood,26,0,0,drawer,'drawer');
+add(B(1.8,3.2,31.5),M.wood,-26,3.1,-40.75,drawer,'drawer');const railR=add(B(1.8,3.2,31.5),M.wood,26,3.1,-40.75,drawer,'drawer');
+add(B(50.2,4,1.8),M.wood,0,60.2,-.9,drawer,'drawer');
+add(B(59.7,39.7,1.6),M.front,0,42.35,1.1,drawer,'drawer');
+[[-26,59],[26,59],[-26,25.5],[26,25.5],[0,60.2]].forEach(([x,y])=>add(B(x?1.8:6,4,.2),M.steel,x,y,.2,drawer,'drawer',{cast:false}));
+add(B(10,1.1,1.1),M.black,0,57.5,3.55,drawer,'drawer');[-3.2,3.2].forEach(x=>add(B(.8,.8,1.7),M.black,x,57.5,2.75,drawer,'drawer'));
+const legsG=new THREE.Group();drawer.add(legsG);
+add(B(4.9,20.8,1.9),M.front,-27.35,12.1,.95,legsG,'drawer');
+const legR=add(B(4.9,20.8,1.9),M.front,27.35,12.1,.95,legsG,'drawer');
+add(B(1.2,.8,1.2),M.reed,-25.5,2.1,-55.6,drawer,'reed');
+add(B(2.4,1.2,2.4),M.tof,6,58,-6,drawer,'tof');add(B(1.2,3,4.2),M.steel,6,59.5,-3.9,drawer,'tof');
+const toy=add(B(9,7.5,7),M.toy,10,3.8,11,carcass,'obstacle');toy.visible=false;
+/* light barrier: sender + receiver on brackets at the front corners, beam 12 cm in front, 2.2 cm high */
+const lbMat=new THREE.MeshBasicMaterial({color:0x3ddc84,transparent:true,opacity:.9,toneMapped:false});
+[-1,1].forEach(k=>{add(B(1.6,3.2,2.2),M.black,k*31,2.2,12,carcass,'beam');add(B(.4,1.2,12.4),M.steel,k*30.2,1.2,6.4,carcass,'beam');});
+const lbRay=add(CY(.13,.13,60.4,8),lbMat,0,2.2,12,carcass,'beam',{cast:false,recv:false});lbRay.rotation.z=Math.PI/2;
+const wheels=[-1,1].map(s=>{const g=new THREE.Group();g.position.set(s*24.3,1.5,-7);drawer.add(g);
+ add(CY(1.5,1.5,1,28),M.black,0,0,0,g,'wheels').rotation.z=Math.PI/2;add(B(.12,2.6,.5),M.steel,-s*.52,0,0,g,'wheels');return g;});
+const inner=lineObj(7,0x2b2f36,drawer);setLine(inner,[[24.9,11.6,-56],[24.4,6,-30],[24.4,30,-6],[0,40,-1.5],[-22.5,40,-3],[-22.5,30,-3.2],[-21.5,22,-3.2]]);
+
+/* door: lift */
+const liftG=new THREE.Group();drawer.add(liftG);
+add(B(1,38,1),M.alu,-24.6,20.5,-.7,liftG,'channels');
+const chanR=add(B(1,38,1),M.alu,24.6,20.5,-.7,liftG,'channels');
+const door=add(B(49.6,22,.6),M.front,0,12.5,-.7,liftG,'door');
+const brV=add(B(3,3,.4),M.steel,-21.5,22.7,-1.2,liftG,'actuator');
+const brL=add(B(3,.5,4),M.steel,-21.5,24.45,-2.8,liftG,'actuator');
+add(B(2.4,1.4,2.4),M.steel,-21.5,2.2,-3.2,liftG,'actuator');
+add(CY(1.6,1.6,6,20),M.alu,-21.5,5.9,-3.2,liftG,'actuator');
+add(CY(1.2,1.2,12.3,20),M.alu,-21.5,15.05,-3.2,liftG,'actuator');
+const rod=add(CY(.45,.45,1,12),M.steel,-21.5,22,-3.2,liftG,'actuator');
+add(B(1.2,.7,.8),M.reed,-23.4,2.1,-1.7,liftG,'reed');add(B(1.2,.7,.8),M.reed,-23.4,39.2,-1.7,liftG,'reed');
+
+/* door: flap out */
+const FL=SIM.FL;
+const flapG=new THREE.Group();drawer.add(flapG);
+const flapPivot=new THREE.Group();flapPivot.position.set(0,FL.py,-FL.px);flapG.add(flapPivot);
+add(B(59.6,FL.H,1.9),M.front,0,-FL.H/2,-.95,flapPivot,'flap');
+add(CY(.3,.3,59.6,10),M.steel,0,FL.py,-FL.px,flapG,'flap').rotation.z=Math.PI/2;
+add(B(2.5,FL.pin[1]+8.4,.4),M.steel,-22.5,(FL.pin[1]+.4-8)/2,-2.1,flapPivot,'actuator');add(B(2.5,.4,FL.pin[0]+.8-1.9),M.steel,-22.5,FL.pin[1]+.2,-(1.9+FL.pin[0]+.8)/2,flapPivot,'actuator');
+const flapBody=add(CY(1.3,1.3,1,16),M.alu,0,0,0,flapG,'actuator');
+const flapRod=add(CY(.45,.45,1,12),M.steel,0,0,0,flapG,'actuator');
+add(B(3.4,2.4,2.4),M.steel,-23.4,FL.F[1],-FL.F[0],flapG,'actuator');
+
+/* door: up & over */
+const UO=SIM.UO;
+const uoG=new THREE.Group();drawer.add(uoG);
+const uoDoor=new THREE.Group();uoG.add(uoDoor);
+add(B(49.6,UO.H,1.9),M.front,0,-UO.H/2,0,uoDoor,'uo');
+[-1,1].forEach(s=>add(CY(.6,.6,1.4,14),M.black,s*24.9,0,0,uoDoor,'uo').rotation.z=Math.PI/2);
+add(B(1,1,12.5),M.alu,-24.6,UO.y,-5.27,uoG,'uo');
+const trackR=add(B(1,1,12.5),M.alu,24.6,UO.y,-5.27,uoG,'uo');
+const armL=add(CY(.45,.45,1,10),M.steel,0,0,0,uoG,'uo');
+const armR=add(CY(.45,.45,1,10),M.steel,0,0,0,uoG,'uo');
+[-1,1].forEach(s=>add(CY(.5,.5,1,12),M.reed,s*24.4,UO.F[1],-UO.F[0],uoG,'uo').rotation.z=Math.PI/2);
+const uoBody=add(CY(1.1,1.1,19,16),M.alu,-23.9,UO.y+2.3,-23.7,uoG,'actuator');uoBody.rotation.x=Math.PI/2;
+const uoRod=add(CY(.45,.45,1,12),M.steel,0,0,0,uoG,'actuator');
+const uoLink=add(CY(.3,.3,1,8),M.steel,0,0,0,uoG,'actuator');
+add(B(.6,UO.y+.8,1.2),M.steel,-23.9,(UO.y+3.8)/2,-33.2,uoG,'actuator');
+
+/* door: parallel lift */
+const PL=SIM.PL;
+const parG=new THREE.Group();drawer.add(parG);
+const parDoor=new THREE.Group();parG.add(parDoor);
+add(B(49.2,20.4,1.9),M.front,0,11.9,.95,parDoor,'par');
+[-1,1].forEach(s=>{add(B(.5,6.1,5.4),M.steel,s*23.65,6.45,-2.7,parDoor,'par');
+ [[1.4,8.4],[4.44,4.43]].forEach(([xs,y])=>add(CY(.42,.42,1.3,12),M.reed,s*24.05,y,-xs,parDoor,'par').rotation.z=Math.PI/2);
+ [PL.P1,PL.P2].forEach(([xs,y])=>add(CY(.5,.5,1.4,12),M.reed,s*24.5,y,-xs,parG,'par').rotation.z=Math.PI/2);});
+const parArms=[-1,1].map(()=>[add(B(.3,1,2),M.alu,0,0,0,parG,'par'),add(B(.3,1,2),M.alu,0,0,0,parG,'par')]);
+const parLever=add(B(.4,1,1.6),M.steel,0,0,0,parG,'par');
+const parBody=add(CY(1.3,1.3,1,16),M.alu,0,0,0,parG,'actuator');
+const parRod=add(CY(.45,.45,1,12),M.steel,0,0,0,parG,'actuator');
+add(B(2.4,2.4,2.4),M.steel,-22.5,PL.F[1],-PL.F[0],parG,'actuator');add(B(2.6,1.4,1.4),M.steel,-23.8,PL.F[1],-PL.F[0],parG,'actuator');
+
+window.door3D=v=>{liftG.visible=v==='lift';flapG.visible=v==='flap';uoG.visible=v==='upover';parG.visible=v==='parallel';legsG.visible=v!=='flap';};
+window.door3D(S.doorType);
+
+/* station */
+const dockG=new THREE.Group();drawer.add(dockG);
+add(wedge([[-2,1.5],[-8,1.5],[-8,2.7]],40),M.dock,0,0,0,dockG,'dock');
+add(B(40,1.2,48.5),M.dock,0,2.1,-32.25,dockG,'dock');
+add(RB(45.7,11,18.5,1),M.dock,0,8.2,-47.25,dockG,'dock');
+add(RB(45.7,45.8,32.5,2.5),M.dock,0,36.6,-40.25,dockG,'dock');
+add(B(20,1.6,.4),M.dockDark,0,52,-23.85,dockG,'dock');
+add(B(44.6,.35,.35),M.dockDark,0,42,-23.9,dockG,'dock');
+const lidG=new THREE.Group();lidG.position.set(0,59.5,-56.5);dockG.add(lidG);
+add(RB(45.7,1.2,32.5,.5),M.dock,0,.6,16.25,lidG,'tanks');
+const tanks=[];
+[[-33,M.clean,55,36],[-48,M.dirty,55,18]].forEach(([z,mat,xa,za])=>{const g=new THREE.Group();g.position.set(0,0,z);dockG.add(g);
+ add(B(38,18,13),M.shell,0,49.5,0,g,'tanks',{cast:false});const fill=add(B(37.2,1,12.2),mat,0,41,0,g,'tanks',{cast:false});
+ add(B(12,1.2,1.6),M.dockDark,0,59.4,0,g,'tanks');[-5.4,5.4].forEach(x=>add(B(1.2,1.6,1.6),M.dockDark,x,58.5,0,g,'tanks'));
+ tanks.push({g,fill,z,xa,za});});
+function tankPose(o,t,d){if(o<=0)return[0,0,t.z,0];
+ if(o<.45){const e=ease(o/.45);return[0,30*e,t.z+2*e,-.08*e];}
+ const e=ease((o-.45)/.55);return[lerp(0,t.xa,e),lerp(30,-40.5,e)+16*Math.sin(Math.PI*e),lerp(t.z+2,t.za-d,e),lerp(-.08,0,e)];}
+
+/* robot */
+const robot=new THREE.Group();robot.rotation.order='YXZ';scene.add(robot);
+add(CY(17.5,17.5,7.2,48),M.robot,0,4.4,0,robot,'robot');
+add(CY(15.2,15.2,.3,48),M.robotDark,0,8.1,0,robot,'robot');
+add(CY(4,4,1.7,28),M.robotDark,0,8.85,-6.5,robot,'robot');
+add(new THREE.CylinderGeometry(17.8,17.8,5,48,1,true,-Math.PI/2,Math.PI),M.bump,0,4.3,0,robot,'robot');
+[-6.5,6.5].forEach(x=>add(CY(5,5,.6,24),M.mop,x,.5,-10,robot,'robot'));
+const rLed=add(SP(.5),new THREE.MeshBasicMaterial({color:0x3ad07a,toneMapped:false}),0,8.3,12,robot,'robot',{cast:false});
+const beam=lineObj(2,0xe5484d,scene);beam.material.transparent=true;beam.material.opacity=.75;
+
+/* LEDs */
+const ledFix=new THREE.Group();carcass.add(ledFix);
+const ledDr=new THREE.Group();drawer.add(ledDr);
+const ledLight=new THREE.PointLight(0xffffff,0,150,2);scene.add(ledLight);
+const floorGlow=new THREE.Mesh(new THREE.PlaneGeometry(70,34),new THREE.MeshBasicMaterial({map:glowTex,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,opacity:0,toneMapped:false}));floorGlow.rotation.x=-Math.PI/2;floorGlow.position.set(0,.06,18);drawer.add(floorGlow);
+let leds=[],ledStyle='',ledBar=null;
+function buildLeds(st){
+ [ledFix,ledDr].forEach(g=>{g.children.slice().forEach(c=>{g.remove(c);c.geometry&&c.geometry.dispose();c.material&&c.material.dispose();});});
+ leds=[];ledStyle=st;ledBar=null;
+ const G=st==='under'?ledDr:ledFix;let pts=[],size=.3,gs=2.6;
+ if(st==='dot'){pts=[[0,71,1.98]];size=.32;gs=3.2;}
+ else if(st==='ring'){for(let i=0;i<12;i++){const a=Math.PI/2-i*Math.PI*2/12;pts.push([1.55*Math.cos(a),71+1.55*Math.sin(a),2.02]);}size=.2;gs=1.7;
+  const base=new THREE.Mesh(new THREE.TorusGeometry(1.55,.42,8,32),M.black.clone());base.position.set(0,71,1.95);base.userData.part='led';G.add(base);}
+ else if(st==='line'){for(let i=0;i<16;i++)pts.push([-25+i*50/15,62.35,1.98]);size=.2;gs=3.4;ledBar=new THREE.Mesh(B(52,.3,.25),new THREE.MeshBasicMaterial({color:0x222222,toneMapped:false}));ledBar.position.set(0,62.35,1.98);ledBar.userData.part='led';G.add(ledBar);}
+ else{for(let i=0;i<16;i++)pts.push([-22+i*44/15,.2,9.6]);size=.28;gs=2.8;const s=new THREE.Mesh(B(46,.15,.8),M.black.clone());s.position.set(0,.22,9.6);s.userData.part='led';G.add(s);}
+ pts.forEach(([x,y,z])=>{const core=new THREE.Mesh(new THREE.SphereGeometry(size,10,8),new THREE.MeshBasicMaterial({color:0x222222,toneMapped:false}));core.position.set(x,y,z);core.userData.part='led';
+  const glow=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,opacity:0,toneMapped:false}));glow.position.set(x,y,z+.15);glow.scale.set(gs,gs,1);G.add(core,glow);leds.push({core,glow});});
+}
+function updLeds(){
+ const L=SIM.led;if(!L)return;if(L.style!==ledStyle)buildLeds(L.style);
+ const r=L.col[0]/255,g=L.col[1]/255,b=L.col[2]/255;let sum=0;
+ leds.forEach((e,i)=>{const v=Math.min(1,(L.vals[i]||0)*L.dim);sum+=v;e.core.material.color.setRGB(.13+(r-.13)*v,.14+(g-.14)*v,.15+(b-.15)*v,THREE.SRGBColorSpace);e.glow.material.color.setRGB(r,g,b,THREE.SRGBColorSpace);e.glow.material.opacity=v*.9;});
+ const avg=leds.length?sum/leds.length:0,d=S.drawer;
+ if(ledBar){const k=.12+.88*Math.min(1,avg*L.dim);ledBar.material.color.setRGB(r*k,g*k,b*k,THREE.SRGBColorSpace);}
+ ledLight.color.setRGB(r,g,b,THREE.SRGBColorSpace);
+ const lp={dot:[0,71,7],ring:[0,71,7],line:[0,62.3,6],under:[0,2,14+d]}[ledStyle];
+ ledLight.position.set(lp[0],lp[1],lp[2]);
+ ledLight.intensity=avg*({dot:250,ring:450,line:700,under:900}[ledStyle])*(1+2*nightK);
+ floorGlow.material.color.setRGB(r,g,b,THREE.SRGBColorSpace);floorGlow.material.opacity=ledStyle==='under'?avg*.85:0;
+}
+
+/* airflow behind the cabinet */
+const airs=[];for(let i=0;i<18;i++){const m=new THREE.Mesh(SP(.5),new THREE.MeshBasicMaterial({color:0x4aa3ff,transparent:true,opacity:0,depthWrite:false}));m.userData={ph:i/18,dx:(((i*37)%18)/18-.5)*9,dy:(((i*53)%18)/18-.5)*8};m.visible=false;scene.add(m);airs.push(m);}
+function updAir(on,t){airs.forEach(m=>{m.visible=on;if(!on)return;const u=m.userData,p=(u.ph+t*.3)%1;let o;
+ if(p<.18){const q=p/.18;m.position.set(-12+u.dx,70+u.dy,-57.5-q*4.6);o=.85;}else{const q=(p-.18)/.82;m.position.set(-12+u.dx*(1-q*.5),70+u.dy+q*75,-62.1);o=.85*(1-q);}
+ m.material.opacity=o;});}
+
+/* render modes */
+const shellMats=[M.carcass,M.front,M.wood];let mode='solid';
+window.mode3D=v=>{mode=v;const x=v==='xray';
+ shellMats.forEach(m=>{m.transparent=x;m.opacity=x?.16:1;m.depthWrite=!x;m.needsUpdate=true;});
+ M.dock.transparent=x;M.dock.opacity=x?.4:1;M.dock.depthWrite=!x;M.dock.needsUpdate=true;
+ const cut=v==='cut';[sideR,cheekR,railR,chanR,slideR,slideRi,legR,trackR,armR,parArms[1][0],parArms[1][1],wheels[1]].forEach(o=>o.visible=!cut);};
+window.mode3D('cut');
+
+/* picking */
+const ray=new THREE.Raycaster(),ndc=new THREE.Vector2();let down=null;
+const visibleDeep=o=>{while(o){if(!o.visible)return false;o=o.parent;}return true;};
+cvs.addEventListener('pointerdown',e=>{down=[e.clientX,e.clientY];});
+cvs.addEventListener('pointerup',e=>{if(!down)return;const dx=e.clientX-down[0],dy=e.clientY-down[1];down=null;if(dx*dx+dy*dy>49)return;
+ const r=cvs.getBoundingClientRect();ndc.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);ray.setFromCamera(ndc,camera);
+ const objs=pick.concat(ledFix.children,ledDr.children).filter(o=>o.userData.part);
+ let hits=ray.intersectObjects(objs,false).filter(h=>visibleDeep(h.object));
+ if(mode==='xray'){const inn=hits.filter(h=>!shellMats.includes(h.object.material));if(inn.length)hits=inn;}
+ if(hits.length&&window.showPart)window.showPart(hits[0].object.userData.part);});
+
+/* resize + visibility */
+function resize(){const w=host.clientWidth,h=host.clientHeight;if(!w||!h)return;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}
+new ResizeObserver(resize).observe(host);resize();
+let inView=true;new IntersectionObserver(es=>{inView=es[0].isIntersecting;}).observe(host);
+
+/* per-frame update, driven by the main loop */
+let rHd=0;
+const ang=(a,b,t)=>{const d=((b-a+Math.PI)%(2*Math.PI)+2*Math.PI)%(2*Math.PI)-Math.PI;return a+d*t;};
+window.render3D=dt=>{
+ const d=S.drawer,id=SIM.phaseId(),t=S.doorType,nk=S.night?1:0;
+ if(nightK!==nk){nightK=RM?nk:nk>nightK?Math.min(1,nightK+dt/1.2):Math.max(0,nightK-dt/1.2);applyNight(nightK);}
+ drawer.position.z=d;
+ if(t==='lift'){const L=15*S.door;door.position.y=12.5+L;brV.position.y=22.7+L;brL.position.y=24.45+L;
+  const tip=23.9+15*S.rod;rod.scale.y=Math.max(.01,tip-21.2);rod.position.y=(21.2+tip)/2;}
+ else if(t==='flap'){const th=S.door*Math.PI/2;flapPivot.rotation.x=-th;
+  const P=SIM.rotP(FL.pin,th),F=FL.F,t3=[-22.5,P[1],-P[0]],A3=[-22.5,F[1],-F[0]];
+  const dx=t3[0]-A3[0],dy=t3[1]-A3[1],dz=t3[2]-A3[2],L=Math.hypot(dx,dy,dz),be=[A3[0]+dx/L*19,A3[1]+dy/L*19,A3[2]+dz/L*19];
+  orient(flapBody,A3,be);orient(flapRod,be,t3);}
+ else if(t==='upover'){const st=SIM.uoState(S.door),s=Math.sin(st.ph),c=Math.cos(st.ph);uoDoor.position.set(0,UO.y,-st.t);uoDoor.rotation.x=-st.ph;
+  const D=[st.t-UO.a*s,UO.y-UO.a*c];orient(armL,[-24.4,UO.F[1],-UO.F[0]],[-24.4,D[1],-D[0]]);orient(armR,[24.4,UO.F[1],-UO.F[0]],[24.4,D[1],-D[0]]);
+  const ua=UO.y+2.3;orient(uoRod,[-23.9,ua,-14.2],[-23.9,ua,-st.t]);orient(uoLink,[-23.9,ua,-st.t],[-24.6,UO.y,-st.t]);}
+ else if(t==='parallel'){const st=SIM.plState(S.door);parDoor.position.set(0,st.dy,st.du);
+  parArms.forEach((pa,i)=>{const x=(i?1:-1)*24.15;orient(pa[0],[x,PL.P1[1],-PL.P1[0]],[x,st.A1[1],-st.A1[0]]);orient(pa[1],[x,PL.P2[1],-PL.P2[0]],[x,st.A2[1],-st.A2[0]]);});
+  orient(parLever,[-23.3,PL.P2[1],-PL.P2[0]],[-23.3,st.C[1],-st.C[0]]);
+  const F3=[-22.5,PL.F[1],-PL.F[0]],T3=[-22.5,st.C[1],-st.C[0]],dx=T3[0]-F3[0],dy=T3[1]-F3[1],dz=T3[2]-F3[2],L=Math.hypot(dx,dy,dz),be=[F3[0]+dx/L*19,F3[1]+dy/L*19,F3[2]+dz/L*19];
+  orient(parBody,F3,be);orient(parRod,be,T3);}
+ wheels.forEach(g=>{g.rotation.x=d/1.5;});ringMat.color.copy(ringOff).lerp(ringOn,window.btnRing?window.btnRing():0);
+ toy.visible=S.block;
+ tanks.forEach((tk,i)=>{const lvl=i?S.dirtyVis:S.cleanVis,h=Math.max(.02,17*lvl/100);tk.fill.scale.y=h;tk.fill.position.y=40.8+h/2;
+  const p=tankPose(i?S.dOut:S.cOut,tk,d);tk.g.position.set(p[0],p[1],p[2]);tk.g.rotation.x=p[3];});
+ lidG.rotation.x=-1.22*S.lidA;
+ const fanOn=S.fanS>0;
+ if(fanOn&&!RM)blades.rotation.z-=dt*S.fanS*.28;
+ updAir(fanOn,S.t);
+ lbRay.visible=S.tx!==false;lbMat.color.set(S.beamBlk?0xff3b30:0x3ddc84);
+ updChain(d);
+ const P=S.pose;if(P){rHd=ang(rHd,P.hd,RM?1:1-Math.exp(-dt*8));robot.position.set(P.x,P.h,P.z);robot.rotation.set(P.pitch||0,rHd,0);}
+ const tz=-6+d,onR=Math.hypot(robot.position.x-6,robot.position.z-tz)<17&&robot.position.y>1;
+ setLine(beam,[[6,57.4,tz],[6,onR?robot.position.y+8.25:1.5,tz]]);
+ rLed.material.color.set(id==='cleaning'||id==='closeOut'?0x4aa3ff:0x3ad07a);
+ updLeds();
+ if(tw){tw.k=Math.min(1,tw.k+dt/.8);const e=ease(tw.k);camera.position.lerpVectors(tw.p0,tw.p1,e);controls.target.lerpVectors(tw.t0,tw.t1,e);if(tw.k>=1)tw=null;}
+ controls.update();
+ if(inView)renderer.render(scene,camera);
+};
+window.__3dReady=true;fb.remove();
+</script>
+</body>
+</html>
