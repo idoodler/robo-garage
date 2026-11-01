@@ -1,4 +1,5 @@
 # Build PCB + case on every push. On a tag "v*": publish a GitHub release with both zips.
+# Release made by hand on github.com (new tag v*): the zips get attached to it.
 name: Build & release
 
 on:
@@ -6,7 +7,13 @@ on:
     branches: [main]
     tags: ['v*']
   pull_request:
+  release:
+    types: [published]
   workflow_dispatch:
+
+concurrency:   # one run per branch/tag at a time (tag push + release event never upload in parallel)
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   build:

@@ -58,5 +58,6 @@ Moved a part in `parts.py`? Then the old tracks no longer fit: run `pcb/gen/pipe
 | 1 | Set the versions: `VERSION` in `pcb/gen/parts.py` (also printed on the board), `version` in `case/robo-garage-case.scad` |
 | 2 | Push to `main` → GitHub Actions builds everything and checks the DRC |
 | 3 | Push a tag: `git tag v1.2.0 && git push origin v1.2.0` → GitHub Actions publishes the release with both zips |
+| or | On github.com: *Releases* → *Draft a new release* → new tag `v1.2.0` → *Publish*. The zips get attached about 2 min later |
 
 Every build also keeps both zips for 30 days: *Actions* → run → *Artifacts*.
