@@ -502,7 +502,7 @@ h3{font-size:.86rem;margin:0 0 6px}
       <tr data-led="dot ring"><td>WS2812B ring, 12 LEDs, 37 mm – status LED (Dot / Ring)</td><td>1</td><td class="num">2–4</td><td><a href="https://www.aliexpress.com/item/4000048479575.html">item</a> · <a href="https://www.aliexpress.com/w/wholesale-rgb-led-ring-12-bits-ws2812.html">deals</a></td></tr>
       <tr class="opt"><td>VL53L1X distance sensor <span class="tag">optional</span> – robot in bay</td><td>1</td><td class="num">2–8</td><td><a href="https://www.aliexpress.com/item/1005003262753252.html">item</a></td></tr>
       <tr class="opt"><td>Dreame water kit RAW7 <span class="tag">optional</span> – auto fill/drain; hoses need a loop for the drawer</td><td>1</td><td class="num">≈ 199</td><td><a href="https://www.aliexpress.com/i/3256806223995986.html?gatewayAdapt=fra2glo4itemAdapt">AliExpress</a> · <a href="https://www.amazon.de/L10sProUltra-X30Ultra-X40Ultra-L40Ultra-L10sUltraGen2/dp/B0DTJ8FD2R">Amazon</a></td></tr>
-      <tr class="grp"><td colspan="4">Controller PCB v1.3 – <a href="#pcb">files below</a></td></tr>
+      <tr class="grp"><td colspan="4">Controller PCB v1.3.1 – <a href="#pcb">files below</a></td></tr>
       <tr><td>JLCPCB: 5 PCBs, 2 fully assembled (Economic PCBA: SMD + push-button clamps + DevKit sockets) – Gerber zip, BOM, CPL from the download <span class="tag">≈ 26 extended parts × $3</span></td><td>1 order</td><td class="num">140–180</td><td><a href="https://jlcpcb.com/">JLCPCB</a></td></tr>
       <tr><td>Light barrier pair 12–24 V, through-beam, NPN, Light-ON ("NC") – door safety</td><td>1 pair</td><td class="num">9–15</td><td><a href="https://www.aliexpress.com/w/wholesale-through-beam-photoelectric-sensor.html">AliExpress</a></td></tr>
       <tr class="opt"><td>Leak detection: 2 stainless screws on the cabinet floor, or any water-leak sensor with a digital output (NPN / 3.3–5 V logic, powered from the clamp) <span class="tag">optional</span> – LEAK clamp</td><td>1</td><td class="num">0–8</td><td><a href="https://www.aliexpress.com/w/wholesale-water-leak-sensor-module.html">AliExpress</a></td></tr>
@@ -530,14 +530,14 @@ h3{font-size:.86rem;margin:0 0 6px}
 </section>
 
 <section class="card" style="margin-top:14px" id="pcb">
-  <div class="vhead"><h2>Controller PCB v1.3 + 3D-printed case</h2><span class="lbl">KiCad + OpenSCAD · all files open</span></div>
+  <div class="vhead"><h2>Controller PCB v1.3.1 + 3D-printed case</h2><span class="lbl">KiCad + OpenSCAD · all files open</span></div>
   <div class="cols2">
-    <figure class="shot"><img src="img/pcb-v1.3-top.webp" width="1200" height="1233" loading="lazy" alt="PCB v1.3 top view: ESP32 DevKitC sockets at the top, push-button clamps on the left, right and bottom edge, buzzer in the middle, SHT41 on a slotted island in the bottom-right corner"><figcaption>PCB 100 × 100 mm, 2 layers · JLCPCB assembles every part, clamps included · DRC: 0 errors, 0 warnings</figcaption></figure>
-    <figure class="shot light"><img src="img/case-v1.3.webp" width="1000" height="698" loading="lazy" alt="3D-printed case: base with wire shelves, lid with clamp cut-outs and buzzer holes, vented sensor corner at the front right"><figcaption>Case: base + lid, PETG, no supports · vented sensor corner</figcaption></figure>
+    <figure class="shot"><img src="img/pcb-v1.3.1-top.webp" width="1200" height="1233" loading="lazy" alt="PCB v1.3.1 top view: ESP32 DevKitC sockets at the top, push-button clamps on the left, right and bottom edge, buzzer in the middle, SHT41 on a slotted island in the bottom-right corner"><figcaption>PCB 100 × 100 mm, 2 layers · JLCPCB assembles every part, clamps included · DRC: 0 errors, 0 warnings</figcaption></figure>
+    <figure class="shot light"><img src="img/case-v1.3.1.webp" width="1000" height="698" loading="lazy" alt="3D-printed case: base with wire shelves, lid with clamp cut-outs and buzzer holes, vented sensor corner at the front right"><figcaption>Case: base + lid, PETG, no supports · vented sensor corner</figcaption></figure>
   </div>
   <div class="dl">
-    <button class="btn primary" data-dl="pcb" disabled>⬇ PCB v1.3 · JLCPCB files, KiCad, YAML (zip, 1.2 MB)</button>
-    <button class="btn primary" data-dl="case" disabled>⬇ Case v1.3 · STL + OpenSCAD (zip, 0.4 MB)</button>
+    <button class="btn primary" data-dl="pcb" disabled>⬇ PCB v1.3.1 · JLCPCB files, KiCad, YAML (zip, 1.2 MB)</button>
+    <button class="btn primary" data-dl="case" disabled>⬇ Case v1.3.1 · STL + OpenSCAD (zip, 0.4 MB)</button>
     <span class="note" id="dlNote" role="status">Checking downloads…</span>
   </div>
   <div class="cols2" style="margin-top:14px">
@@ -589,7 +589,7 @@ h3{font-size:.86rem;margin:0 0 6px}
     </div>
   </div>
   <details>
-    <summary>ESPHome config v1.3</summary>
+    <summary>ESPHome config v1.3.1</summary>
     <div class="dl" style="margin-top:8px"><button class="btn" id="cpYaml">Copy YAML</button><span class="note" id="cpNote" role="status"></span></div>
     <pre id="yaml" style="margin-top:8px;max-height:420px"># ESPHome config for the Robo-Garage controller PCB v1.3 (ESP32 DevKitC V4 plugged in)
 # v1.1: SHT40 cabinet temperature / humidity (auto vent), door light barrier with self-test.
@@ -956,7 +956,7 @@ light:
     </ul>
   </details>
   <details>
-    <summary>Wiring · PCB v1.3 clamps</summary>
+    <summary>Wiring · PCB v1.3.1 clamps</summary>
     <div class="tablewrap" style="margin-top:8px"><table>
       <thead><tr><th>Clamp</th><th>Pins</th><th>Connect</th></tr></thead>
       <tbody>
@@ -1060,7 +1060,7 @@ const PARTS={
  par:['Parallel lift (4 arms)','Two 10 cm arms per side, pivots on the cheeks below the drawer front. The parallelogram keeps the door vertical: out first, then up on a circle – parks 12.6 cm higher, ≈10 cm out. The actuator (max ≈27 N of its 50 N) turns the rear-left arm via a 9.5 cm lever. INA219 stall stop.'],
  flap:['Flap out (90°)','Flush 18 mm flap on a piano hinge. The actuator stands right behind the drawer front on the left cheek, leans back slightly and pushes down and back on a steel L-bracket that reaches 9 cm above the hinge – the flap swings up and out to 90°, ≈21 cm. Max ≈25 N of its 50 N, at least 6 cm lever all the way (also to pull it shut). The self-locking actuator holds the flap shut while you pull the drawer. INA219 stall stop.'],
  uo:['Up & over flap','Garage-style: top edge rolls inward in two short tracks, two arms tilt the flap up into a ≈8 cm canopy (≈11 cm while moving). Actuator pulls the top edge; INA219 stall stop.'],
- esp:['Controller PCB v1.3','Own 100 × 100 mm board (fully assembled by JLCPCB) in a 3D-printed case under the top: ESP32 DevKitC socket, DRV8874 actuator driver (4.9 A limit) + INA219 stall stop, 12 V → 5 V on board, SHT41 temperature/humidity, light-barrier input with self-test, water-leak probe + 12 V valve output, buzzer, fan PWM, LED level shifter, 9 push-button clamps, DevKit USB-C through the case wall (flash without opening it). Files and order steps: "Controller PCB" below.'],
+ esp:['Controller PCB v1.3.1','Own 100 × 100 mm board (fully assembled by JLCPCB) in a 3D-printed case under the top: ESP32 DevKitC socket, DRV8874 actuator driver (4.9 A limit) + INA219 stall stop, 12 V → 5 V on board, SHT41 temperature/humidity, light-barrier input with self-test, water-leak probe + 12 V valve output, buzzer, fan PWM, LED level shifter, 9 push-button clamps, DevKit USB-C through the case wall (flash without opening it). Files and order steps: "Controller PCB" below.'],
  psu:['Power strip + 12 V adapter','KOPPLA strip and Mean Well GST36E12 on the back panel above the station; cables run down the back-right corner into the drag chain.'],
  fan:['Rear fan · ARCTIC P12 Slim','On the inside of the back panel, blows into the 4 cm wall gap – invisible from the front. Auto vent on the ESP32: above 65 % humidity or 30 °C (SHT41) it runs at 30–100 %, off again 5 %RH / 1 °C below. Stops while the drawer is open.'],
  dock:['Dreame station RCLE0301','45.7 W × 34 D × 59 H cm on the drawer tray, with its own ramp plate. Lid, tanks, dust bag and wash tray are reachable once the drawer is out.'],
@@ -1508,7 +1508,7 @@ setTimeout(()=>{if(!window.__3dReady){const f=E('fb');if(f)f.textContent='3D vie
 <script>
 (()=>{
  const E=id=>document.getElementById(id),note=E('dlNote'),btns=[...document.querySelectorAll('[data-dl]')];
- const PKG={pcb:'files/pcb-v1.3.json',case:'files/case-v1.3.json'};
+ const PKG={pcb:'files/pcb-v1.3.1.json',case:'files/case-v1.3.1.json'};
  E('cpYaml').onclick=async()=>{try{await navigator.clipboard.writeText(E('yaml').textContent);E('cpNote').textContent='Copied.';}catch(e){E('cpNote').textContent='Copy is blocked here – select the text and copy it.';}};
  let zipLib=null;
  const loadZip=()=>zipLib||(zipLib=new Promise((res,rej)=>{if(window.JSZip)return res(window.JSZip);
@@ -1644,7 +1644,7 @@ add(CY(10,7,4),M.bowl,-14,84.8,-22,carcass,'top');
 const caseG=new THREE.Group();caseG.position.set(-26.0,80,-3.25);carcass.add(caseG);
 const caseBox=add(B(10.5,2.81,10.5),M.plug,5,-1.405,-5,caseG,'esp');
 M.caseLid=std(0x9fb8d6,.35,0,{transparent:true,opacity:.5,depthWrite:false});
-fetch('files/case-model-v1.3.json').then(r=>r.ok?r.json():Promise.reject(r.status)).then(j=>{const s=atob(j.glb),a=new Uint8Array(s.length);for(let i=0;i<s.length;i++)a[i]=s.charCodeAt(i);
+fetch('files/case-model-v1.3.1.json').then(r=>r.ok?r.json():Promise.reject(r.status)).then(j=>{const s=atob(j.glb),a=new Uint8Array(s.length);for(let i=0;i<s.length;i++)a[i]=s.charCodeAt(i);
  new GLTFLoader().parse(a.buffer,'',g=>{const mats={base:M.plug,lid:M.caseLid,pcb:M.pcb};
  g.scene.traverse(o=>{if(o.isMesh){if(!o.geometry.attributes.normal)o.geometry.computeVertexNormals();o.material=mats[o.name]||M.plug;o.castShadow=o.name!=='lid';o.receiveShadow=true;o.userData.part='esp';pick.push(o);}});
  caseG.remove(caseBox);caseG.add(g.scene);},()=>{});}).catch(()=>{});

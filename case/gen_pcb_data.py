@@ -19,11 +19,12 @@ def ys(y):
 def wago_box(ref):
     """Clamp body in KiCad coords from pin 1 and rotation (+fy = wire entry side).
     WAGO 804-10n: local fx in [-2.75, 5(n-1)+3.75], fy in [-8.3, 6.7], 14.5 high.
-    Kefa KF250-3.5-nP (v1.2): fx in [-2.55, 3.5(n-1)+2.55], fy in [-5.0, 7.0], 11.7 high."""
+    Kefa KF250-3.5-nP (v1.3.1, datasheet + JLC footprint): fx in [-2.70, 3.5(n-1)+2.40], fy in [-5.0, 7.0], 11.7 high;
+    pins in two rows (odd poles fy = -2.8, even poles fy = +2.2)."""
     p = parts.P[ref]
     if p['fp'].startswith('KF250-3.5-'):
         n = int(p['fp'].split('-')[2][0])
-        fx0, fx1, fy0, fy1, h = -2.55, 3.5 * (n - 1) + 2.55, -5.0, 7.0, KF_H
+        fx0, fx1, fy0, fy1, h = -2.70, 3.5 * (n - 1) + 2.40, -5.0, 7.0, KF_H
     else:
         n = int(p['fp'].split('_1x0')[1][0])
         fx0, fx1, fy0, fy1, h = -2.75, 5 * (n - 1) + 3.75, -8.3, 6.7, WAGO_H

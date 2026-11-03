@@ -2,7 +2,7 @@
 # Coordinates in mm, KiCad board coords (x right, y down); board 100 x 100 mm, top-left at (0, 0).
 # rot = KiCad footprint rotation in degrees (CCW).
 
-VERSION = '1.3'   # PCB version: silkscreen title + release zip name (pcb/gen/package.sh)
+VERSION = '1.3.1'   # PCB version: silkscreen title + release zip name (pcb/gen/package.sh)
 
 W, H = 100.0, 100.0
 
@@ -262,7 +262,7 @@ add('D4', SOT23, 'BAT54S', 19.5, 77.0, 0, {'1': 'GND', '2': '+3V3', '3': 'IO35'}
 # v1.3: rated 3 A (12 V solenoid or motorised valve): IO2 -> R42 -> Q6 IRLTS6342 (TSOP-6, 22 mOhm at Vgs 2.5 V,
 # 0.2 W at 3 A), SS34 flyback, F4 PTC 4 A hold / 8 A trip (3.2 A hold at 50 C). Poles from the top: 12V, VLV
 # (switched return) - v1.3 swapped them so the two power paths do not cross. IO2 is a strapping pin: R43 low.
-VX, VY = 92.8, 51.5            # pin 1 (VLV) at y 51.5, pin 2 (+12V) at 48.0
+VX, VY = 92.8, 51.5            # pin 1 (VLV) at (90.0, 51.5), pin 2 (+12V) at (95.0, 48.0)
 clamp('J14', 2, 'VALVE', VX, VY, 90, {'1': 'VALVE_K', '2': '+12V_VLV'})
 add('F4', F1812, 'PTC 4A 16V', 80.0, 42.0, 270, {'1': '+12V', '2': '+12V_VLV'},
     lcsc='C47263807', mpn='BSMD1812-400-16V')
@@ -362,8 +362,10 @@ for (px, py), (vx, vy) in (((DK_X0 + 5 * 2.54, DK_Y0), (DK_X0 + 5 * 2.54, DK_Y0 
     VIAS += [('GND', vx, vy)]
 # ---- v1.3 power pre-routes (locked; IPC-2221 external 1 oz, <= 20 C rise) ----
 # 12 V IN: both +12V poles of J2 -> F1 (3.0 mm = 7 A), F1 -> Q1 drains (4.2 mm block), Q1 sources -> C1 + hub
-TR += [('+12V_IN', 2.4, 'F', [(92.8, 12.5), (92.8, 16.0)]),
-       ('+12V_IN', 3.0, 'F', [(77.4, 14.25), (92.8, 14.25)]),
+# v1.3.1: KF250 zig-zag pins -- J2 pole 3 (rear row) at (90.0, 16.0), pole 4 (front row) at (95.0, 12.5)
+TR += [('+12V_IN', 3.0, 'F', [(77.4, 14.25), (88.25, 14.25), (93.25, 14.25)]),   # junction = a segment end (a
+       ('+12V_IN', 2.4, 'F', [(93.25, 14.25), (95.0, 12.5)]),                     # mid-track T counts as dangling)
+       ('+12V_IN', 2.4, 'F', [(88.25, 14.25), (90.0, 16.0)]),
        ('+12V_F', 4.2, 'F', [(70.612, 14.25), (70.6, 18.0)])]
 TR += [('+12V_F', 0.6, 'F', [(x, 18.0), (x, 18.725)]) for x in (68.695, 69.965, 71.235, 72.505)]   # each drain pin
 TR += [('+12V', 1.2, 'F', [(68.695, 23.675), (71.235, 23.675)]),                     # source pins 1-3

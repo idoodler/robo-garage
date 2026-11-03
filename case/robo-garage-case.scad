@@ -1,4 +1,4 @@
-// Robo-Garage controller PCB v1.3 - 3D printed base + lid (OpenSCAD, FOSS)
+// Robo-Garage controller PCB v1.3.1 - 3D printed base + lid (OpenSCAD, FOSS)
 // Coordinates: x right, y up, z up. PCB occupies [0,100] x [0,100]; y = 0 is the edge with the
 // ACTUATOR / FAN / LED / I2C clamps, x = 100 the edge with 12V IN / VALVE / BUTTON / REEDS, x = 0 the BEAM / LEAK clamps
 // and the DevKit USB-C (through the wall).
@@ -7,7 +7,8 @@
 part = "assembly";
 labels = true;     // false: no engraved text (small 3D model for the simulator page)
 show_plug = true;  // USB-C plug stand-in in the assembly / fit views
-version = "1.3";   // case version: release zip name (case/build.sh). v1.3: PCB v1.3 data (4-pole 12 V clamp)
+version = "1.3.1"; // case version: release zip name (case/build.sh). v1.3: PCB v1.3 data (4-pole 12 V clamp);
+                   // v1.3.1: clamp pins in two rows (KF250 zig-zag) -> edge rails 0.4 mm further out
 
 include <pcb_data.scad>
 
@@ -94,10 +95,11 @@ module base() {
             }
             // standoffs at the 4 PCB holes
             for (h = holes) translate([h[0], h[1], 0]) cylinder(d = post_d, h = z_pcb_bot);
-            // edge rails under the clamp strips (between board edge and solder pins), not in the chamber
-            rbox([96.6, right_y0 + 1, 0], [99.6, 92, z_pcb_bot]);
-            rbox([8, 0.4, 0], [bot_x1 - 1, 3.4, z_pcb_bot]);
-            rbox([0.4, left_y0 + 1, 0], [3.4, left_y1 - 1, z_pcb_bot]);
+            // edge rails under the clamp strips (between board edge and the outer pin row, 1 mm from its pads),
+            // not in the chamber. v1.3.1: outer (even) poles 5.0 mm from the edge -> rails 2.6 mm wide
+            rbox([97.0, right_y0 + 1, 0], [99.6, 92, z_pcb_bot]);
+            rbox([8, 0.4, 0], [bot_x1 - 1, 3.0, z_pcb_bot]);
+            rbox([0.4, left_y0 + 1, 0], [3.0, left_y1 - 1, z_pcb_bot]);
             // posts under the DevKit (pressing it in)
             for (x = [14, 38]) translate([x, 82, 0]) cylinder(d = 5, h = z_pcb_bot);
             // sensor chamber: partitions floor -> PCB bottom, and closing the PCB-edge gap up to the PCB top
@@ -210,9 +212,9 @@ module pcb_model() {
     color("black") translate([bz_pos[0] - 4.25, bz_pos[1] - 4.25, z_pcb_top]) cube([8.5, 8.5, 3.3]);   // v1.2 buzzer
     // solder pins under the board (2.2 mm): WAGO rows, DevKit header rows, fan header
     color("orange") {
-        rbox([91.6, J9[1], z_pcb_bot - 2.2], [94.0, J2[3], z_pcb_bot]);   // right clamp pins (x = 92.8)
-        rbox([J5[0], 6.0, z_pcb_bot - 2.2], [J10[2], 8.4, z_pcb_bot]);      // bottom clamp pins (y = 7.2)
-        rbox([6.0, J13[1], z_pcb_bot - 2.2], [8.4, J12[3], z_pcb_bot]);     // left clamp pins (x = 7.2)
+        rbox([89.0, J9[1], z_pcb_bot - 2.2], [96.0, J2[3], z_pcb_bot]);   // right clamp pins (rows x = 90.0 / 95.0)
+        rbox([J5[0], 4.0, z_pcb_bot - 2.2], [J10[2], 11.0, z_pcb_bot]);     // bottom clamp pins (rows y = 10.0 / 5.0)
+        rbox([4.0, J13[1], z_pcb_bot - 2.2], [11.0, J12[3], z_pcb_bot]);    // left clamp pins (rows x = 10.0 / 5.0)
         rbox([21.5, 4.0, z_pcb_bot - 2.2], [31.2, 6.0, z_pcb_bot]);   // fan header pins
         rbox([0.7, 94.0, z_pcb_bot - 2.2], [48.5, 96.0, z_pcb_bot]);  // DevKit J3 row
         rbox([0.7, 68.6, z_pcb_bot - 2.2], [48.5, 73.2, z_pcb_bot]);  // DevKit J4 / J15 rows

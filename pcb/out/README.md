@@ -1,7 +1,14 @@
-# Robo-Garage controller PCB v1.3
+# Robo-Garage controller PCB v1.3.1
 
 100 × 100 mm, 2 layers, 1 oz copper, all parts on top. Made with KiCad 7 + Freerouting (FOSS). DRC: 0 errors, 0 warnings, 0 unconnected.
 **Every BOM line has an LCSC number (all in stock, checked 3 Nov 2026) → JLCPCB assembles the whole board (SMD + clamps, sockets, fan header). You only plug in the DevKitC.**
+
+**New in v1.3.1: fit + orientation fixes**
+| Fix | v1.3 | v1.3.1 |
+|---|---|---|
+| KF250 clamps (9 ×) | all pins in one row | **2 pin rows 5 mm apart (zig-zag)**, as on the real part (datasheet + JLC footprint). The v1.3 clamps would not have fitted |
+| Pick & place rotation | package rules | **computed from JLC's own footprint of each part** (`pcb/gen/jlc_footprints.json`); the build stops if a part fits no rotation |
+| Rotation corrected | – | U2, U3 (pin 1 corner), Q6 (90°), C13 (polarity), BZ1 (− lead was on a dummy pad), J6 (latch peg), J3 / J4 / J15 (90°) |
 
 **New in v1.3: power headroom**
 | Area | v1.2 | v1.3 |
@@ -32,19 +39,19 @@
 DC network solve over every track and via of each power net, current = the limit above. Need = IPC-2221 width for ≤ 20 °C rise.
 | Path | Current | Copper (narrowest) | Need | Drop |
 |---|---|---|---|---|
-| 12V IN → F1 → Q1 | 7 A | 3.0 / 4.2 mm | 2.9 mm | 21 mV |
+| 12V IN → F1 → Q1 | 7 A | 3.0 / 4.2 mm | 2.9 mm | 20 mV |
 | Q1 → shunt (west trunk) | 4.9 A | 2.0 mm | 1.8 mm | 81 mV |
 | Q1 → valve PTC (east branch) | 4 A | 2.0 mm | 1.3 mm | 21 mV |
 | Shunt → DRV8874 VM | 4.9 A | 2.0 mm | 1.8 mm | 67 mV |
-| DRV8874 → ACTUATOR clamp | 4.9 A | 1.8 mm (spots ≤ 5 mm long: 1.5–1.7 mm) | 1.8 mm | 46 / 64 mV |
-| VALVE 12V / VLV | 4 A | 1.5 mm | 1.3 mm | 21 / 20 mV |
+| DRV8874 → ACTUATOR clamp | 4.9 A | 1.8 mm (spots of 1.5–1.6 mm: M− 12 mm, M+ 4 mm in total) | 1.8 mm | 44 / 66 mV |
+| VALVE 12V / VLV | 4 A | 1.5 mm | 1.3 mm | 24 / 15 mV |
 | Buck input | 1.5 A | 0.8 mm | 0.4 mm | 29 mV |
-| 5 V buck → LED clamp | 2 A | 0.8 mm | 0.5 mm | 92 mV |
-| Aux 12 V (fan, beam, leak) | 1.1 A | 0.6 mm | 0.2 mm | 42 mV |
+| 5 V buck → LED clamp | 2 A | 0.8 mm | 0.5 mm | 90 mV |
+| Aux 12 V (fan, beam, leak) | 1.1 A | 0.6 mm | 0.2 mm | 96 mV |
 | Vias in power paths | ≤ 1.1 A | 0.4–0.6 mm drill | 1.3 A per via | – |
 
 Pin necks: 0.4–0.6 mm for ≤ 1.4 mm at the 0.65 mm-pitch DRV8874 pins and the buck SW pin (set by the pin pitch; the wide copper starts right after the pad).
-At 4.9 A the 1.5 mm spots run ≈ 26 °C above ambient when held for minutes; a door move takes ≤ 15 s.
+At 4.9 A the 1.5 mm spots run ≈ 26 °C above ambient when held for minutes; a door move takes ≤ 15 s and runs at ≈ 3 A (≈ 10 °C).
 
 ## Part checks (datasheets)
 | Part | Check | OK |
@@ -64,7 +71,8 @@ At 4.9 A the 1.5 mm spots run ≈ 26 °C above ambient when held for minutes; a 
 |---|---|
 | `robo-garage_gerbers_JLCPCB.zip` | Upload at JLCPCB (PCB) |
 | `robo-garage_BOM_JLCPCB.csv`, `robo-garage_CPL_JLCPCB.csv` | PCB Assembly: BOM + pick & place (48 lines, 114 parts) |
-| `pin1-check.png` | Intended orientation of every polarised part: compare with JLC's placement preview |
+| `pin1-check.png` | Cyan ring = our pin 1 / + / cathode, magenta dot = where JLC puts it (its footprint turned by the CPL rotation). Every dot sits in its ring; compare with JLC's placement preview |
+| `orientation.txt` | CPL rotation of every polarised part and the JLC footprint it was computed from |
 | `robo-garage-pcb.yaml` | ESPHome config for this board |
 | `kicad/` | KiCad project to edit later |
 | `render_top.png`, `render_bottom.png` | Pictures |
@@ -76,10 +84,10 @@ At 4.9 A the 1.5 mm spots run ≈ 26 °C above ambient when held for minutes; a 
 | 2 Assembly | **Economic**, top side, 2 boards, **Tooling holes: Added by Customer** (TH1–TH3 are on the board), *Confirm Parts Placement* = yes |
 | 3 Files | Upload BOM + CPL. Parts list: all 48 lines must match by LCSC number (0 "no part selected") |
 | 4 THT | The clamps, the 3 sockets and the fan header are THT: keep them ticked → JLC solders them (≈ $3.5 + $0.02 per joint, 96 joints per board) |
-| 5 Preview | Compare the placement preview with **`pin1-check.png`**. New footprints in v1.3, check them first: **U1** (pin 1 top-left, next to IO25), **Q1** (pin 1 bottom-left), **Q6** (pin 1 top-left), D1, D2, D5, C1, C3, C13. Then U2–U5, Q2–Q7, D3–D7, LED1 and the clamps (wire entry towards the board edge, J3/J4/J15 pin 1 at the left = DevKit USB end). Rotate in the preview if one differs |
+| 5 Preview | Compare the placement preview with **`pin1-check.png`**: JLC's pin-1 dot / + / cathode mark must sit in the cyan ring of every U, Q, D, LED, C1, C3, C13, BZ1 and J. The CPL already uses JLC's own footprints (`orientation.txt`), so nothing should need turning. Clamps: wire entry towards the board edge. If JLC's engineers ask about polarity (*Confirm Parts Placement*), answer with `pin1-check.png` |
 | 6 Price | ≈ 26 "extended" part types (≈ $3 loading fee each, once per order) – normal for a board like this |
 
-Out of stock? U1 → DRV8874QPWPRQ1 (C22448174, same pinout). U5 → SHT40-AD1F-R2 (C7461846) or SHT41-AD1F-R2 (C7461862), same address, with PTFE cap. KF250 clamp → same footprint family DG250-3.5 / WJ250-3.5 (check the drawing: Ø1.2 holes, 3.5 mm pitch, single row), or leave that line out and hand-solder. PTCs → same size, hold current and at least the same voltage.
+Out of stock? U1 → DRV8874QPWPRQ1 (C22448174, same pinout). U5 → SHT40-AD1F-R2 (C7461846) or SHT41-AD1F-R2 (C7461862), same address, with PTFE cap. KF250 clamp → same footprint family DG250-3.5 / WJ250-3.5 (check the drawing: Ø1.2 holes, 3.5 mm pole pitch, 2 pin rows 5.0 mm apart, odd poles 2.2 mm from the rear face), or leave that line out and hand-solder. Any substitute part needs its JLC footprint in `pcb/gen/jlc_footprints.json` (the build says so). PTCs → same size, hold current and at least the same voltage.
 
 ## Parts to buy separately
 | Part | Qty | Where it goes |

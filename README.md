@@ -9,10 +9,10 @@ ESP32 + ESPHome + Home Assistant: motorised door, light barrier, reed contacts, 
 
 | Part | Version | Status |
 |---|---|---|
-| Controller PCB | v1.3 | DRC 0 errors / 0 warnings (KiCad 7). JLCPCB assembles all parts (SMD + clamps), only the DevKitC is plugged in (USB-C reachable from outside). Power headroom: 12 V in 6 A, actuator 4.9 A limit, valve 3 A, every power path checked against IPC-2221 |
-| Case | v1.3 | fits PCB v1.3 (0 mm³ overlap with the part stand-in), DevKit USB-C through the left wall |
+| Controller PCB | v1.3.1 | DRC 0 errors / 0 warnings (KiCad 7). JLCPCB assembles all parts (SMD + clamps), only the DevKitC is plugged in (USB-C reachable from outside). Power headroom: 12 V in 6 A, actuator 4.9 A limit, valve 3 A, every power path checked against IPC-2221. v1.3.1: clamp pins in 2 rows like the real part, pick & place rotations computed from JLC's own footprints |
+| Case | v1.3.1 | fits PCB v1.3.1 (0 mm³ overlap with the part stand-in), DevKit USB-C through the left wall |
 | ESPHome config | – | checked with ESPHome 2026.10.1 |
-| Simulator | v5.3 | case as a 3D model in the scene, PCB v1.3 texts + downloads |
+| Simulator | v5.3 | case as a 3D model in the scene, PCB v1.3.1 texts + downloads |
 
 ## Folders
 
@@ -58,7 +58,7 @@ Moved a part in `parts.py`? Then the old tracks no longer fit: run `pcb/gen/pipe
 |---|---|
 | 1 | Set the versions: `VERSION` in `pcb/gen/parts.py` (also printed on the board), `version` in `case/robo-garage-case.scad` |
 | 2 | Push to `main` → GitHub Actions builds everything and checks the DRC |
-| 3 | Push a tag: `git tag v1.3.0 && git push origin v1.3.0` → GitHub Actions publishes the release with both zips |
-| or | On github.com: *Releases* → *Draft a new release* → new tag `v1.3.0` → *Publish*. The zips get attached about 2 min later |
+| 3 | Push a tag: `git tag v1.3.1 && git push origin v1.3.1` → GitHub Actions publishes the release with both zips |
+| or | On github.com: *Releases* → *Draft a new release* → new tag `v1.3.1` → *Publish*. The zips get attached about 2 min later |
 
 Every build also keeps both zips for 30 days: *Actions* → run → *Artifacts*.

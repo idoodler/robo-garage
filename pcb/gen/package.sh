@@ -14,5 +14,5 @@ cp "$D/../esphome/robo-garage-pcb.yaml" "$O/"
 cd "$O"
 rm -f robo-garage-pcb_v*.zip
 zip -q -r "robo-garage-pcb_v$V.zip" README.md robo-garage_gerbers_JLCPCB.zip robo-garage_BOM_JLCPCB.csv \
-    robo-garage_CPL_JLCPCB.csv robo-garage-pcb.yaml render_top.png render_bottom.png pin1-check.png kicad
+    robo-garage_CPL_JLCPCB.csv robo-garage-pcb.yaml render_top.png render_bottom.png pin1-check.png orientation.txt kicad
 ls -la "$O"

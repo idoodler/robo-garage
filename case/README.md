@@ -1,6 +1,8 @@
-# Robo-Garage case v1.3 (for controller PCB v1.3)
+# Robo-Garage case v1.3.1 (for controller PCB v1.3.1)
 
-Base + lid, OpenSCAD (FOSS). Checked against a PCB v1.3 stand-in (clamps, DevKit + USB-C plug, electrolytics, inductor, buzzer, fan plug): 0 mm³ overlap with parts.
+Base + lid, OpenSCAD (FOSS). Checked against a PCB v1.3.1 stand-in (clamps, DevKit + USB-C plug, electrolytics, inductor, buzzer, fan plug): 0 mm³ overlap with parts.
+
+v1.3.1: the clamp solder pins sit in two rows (KF250 zig-zag, PCB v1.3.1): the three edge rails under the clamp strips are 0.4 mm narrower (outer pin row 1 mm away). Bodies, windows, lid unchanged.
 
 v1.3: follows PCB v1.3 – the 12 V IN clamp has 4 poles now (right window and rail cover it), the LED window and the vents above / below the buck and the motor driver moved with their parts. Same print, same screws.
 

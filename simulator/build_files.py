@@ -56,6 +56,7 @@ pcb = [
     dict(path='render_top.png', **png(os.path.join(PCB_OUT, 'render_top.png'), 'pcb-render_top.png')),
     dict(path='render_bottom.png', **png(os.path.join(PCB_OUT, 'render_bottom.png'), 'pcb-render_bottom.png')),
     dict(path='pin1-check.png', **png(os.path.join(PCB_OUT, 'pin1-check.png'), 'pcb-pin1-check.png')),
+    dict(path='orientation.txt', **text(os.path.join(PCB_OUT, 'orientation.txt'))),
     dict(path='kicad/robo-garage.kicad_pro', **text(os.path.join(PCB_OUT, 'kicad', 'robo-garage.kicad_pro'))),
     dict(path='kicad/parts.py', **text(os.path.join(PCB_OUT, 'kicad', 'parts.py'))),
     dict(path='kicad/robo-garage.kicad_pcb', **text(os.path.join(PCB_OUT, 'kicad', 'robo-garage.kicad_pcb'))),

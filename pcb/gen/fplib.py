@@ -37,13 +37,16 @@ def _header(name, descr, tags, attr):
 
 
 def kf250(n):
-    """Cixi Kefa KF250-3.5-nP-1 (single pin row, 45 deg wire entry, push buttons). Same body as Degson DG250-3.5.
-    Datasheet (LCSC C475154): pitch 3.5, hole 1.2, pins 0.4 x 0.85, L = n*3.5 + 1.6, depth 12.0, height 11.7,
-    solder pin 3.6. Local frame: pad 1 at (0, 0), pins along +x, wires enter from +y (front face at y = +7.0,
-    rear face at y = -5.0 -- pin row 5.0 mm from the rear face: to be confirmed on the drawing)."""
+    """Cixi Kefa KF250-3.5-nP-1 (45 deg wire entry, push buttons). Same body as Degson DG250-3.5.
+    Datasheet (LCSC C475154) and JLC's footprint (C475154..8): the poles alternate between TWO pin rows 5.0 mm apart
+    (zig-zag) -- odd poles 2.2 mm, even poles 7.2 mm from the rear face; pole pitch 3.5 (7.0 within a row), hole 1.2,
+    pins 0.4 x 0.85, solder pin 3.6; body 2.70 mm left of pole 1 and 2.40 mm right of pole n (L = n*3.5 + 1.6),
+    depth 12.0, height 11.7. (v1.2-v1.3 had all pins in one row -- the part would not have fitted.)
+    Local frame as before, so the body has not moved: pole 1 at x = 0, poles along +x, wires enter from +y
+    (front face y = +7.0, rear face y = -5.0): odd pins y = -2.8, even pins y = +2.2."""
     name = 'KF250-3.5-%dP_1x%02d_P3.50mm_45Degree' % (n, n)
-    L = n * 3.5 + 1.6
-    x0, x1 = -(L - (n - 1) * 3.5) / 2, (n - 1) * 3.5 + (L - (n - 1) * 3.5) / 2
+    x0, x1 = -2.70, (n - 1) * 3.5 + 2.40
+    L = x1 - x0
     yr, yf = -5.0, 7.0
     s = _header(name, 'Cixi Kefa KF250-3.5-%dP-1 spring clamp terminal block, 3.5 mm pitch, 45 deg, push button, '
                       'L %.1f x D 12 x H 11.7 mm, LCSC C47515x; same body as Degson DG250-3.5' % (n, L),
@@ -60,8 +63,8 @@ def kf250(n):
     s += _rect(x0 - 0.25, yr - 0.25, x1 + 0.25, yf + 0.25, 'F.CrtYd', 0.05)
     for k in range(n):
         shape = 'rect' if k == 0 else 'oval'
-        s += ('  (pad "%d" thru_hole %s (at %.3f 0) (size 2.1 2.1) (drill 1.3) (layers "*.Cu" "*.Mask") '
-              '(tstamp %s))\n' % (k + 1, shape, k * 3.5, _id()))
+        s += ('  (pad "%d" thru_hole %s (at %.3f %.3f) (size 2.1 2.1) (drill 1.3) (layers "*.Cu" "*.Mask") '
+              '(tstamp %s))\n' % (k + 1, shape, k * 3.5, yr + (2.2 if k % 2 == 0 else 7.2), _id()))
     return name, s + ')\n'
 
 

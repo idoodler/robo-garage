@@ -1,5 +1,7 @@
 # JLCPCB outputs: gerbers + drill zip, BOM (LCSC), CPL (with rotation fixes), renders
 import csv
+import json
+import math
 import os
 import re
 import shutil
@@ -33,22 +35,67 @@ print('gerber files:', sorted(os.listdir(G)))
 
 # ---------- BOM + CPL ----------
 b = pcbnew.LoadBoard(PCB)
-# KiCad -> JLCPCB rotation offsets, checked against JLC's DFM preview of order SMT026110160950 (Nov 2026):
-# 3-pin SOT-23 needs +180, SOT-23-5/6/8 and TSOT-23-6 need 0 (v1.1.1 had them at +180: U2/U4 came out
-# rotated), SOIC / PowerPAD +270, electrolytics +180. Everything else 0; check pin1-check.png in the preview.
-ROT = [(r'^SOT-23$', 180), (r'^(SOIC-|TI_SO-PowerPAD|TI_PWP)', 270), (r'^CP_Elec_', 180)]
-# v1.3: the DRV8874 HTSSOP-16 (TI_PWP0016J) follows the SOIC rule (JLC/EasyEDA: pin 1 bottom-left, rows horizontal);
-# SOT-23-6 (Q6 TSOP-6) like SOT-23-5 = 0. New footprints: verify in JLC's DFM preview / pin1-check.png.
+# v1.3.1: the CPL rotation of every part is computed from JLC's own library footprint (jlc_footprints.json: pads of
+# the EasyEDA footprint JLC places with, see the file header). No package rules any more: the old rules were tuned
+# on the pictures of JLC's order mail of Nov 2026, but those show the placement after JLC's engineers had already
+# corrected it by hand -- they had U2/U3 and C13 the wrong way round. A part that does not fit at any rotation
+# stops the build (that is how the single-row KF250 footprint of v1.3 would have been caught).
+JLC = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'jlc_footprints.json')))
+TOL = 0.5          # mm pad centre to pad centre (JLC's land patterns differ a little: the 2920 fuse by 0.39)
 
 
-def jlc_rot(fpname, rot):
-    for pat, off in ROT:
-        if re.match(pat, fpname):
-            return (rot + off) % 360
-    return rot % 360
+def rot(x, y, deg):
+    """Rotate CCW as seen on the board (y down) -- the sense of KiCad and JLC rotations."""
+    a = math.radians(deg)
+    return x * math.cos(a) + y * math.sin(a), -x * math.sin(a) + y * math.cos(a)
 
 
-bom, cpl = {}, []
+def board_pads(fp):
+    """The pads JLC sees (front copper with mask opening, plus NPTH peg holes), relative to the centre of the
+    numbered pads' bounding box (= JLC's placement origin; for SMD parts also the KiCad origin)."""
+    out = []
+    for pd in fp.Pads():
+        npth = pd.GetAttribute() == pcbnew.PAD_ATTRIB_NPTH
+        if not npth and not pd.GetLayerSet().Contains(pcbnew.F_Mask):
+            continue                                     # B.Cu pads, thermal vias, paste-only windows
+        out.append(('NPTH' if npth else pd.GetNumber(), pcbnew.ToMM(pd.GetPosition().x), pcbnew.ToMM(pd.GetPosition().y)))
+    real = [q for q in out if q[0] != 'NPTH']
+    cx = (min(q[1] for q in real) + max(q[1] for q in real)) / 2
+    cy = (min(q[2] for q in real) + max(q[2] for q in real)) / 2
+    return [(n, x - cx, y - cy) for n, x, y in out], (cx, cy)
+
+
+def jlc_rotation(ref, lcsc, fp):
+    """JLC rotation (CCW) that puts JLC's footprint onto our pads with the same pin functions; exits if none or if
+    a polarised part fits more than one way."""
+    j = JLC.get(lcsc)
+    if j is None:
+        sys.exit('fab: %s (%s) is not in jlc_footprints.json -- add JLC\'s footprint before ordering' % (ref, lcsc))
+    ours, centre = board_pads(fp)
+    remap = j.get('map', {})
+    fits = []
+    for phi in (0, 90, 180, 270):
+        theirs = [(n,) + rot(x, y, phi) for n, x, y in j['pads']]
+        geo = max([min(math.hypot(a[1] - c[1], a[2] - c[2]) for c in ours) for a in theirs] +
+                  [min(math.hypot(a[1] - c[1], a[2] - c[2]) for c in theirs) for a in ours])
+        fun = 0.0
+        if not j.get('np'):
+            where = {n: (x, y) for n, x, y in theirs}
+            errs = [math.hypot(x - where[remap.get(n, n)][0], y - where[remap.get(n, n)][1])
+                    for n, x, y in ours if n and remap.get(n, n) in where]
+            fun = max(errs) if errs else 99.0
+        fits.append((round(max(geo, fun), 2), phi))
+    ok = [phi for e, phi in fits if e < TOL]
+    if not ok:
+        sys.exit('fab: %s (%s, JLC %s) fits our footprint at no rotation (error mm, rotation): %s' % (ref, lcsc, j['fp'], fits))
+    if len(ok) > 1 and not j.get('np'):
+        sys.exit('fab: %s (%s) is polarised but fits at %s -- pin functions ambiguous' % (ref, lcsc, ok))
+    board_rot = round(fp.GetOrientationDegrees()) % 360
+    phi = board_rot if board_rot in ok else ok[0]
+    return phi, centre, j
+
+
+bom, cpl, orient = {}, [], []
 for fp in b.GetFootprints():
     ref = fp.GetReference()
     p = parts.P[ref]
@@ -57,14 +104,12 @@ for fp in b.GetFootprints():
     # one BOM line per LCSC part (JLC warns when several lines match the same part), else per value/footprint
     key = (p['lcsc'], p['fp']) if p.get('lcsc') else (p['val'], p['fp'], p.get('mpn') or '')
     bom.setdefault(key, []).append(ref)
-    if p.get('tht'):
-        pins = [pad for pad in fp.Pads() if pad.GetAttribute() != pcbnew.PAD_ATTRIB_NPTH]   # not the J6 latch hole
-        xs = [pcbnew.ToMM(pad.GetPosition().x) for pad in pins]
-        ys = [pcbnew.ToMM(pad.GetPosition().y) for pad in pins]
-        x, y = (min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2
-    else:
-        x, y = pcbnew.ToMM(fp.GetPosition().x), pcbnew.ToMM(fp.GetPosition().y)
-    cpl.append([ref, '%.3fmm' % x, '%.3fmm' % (-y), 'Top', '%.1f' % jlc_rot(p['fp'], fp.GetOrientationDegrees())])
+    if not p.get('lcsc'):
+        sys.exit('fab: %s is assembled but has no LCSC part' % ref)
+    # position: centre of the pads (JLC's origin; = KiCad origin for the SMD parts, not for the zig-zag clamps)
+    phi, (x, y), j = jlc_rotation(ref, p['lcsc'], fp)
+    cpl.append([ref, '%.3fmm' % x, '%.3fmm' % (-y), 'Top', '%.1f' % phi])
+    orient.append((ref, p['lcsc'], j['fp'], round(fp.GetOrientationDegrees()) % 360, phi, (x, y), j))
 
 
 def natkey(r):
@@ -89,6 +134,13 @@ with open(os.path.join(OUT, 'robo-garage_CPL_JLCPCB.csv'), 'w', newline='') as f
     for row in sorted(cpl, key=lambda r: natkey(r[0])):
         w.writerow(row)
 print('BOM lines', len(bom), 'CPL parts', len(cpl))
+# orientation table (what JLC's preview has to show): polarised / multi-pin parts only
+with open(os.path.join(OUT, 'orientation.txt'), 'w') as f:
+    f.write('# CPL rotation per part, computed by fab.py from JLC\'s library footprints (jlc_footprints.json)\n')
+    f.write('%-5s %-10s %-48s %5s %5s\n' % ('ref', 'LCSC', 'JLC footprint', 'board', 'CPL'))
+    for ref, lcsc, name, brot, phi, _, j in sorted(orient, key=lambda o: natkey(o[0])):
+        if not j.get('np'):
+            f.write('%-5s %-10s %-48s %5d %5d\n' % (ref, lcsc, name, brot, phi))
 
 
 # ---------- renders ----------
@@ -138,9 +190,10 @@ def pin1_check(png_in, png_out, refs=r'^(U|Q|D|LED|BZ|J|C1$|C3$|C13$)'):
         font = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', 18)
     except OSError:
         font = ImageFont.load_default()
+    where = {o[0]: o for o in orient}
     for fp in b.GetFootprints():
         ref = fp.GetReference()
-        if not re.match(refs, ref) or parts.P[ref].get('nobom') or parts.P[ref].get('dnp'):
+        if not re.match(refs, ref) or ref not in where:
             continue
         p1 = [pd for pd in fp.Pads() if pd.GetNumber() == '1']
         if not p1:
@@ -150,7 +203,16 @@ def pin1_check(png_in, png_out, refs=r'^(U|Q|D|LED|BZ|J|C1$|C3$|C13$)'):
         r = max(10, 0.9 * sx * max(pcbnew.ToMM(p1[0].GetSize().x), pcbnew.ToMM(p1[0].GetSize().y)) / 2)
         d.ellipse([px - r, py - r, px + r, py + r], outline=(0, 230, 255), width=3)
         d.text((px + r + 2, py - r - 4), ref, fill=(0, 230, 255), font=font)
-    d.text((10, 8), 'cyan ring = pin 1 / + / cathode (compare with the JLCPCB preview)', fill=(255, 255, 255), font=font)
+        # where JLC puts its pin 1 / + / cathode: its footprint pad (mapped from our pad 1), turned by the CPL rotation
+        _, _, _, _, phi, (cx, cy), j = where[ref]
+        n1 = j.get('map', {}).get('1', '1')
+        jp = [q for q in j['pads'] if q[0] == n1]
+        if jp:
+            jx, jy = rot(jp[0][1], jp[0][2], phi)
+            mx, my = (cx + jx - x0) * sx, (cy + jy - y0) * sy
+            d.ellipse([mx - 5, my - 5, mx + 5, my + 5], fill=(255, 0, 220))
+    d.text((10, 8), 'cyan ring = our pin 1 / + / cathode, magenta dot = JLC\'s (from its footprint + CPL rotation): '
+           'must sit inside the ring, here and in JLC\'s preview', fill=(255, 255, 255), font=font)
     im.save(png_out)
     return png_out
 
