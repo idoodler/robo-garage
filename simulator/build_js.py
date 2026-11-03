@@ -135,14 +135,15 @@ rep("if(S.block){S.block=false;setP(E('bBlock'),false);}if(S.err){S.err=false;}"
 rep("""add(B(.5,2.8,5.5),M.pcb,-27.7,75.4,-12,carcass,'esp');
 add(B(1.8,5,5),M.pcbRed,-27.1,70,-10.5,carcass,'esp');
 add(B(.5,1.7,2.2),M.pcbBlue,-27.7,71.2,-17,carcass,'esp');""",
-    """/* controller: the printed case (case/robo-garage-case.scad -> files/case-v<V>.glb, cm, y up) hangs under the top at the
+    """/* controller: the printed case (case/robo-garage-case.scad -> files/case-model-v<V>.json = base64 GLB, cm, y up) hangs under the top at the
    left, lid down, USB-C socket towards the front. A plain box stands in until the model has loaded. */
 const caseG=new THREE.Group();caseG.position.set(-26.1,80,-14);carcass.add(caseG);
 const caseBox=add(B(11.15,2.71,10.5),M.plug,4.675,-1.355,5,caseG,'esp');
 M.caseLid=std(0x9fb8d6,.35,0,{transparent:true,opacity:.5,depthWrite:false});
-new GLTFLoader().load('files/case-v1.2.glb',g=>{const mats={base:M.plug,lid:M.caseLid,pcb:M.pcb};
+fetch('files/case-model-v1.2.json').then(r=>r.ok?r.json():Promise.reject(r.status)).then(j=>{const s=atob(j.glb),a=new Uint8Array(s.length);for(let i=0;i<s.length;i++)a[i]=s.charCodeAt(i);
+ new GLTFLoader().parse(a.buffer,'',g=>{const mats={base:M.plug,lid:M.caseLid,pcb:M.pcb};
  g.scene.traverse(o=>{if(o.isMesh){if(!o.geometry.attributes.normal)o.geometry.computeVertexNormals();o.material=mats[o.name]||M.plug;o.castShadow=o.name!=='lid';o.receiveShadow=true;o.userData.part='esp';pick.push(o);}});
- caseG.remove(caseBox);caseG.add(g.scene);},undefined,()=>{});""")
+ caseG.remove(caseBox);caseG.add(g.scene);},()=>{});}).catch(()=>{});""")
 rep("import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometry.js';",
     "import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometry.js';\nimport {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';")
 rep("const toy=add(B(9,7.5,7),M.toy,10,5.25,-.6,drawer,'obstacle');toy.visible=false;",

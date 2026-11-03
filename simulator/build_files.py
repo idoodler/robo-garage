@@ -90,8 +90,11 @@ with tempfile.TemporaryDirectory() as tmp:
         name = {'pcb_model': 'pcb'}.get(part, part)
         scene.add_geometry(m, node_name=name, geom_name=name)
         print('%s: %d triangles' % (name, len(m.faces)))
-glb = os.path.join(FILES, 'case-v%s.glb' % CASE_V)
-scene.export(glb)
+# the artifact host serves no .glb: the page fetches it base64-wrapped in JSON and hands it to GLTFLoader.parse()
+import base64
+glb = os.path.join(FILES, 'case-model-v%s.json' % CASE_V)
+with open(glb, 'w') as f:
+    json.dump({'glb': base64.b64encode(scene.export(file_type='glb')).decode('ascii')}, f)
 print(os.path.basename(glb), os.path.getsize(glb) // 1024, 'kB')
 
 # ---------------- pictures for the page (webp)

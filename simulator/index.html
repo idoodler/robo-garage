@@ -1631,14 +1631,15 @@ add(CY(6.5,5.2,12),M.pot,16,88.8,-34,carcass,'top');
 [[16,99.6,-34,6],[11.8,97,-31.5,4.4],[20.4,96.6,-36.5,4.4],[17,104.6,-35,3.8],[13.5,102,-37,3.6]].forEach(([x,y,z,r])=>add(SP(r),M.leaf,x,y,z,carcass,'top'));
 add(CY(10,7,4),M.bowl,-14,84.8,-22,carcass,'top');
 [[-16.2,87.7,-22.5],[-11.6,87.5,-24.2],[-13.6,87.8,-18.6]].forEach(([x,y,z])=>add(SP(3),M.orange,x,y,z,carcass,'top'));
-/* controller: the printed case (case/robo-garage-case.scad -> files/case-v<V>.glb, cm, y up) hangs under the top at the
+/* controller: the printed case (case/robo-garage-case.scad -> files/case-model-v<V>.json = base64 GLB, cm, y up) hangs under the top at the
    left, lid down, USB-C socket towards the front. A plain box stands in until the model has loaded. */
 const caseG=new THREE.Group();caseG.position.set(-26.1,80,-14);carcass.add(caseG);
 const caseBox=add(B(11.15,2.71,10.5),M.plug,4.675,-1.355,5,caseG,'esp');
 M.caseLid=std(0x9fb8d6,.35,0,{transparent:true,opacity:.5,depthWrite:false});
-new GLTFLoader().load('files/case-v1.2.glb',g=>{const mats={base:M.plug,lid:M.caseLid,pcb:M.pcb};
+fetch('files/case-model-v1.2.json').then(r=>r.ok?r.json():Promise.reject(r.status)).then(j=>{const s=atob(j.glb),a=new Uint8Array(s.length);for(let i=0;i<s.length;i++)a[i]=s.charCodeAt(i);
+ new GLTFLoader().parse(a.buffer,'',g=>{const mats={base:M.plug,lid:M.caseLid,pcb:M.pcb};
  g.scene.traverse(o=>{if(o.isMesh){if(!o.geometry.attributes.normal)o.geometry.computeVertexNormals();o.material=mats[o.name]||M.plug;o.castShadow=o.name!=='lid';o.receiveShadow=true;o.userData.part='esp';pick.push(o);}});
- caseG.remove(caseBox);caseG.add(g.scene);},undefined,()=>{});
+ caseG.remove(caseBox);caseG.add(g.scene);},()=>{});}).catch(()=>{});
 add(B(21,3.6,4.5),M.plug,10.5,65.2,-55.95,carcass,'psu');
 for(let i=0;i<3;i++)add(CY(1.4,1.4,.3,16),M.black,3.5+i*6.5,67.05,-55.95,carcass,'psu');
 add(B(5.5,3.2,8),M.black,25,64.9,-54.1,carcass,'psu');
