@@ -7,12 +7,13 @@
 | Change | Detail |
 |---|---|
 | Clamps assembled | WAGO 804 (not at LCSC) → Cixi Kefa **KF250-3.5** spring clamps (push button, 45° wire entry, 0.2–0.75 mm², 5 A), 2P/3P/4P/6P all in stock at LCSC |
-| LEAK clamp (J13) | 4 poles: 12V + 3V3 (both PTC-fused) to power a sensor, SENSE, GND. Bare electrodes (pulsed 3.3 V, no corrosion) **or** any leak sensor with a digital output. ADC on IO35, clamp diode. HA: "Water leak", "Leak probe" |
-| VALVE clamp (J14) | Right edge, between 12 V IN and BUTTON. 12 V low-side switch (AO3400A, SS34 flyback, PTC 1.5 A / 16 V) for a water valve. A leak powers it automatically. HA: "Water valve" |
+| LEAK clamp (J13) | 4 poles: 12V + 3V3 (both PTC-fused) to power a sensor, SIG, GND. Bare electrodes (pulsed 3.3 V, no corrosion) **or** any leak sensor with a digital output. ADC on IO35, clamp diode. HA: "Water leak", "Leak probe" |
+| VALVE clamp (J14) | Right edge, between BUTTON and REEDS. 12 V low-side switch (AO3400A, SS34 flyback, PTC 1.5 A / 16 V) for a water valve. A leak powers it automatically. HA: "Water valve" |
 | Buzzer (BZ1) | MLT-8530 on 5 V, driven by IO15 (rtttl). Leak alarm beeps even with the "Buzzer" switch off |
 | 12 V monitor | 100k/22k divider on VP (IO36). HA: "12 V rail", "Supply voltage low" (< 10.5 V) |
 | DevKit sockets | Three 1×19 sockets: J3 + J4 (25.4 mm row spacing) or J3 + J15 (22.86 mm). Both pitches fit, no measuring. **DevKit USB-C at the left board edge** (through the case wall), antenna inboard over a copper keep-out |
 | JLC requests | 3 tooling holes Ø1.152 mm (TH1–TH3, corners), pin-1 dots on all ICs / transistors / diodes, rotation rule for SOT-23 fixed |
+| Silkscreen | JLC standard size (≥ 1.0 mm text, 0.17 mm stroke), every pole and circuit block named. Back: title, author (David Gölzhäuser · idoodler), repo link + QR code, fuse table, clamp limits. Every text is checked against pads, parts, other silk and the board edge (JLC: 0.15 mm to pads); no vias under title, author, repo and QR code |
 
 ## Files
 | File | Use |
@@ -55,7 +56,7 @@ Out of stock? SHT40 → SHT40-AD1B-R3 (C2848306) / SHT41-AD1B-R2 (C7461861). F3 
 | BUTTON | BTN, GND, 12V, LED− | Alu button: NO, C, LED+, LED− |
 | REEDS | CL/GND, OP/GND, DR/GND | Door closed, door open, drawer reed |
 | BEAM (left) | RX+, RX−, SIG, TX+, TX−, GND | Receiver: brown, blue, black. Emitter: brown, blue. Beam across the cabinet front, ≈ 12 cm in front of the door, ≈ 2 cm above the floor |
-| LEAK (left) | 12V, 3V3, SENSE, GND | Electrodes: SENSE + GND (no polarity). Digital sensor: VCC → 12V or 3V3 (200 mA PTC each), OUT → SENSE, GND. Wet = SENSE low (NPN / active-low); active-high sensor → `leak_inverted: "true"` |
+| LEAK (left) | 12V, 3V3, SIG, GND | Electrodes: SIG + GND (no polarity). Digital sensor: VCC → 12V or 3V3 (200 mA PTC each), OUT → SIG, GND. Wet = SIG low (NPN / active-low); active-high sensor → `leak_inverted: "true"` |
 | VALVE (right) | +12V, SW | Valve + → +12V, valve − → SW (low side, flyback diode on board) |
 | I2C ToF | 3V3, SDA, SCL, GND | VL53L1X module (optional) |
 
@@ -82,7 +83,7 @@ Out of stock? SHT40 → SHT40-AD1B-R3 (C2848306) / SHT41-AD1B-R2 (C7461861). F3 
 ## Sensors, safety, alarms
 | Item | How it works |
 |---|---|
-| Leak | Every 10 s IO4 drives 3.3 V through 100 k for 70 ms, IO35 reads SENSE (dry electrodes ≈ 3.1 V, a digital sensor 0 V / 3.3 V). 3 wet readings in a row (25 s) → "Water leak" on, valve powered, red strobe, beep. Water gone → LED off after 60 s; **the valve stays powered until you switch it off in HA**. Tap water between two screws 5–10 mm apart reads well below 1 V; only very clean water (< 200 kΩ needed) could stay above the 2.2 V threshold → raise `leak_threshold` to 2.8 then. |
+| Leak | Every 10 s IO4 drives 3.3 V through 100 k for 70 ms, IO35 reads SIG (dry electrodes ≈ 3.1 V, a digital sensor 0 V / 3.3 V). 3 wet readings in a row (25 s) → "Water leak" on, valve powered, red strobe, beep. Water gone → LED off after 60 s; **the valve stays powered until you switch it off in HA**. Tap water between two screws 5–10 mm apart reads well below 1 V; only very clean water (< 200 kΩ needed) could stay above the 2.2 V threshold → raise `leak_threshold` to 2.8 then. |
 | Valve | Use a valve that closes when powered: a cut wire or a dead PSU cannot shut the water, but a leak does. F4 (1.5 A / 16 V PTC) protects the output. |
 | Buzzer | Alerts in ESPHome via `rtttl.play`. "Buzzer" switch off → everything except the leak alarm is silent. |
 | 12 V rail | "12 V rail" sensor (±0.3 V) and "Supply voltage low" when it sags below `supply_low` (weak PSU, stalled actuator). |

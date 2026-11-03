@@ -43,7 +43,7 @@ Locally: run from the repo root. Tested with KiCad 7.0.11 (Python `pcbnew`), Pyt
 
 | Tool | Needed for |
 |---|---|
-| Python package `shapely` 2.2 | `finish.py` |
+| Python packages `shapely` 2.2, `segno` 1.6 (QR code on the silkscreen) | `build.py`, `finish.py` |
 | `kicad-cli`, `rsvg-convert`, Python package `Pillow` | `fab.py` |
 | `zip` | `package.sh`, `case/build.sh` |
 | `openscad`, font DejaVu Sans | `case/build.sh`, `simulator/build_files.py` |

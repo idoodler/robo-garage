@@ -214,12 +214,12 @@ R('R33', '100', 26.2, 64.5, 90, 'IO13', 'Q4_G')
 R('R34', '100k', 24.6, 69.0, 90, 'Q4_G', 'GND')                     # emitter off while the ESP32 boots
 
 # ================= v1.2: water leak input (left edge, below BEAM) =================
-# 4 poles: 12V (PTC F5) and 3V3 (PTC F6) to power a sensor, SENSE, GND. Works with
-#  a) two bare electrodes between SENSE and GND: IO4 drives SENSE through R40 only while measuring (70 ms every
+# 4 poles: 12V (PTC F5) and 3V3 (PTC F6) to power a sensor, SIG, GND. Works with
+#  a) two bare electrodes between SIG and GND: IO4 drives SIG through R40 only while measuring (70 ms every
 #     10 s, no DC across the electrodes -> no corrosion), IO35 (ADC1) reads the divider R40 / water:
 #     dry 3.3 V, tap water (< 200 kOhm) below 2.2 V;
-#  b) a sensor with a digital output: NPN / open collector (sinks SENSE to GND when wet, powered from 12 V or 3V3)
-#     or 3.3-5 V push-pull logic. SENSE reads 0 V or 3.3 V during the same measurement window.
+#  b) a sensor with a digital output: NPN / open collector (sinks SIG to GND when wet, powered from 12 V or 3V3)
+#     or 3.3-5 V push-pull logic. SIG reads 0 V or 3.3 V during the same measurement window.
 # R41 + C31 filter, D4 clamps IO35 to 3V3 / GND (a 5 V logic high is fine).
 LX, LY = 7.2, 70.5
 clamp('J13', 4, 'LEAK', LX, LY, 270, {'1': '+12V_LK', '2': '+3V3_LK', '3': 'LEAK_S', '4': 'GND'})
@@ -233,18 +233,19 @@ R('R41', '10k', 22.5, 71.8, 0, 'LEAK_S', 'IO35')
 C('C31', '100nF', 22.5, 74.3, 0, 'IO35', 'GND')
 add('D4', SOT23, 'BAT54S', 19.5, 77.0, 0, {'1': 'GND', '2': '+3V3', '3': 'IO35'}, lcsc='C408389', mpn='BAT54S', noref=True)
 
-# ================= v1.2: 12 V valve output (right edge, between BUTTON and 12 V IN) =================
+# ================= v1.2: 12 V valve output (right edge, between BUTTON and REEDS) =================
 # Low-side switch for a 12 V solenoid or motorised valve (<= 1.5 A): IO2 -> R42 -> Q6 (AO3400A), SS34 flyback,
 # PTC F4. Pole 1 = +12V (fused), pole 2 = switched return. IO2 is a strapping pin: R43 keeps it low at boot.
-VX, VY = 92.8, 25.0            # pin 1 (+12V) at y 25, pin 2 at 21.5: body between BUTTON and 12 V IN
+# The driver sits left of x 83 so the pole labels (x 83.5 .. 87) stay free.
+VX, VY = 92.8, 51.5            # pin 1 (+12V) at y 51.5, pin 2 at 48.0: body in the gap between BUTTON and REEDS
 clamp('J14', 2, 'VALVE', VX, VY, 90, {'1': '+12V_VLV', '2': 'VALVE_K'})
-add('F4', ('Fuse', 'Fuse_1206_3216Metric'), 'PTC 1.5A 16V', 81.6, 19.8, 0, {'1': '+12V', '2': '+12V_VLV'},
-    lcsc='C883133', mpn='BSMD1206-150-16V', noref=True)          # 16 V part: the ASMD1206-150 (F2) is rated 6 V
-add('D5', ('Diode_SMD', 'D_SMA'), 'SS34', 81.5, 23.0, 0, {'1': '+12V_VLV', '2': 'VALVE_K'},
-    lcsc='C8678', mpn='SS34', noref=True)
-add('Q6', SOT23, 'AO3400A', 82.3, 27.0, 0, {'1': 'Q6_G', '2': 'GND', '3': 'VALVE_K'}, lcsc='C20917', mpn='AO3400A', noref=True)
-R('R42', '100', 86.0, 23.2, 90, 'IO2', 'Q6_G')
-R('R43', '10k', 81.8, 30.2, 0, 'Q6_G', 'GND')
+add('F4', ('Fuse', 'Fuse_1206_3216Metric'), 'PTC 1.5A 16V', 79.5, 46.0, 0, {'1': '+12V', '2': '+12V_VLV'},
+    lcsc='C883133', mpn='BSMD1206-150-16V')          # 16 V part: the ASMD1206-150 (F2) is rated 6 V
+add('D5', ('Diode_SMD', 'D_SMA'), 'SS34', 79.5, 50.0, 0, {'1': '+12V_VLV', '2': 'VALVE_K'},
+    lcsc='C8678', mpn='SS34')
+add('Q6', SOT23, 'AO3400A', 80.2, 53.8, 0, {'1': 'Q6_G', '2': 'GND', '3': 'VALVE_K'}, lcsc='C20917', mpn='AO3400A')
+R('R42', '100', 76.4, 52.9, 0, 'IO2', 'Q6_G')
+R('R43', '10k', 76.4, 54.6, 0, 'Q6_G', 'GND')
 
 # ================= v1.2: buzzer (centre) =================
 # MLT-8530 passive magnetic buzzer (3.6 V, 16 Ohm, 2.7 kHz): +5V -> R44 (10 Ohm) -> BZ1 -> Q7 (AO3400A) -> GND.
@@ -281,7 +282,7 @@ NOPOUR = [(CHAMBER[0] + 0.6, CHAMBER[1] + 0.6, W - 0.3, H - 0.3)]
 
 # v1.1.1: GND pins that only get 1 thermal spoke (tracks around them) -> solid pour connection instead.
 # Q3 = 2 A ring-LED low-side switch (solid is better for current anyway), C16 = button debounce cap.
-SOLID_PADS = ['Q3.2', 'C16.2', 'C11.2']   # v1.2: C11 (INA219 decoupling) too
+SOLID_PADS = ['Q3.2', 'C16.2', 'C11.2', 'J15.13']   # v1.2: C11 (INA219 decoupling); J15.13: router boxes it in on B.Cu
 
 # ================= mounting holes + JLCPCB tooling holes =================
 for i, (x, y) in enumerate([(96.5, 3.5), (3.5, 96.5), (96.5, 96.5), (3.5, 40.0)]):
@@ -335,11 +336,20 @@ TR += [('GND', 0.3, 'F', [(XE, 90.9), (SX + 2.3, 90.9), (SX + 2.3, SY - 0.775)])
 # v1.1.1: both end exactly in the C28 pad centres, so the autorouter sees them as connected)
 
 # ================= silkscreen =================
+# v1.2: JLCPCB standard silkscreen: text height >= 1.0 mm, stroke >= 0.153 mm, width:height ~ 1:6, 0.15 mm to pads.
+# build.py derives the stroke from the size (max(0.17, size / 6)); checks.silk_text_conflicts() gates every text
+# (pads, other silk, part courtyards, board edge) in build.py and finish.py.
 TEXTS = []
+TS = 1.0                                   # default text height (mm)
+AUTHOR, HANDLE = 'David Gölzhäuser', 'idoodler'
+REPO = 'github.com/idoodler/robo-garage'
 
 
-def T(text, x, y, size=1.0, rot=0, just='c', back=False):
-    TEXTS.append(dict(text=text, x=x, y=y, size=size, rot=rot, just=just, back=back))
+def T(text, x, y, size=TS, rot=0, just='c', back=False, nudge=0.0, novia=False):
+    """nudge > 0: build.py may move the text up to this far (mm) to the nearest spot without conflicts.
+    novia: via keep-out under the text (title, author, repo), so router and stitching keep it intact. Other texts
+    may get a via: JLCPCB then clips the silk at the hole (cosmetic only)."""
+    TEXTS.append(dict(text=text, x=x, y=y, size=size, rot=rot, just=just, back=back, nudge=nudge, novia=novia))
 
 
 PITCH = 3.5
@@ -347,40 +357,65 @@ PITCH = 3.5
 
 def pin_labels_bottom(x0, labels, y=86.2):
     for k, s in enumerate(labels):
-        T(s, x0 + PITCH * k, y, 0.8)
+        T(s, x0 + PITCH * k, y)
 
 
-def pin_labels_right(y0, labels, x=83.6):
+def pin_labels_right(y0, labels, x=87.0):
     for k, s in enumerate(labels):
-        T(s, x, y0 - PITCH * k, 0.8, just='r')
+        T(s, x, y0 - PITCH * k, just='r')
 
 
 def pin_labels_left(y0, labels, x=13.0):
     for k, s in enumerate(labels):
-        T(s, x, y0 + PITCH * k, 0.8, just='l')
+        T(s, x, y0 + PITCH * k, just='l')
 
 
+# ---- front: clamp names + every pole
 pin_labels_bottom(11.0, ['M+', 'M-'])
 pin_labels_bottom(37.0, ['5V', 'DAT', 'GND'])
 pin_labels_bottom(55.0, ['3V3', 'SDA', 'SCL', 'GND'])
 pin_labels_right(15.0, ['+12V', 'GND'])
 pin_labels_right(42.0, ['BTN', 'GND', '12V', 'LED-'])
-pin_labels_right(VY, ['12V', 'VLV'], x=87.3)
-pin_labels_right(78.0, ['CL', 'GND', 'OP', 'GND', 'DR', 'GND'])
+pin_labels_right(VY, ['12V', 'VLV'])
+pin_labels_right(78.0, ['CLOSED', 'GND', 'OPEN', 'GND', 'DRAWER', 'GND'])
 pin_labels_left(BY, ['RX+', 'RX-', 'SIG', 'TX+', 'TX-', 'GND'])
-pin_labels_left(LY, ['12V', '3V3', 'SENSE', 'GND'])
-T('BEAM', 12.6, BY - 3.5, 0.8, just='l')
-T('LEAK', 13.0, LY - 2.4, 0.8, just='l')
-T('ACTUATOR', 18.0, 88.6, 0.8, just='l')
-T('FAN', 26.3, 91.0, 0.9)
-T('LED', 40.5, 84.6, 0.8)
-T('I2C  ToF', 60.25, 84.6, 0.8)
-T('12 V IN', 83.6, 8.0, 0.8, just='r')
-T('BUTTON', 87.3, 28.3, 0.8, just='r')
-T('VALVE', 87.5, 18.3, 0.8, just='r')
-T('REEDS', 83.6, 56.8, 0.8, just='r')
-T('EXP: 3V3 GND 5V IO14 IO39 IO5', 37.35, 37.6, 0.8)
-T('BUZZER', BZX, BZY - 6.6, 0.8)
-T('ROBO-GARAGE CTRL v' + VERSION, 42.0, 46.0, 1.4)
-T('<- USB-C   ESP32 DevKitC V4   antenna ->', 28.0, 2.4, 0.8)
-T('DevKit: either row fits (25.4 / 22.86)', 3.0, 33.6, 0.8, just='l')
+pin_labels_left(LY, ['12V', '3V3', 'SIG', 'GND'])
+T('BEAM', 12.6, 41.6, just='l')
+T('LEAK', 13.0, LY - 2.4, just='l')
+T('DOOR ACTUATOR', 18.0, 88.6, just='l')
+T('FAN PWM', 26.3, 91.0)
+T('WS2812 LED', 40.5, 84.6)
+T('I2C  ToF', 60.25, 84.6)
+T('12 V IN', 87.0, 7.8, just='r')
+T('BUTTON', 87.0, 28.3, just='r')
+T('VALVE', 87.0, 44.9, just='r')
+T('DOOR REEDS', 87.0, 56.8, just='r')
+T('EXP: 3V3 GND 5V IO14 IO39 IO5', 37.35, 37.6)
+T('BUZZER', BZX, BZY - 6.6)
+T('<- USB-C   ESP32 DevKitC V4   antenna ->', 28.0, 2.4)
+T('DevKit rows: 25.4 or 22.86', 3.0, 33.6, just='l')
+# ---- front: circuit blocks
+T('INPUT PROTECTION', 72.0, 2.4, nudge=3.0)
+T('5V BUCK', 65.0, 46.6, nudge=3.0)
+T('MOTOR DRV', 31.4, 67.6, nudge=2.0)
+# ---- front: title, author, repo
+T('ROBO-GARAGE v' + VERSION, 41.0, 43.0, 1.8, novia=True)
+T('robot vacuum cabinet controller', 41.0, 45.6)
+T(AUTHOR + ' · ' + HANDLE, 41.0, 48.0, novia=True)
+T(REPO, 41.0, 50.2, novia=True)
+
+# ---- back (mirrored, reads correctly from below): about, fuses, clamp limits, QR code to the repo
+QR = dict(data='HTTPS://' + REPO.upper(), x=50.0, y=65.6, module=0.55, error='q', back=True)
+# upper case = QR alphanumeric mode: 39 characters fit version 3 (29 x 29) at ECC level Q (25 % may be damaged);
+# GitHub resolves owner / repo names case-insensitively. Text block starts at y 46: GND vias of the buck sit above.
+T('ROBO-GARAGE CONTROLLER v' + VERSION, 50.0, 46.0, 1.8, back=True, novia=True)
+T('Robot vacuum cabinet  ·  ESPHome  ·  Home Assistant', 50.0, 48.9, 1.1, back=True)
+T(AUTHOR + '  ·  ' + HANDLE, 50.0, 51.9, 1.6, back=True, novia=True)
+T(REPO, 50.0, 54.7, 1.2, back=True, novia=True)
+for k, line in enumerate(['RESETTABLE FUSES (PTC)', 'F1  2.6 A   12 V IN', 'F2  1.5 A   LED', 'F3  0.2 A   BEAM',
+                          'F4  1.5 A   VALVE', 'F5  0.2 A   LEAK 12V', 'F6  0.2 A   LEAK 3V3', 'Tripped? Power off 1 min.']):
+    T(line, 80.0, 58.2 + 1.75 * k, just='l', back=True)       # back: 'left' = as read from below (board x 80 -> 62)
+for k, line in enumerate(['CLAMPS 0.2-0.75 mm², 5 A', 'PSU  12 V / 3 A', 'ACTUATOR  1.9 A limit',
+                          'LED  5 V, max 1.5 A', 'VALVE  12 V, max 1.5 A', 'BEAM  NPN, Light-ON']):
+    T(line, 38.0, 58.2 + 1.75 * k, just='l', back=True)       # ends above the U1 thermal pad (y 69.75)
+T('PCB v' + VERSION + '  ·  made in code: KiCad + Freerouting  ·  2026', 50.0, 76.6, back=True)

@@ -6,6 +6,8 @@ import sys
 
 import pcbnew
 
+import checks
+
 sys.path.insert(0, os.path.dirname(__file__))
 import importlib
 import parts
@@ -22,17 +24,18 @@ def V(x, y):
     return pcbnew.VECTOR2I(MM(x), MM(y))
 
 
-def rule_area(board, rect, tracks):
-    """Rule area on F.Cu + B.Cu: never copper pour; tracks / vias forbidden too when tracks=True."""
+def rule_area(board, rect, tracks, vias_only=False):
+    """Rule area on F.Cu + B.Cu: never copper pour; tracks / vias forbidden too when tracks=True.
+    vias_only: only vias forbidden (pour + tracks allowed) - exported to Freerouting as a via_keepout."""
     z = pcbnew.ZONE(board)
     z.SetIsRuleArea(True)
     ls = pcbnew.LSET()
     ls.AddLayer(pcbnew.F_Cu)
     ls.AddLayer(pcbnew.B_Cu)
     z.SetLayerSet(ls)
-    z.SetDoNotAllowCopperPour(True)
-    z.SetDoNotAllowTracks(tracks)
-    z.SetDoNotAllowVias(tracks)
+    z.SetDoNotAllowCopperPour(not vias_only)
+    z.SetDoNotAllowTracks(tracks and not vias_only)
+    z.SetDoNotAllowVias(tracks or vias_only)
     z.SetDoNotAllowPads(False)
     z.SetDoNotAllowFootprints(False)
     ol = z.Outline()
@@ -87,6 +90,132 @@ def pin1_dots(board, refs=r'^(U|Q|D|LED)\d', r=0.2, gap=0.5):
     return n
 
 
+def draw_qr(board, q):
+    """v1.2: QR code as filled silk rectangles (one per run of dark modules in a row). On the back it is mirrored,
+    so it reads correctly from below."""
+    import segno
+    code = segno.make(q['data'], error=q.get('error', 'm'), micro=False)
+    rows = [list(r) for r in code.matrix_iter(scale=1, border=0)]
+    n, m = len(rows), q['module']
+    x0, y0 = q['x'] - n * m / 2, q['y'] - n * m / 2
+    layer = pcbnew.B_SilkS if q.get('back') else pcbnew.F_SilkS
+    k = 0
+    for r, row in enumerate(rows):
+        c = 0
+        while c < n:
+            if not row[c]:
+                c += 1
+                continue
+            c1 = c
+            while c1 < n and row[c1]:
+                c1 += 1
+            xa, xb = (n - c1, n - c) if q.get('back') else (c, c1)
+            sh = pcbnew.PCB_SHAPE(board)
+            sh.SetShape(pcbnew.SHAPE_T_RECT)
+            sh.SetStart(V(x0 + xa * m, y0 + r * m))
+            sh.SetEnd(V(x0 + xb * m, y0 + (r + 1) * m))
+            sh.SetFilled(True)
+            sh.SetWidth(0)
+            sh.SetLayer(layer)
+            board.Add(sh)
+            k += 1
+            c = c1
+    print('QR %s: version %s, %d x %d modules of %.2f mm, %d rectangles' % (q['data'], code.version, n, n, m, k))
+
+
+def nudge_texts(board, items, step=0.2):
+    """v1.2: move each listed text to the nearest spot (within its radius) that is clear of pads, silk,
+    courtyards and the board edge. Logs the moves; leaves the text where it is if nothing fits."""
+    import checks
+    for txt, radius in items:
+        side = 'B' if txt.GetLayer() == pcbnew.B_SilkS else 'F'
+        pads, yards, region = checks.silk_env(board, side)
+        silk = [s for s in checks.silk_geoms(board) if s[1].GetLayer() == txt.GetLayer()]
+        p0 = txt.GetPosition()
+        n = int(radius / step)
+        offs = sorted(((i * step, j * step) for i in range(-n, n + 1) for j in range(-n, n + 1)
+                       if math.hypot(i, j) * step <= radius + 1e-9), key=lambda d: (math.hypot(*d), abs(d[1])))
+        for dx, dy in offs:
+            txt.SetPosition(pcbnew.VECTOR2I(p0.x + MM(dx), p0.y + MM(dy)))
+            if not checks.text_conflicts(checks.text_ink(txt), pads, yards, region, silk, self_item=txt):
+                if dx or dy:
+                    print('nudged %r by (%.1f, %.1f) mm' % (txt.GetText(), dx, dy))
+                break
+        else:
+            txt.SetPosition(p0)
+            print('nudge: no free spot for %r within %.1f mm' % (txt.GetText(), radius))
+
+
+def silk_via_keepouts(board, texts, margin=0.35):
+    """v1.2: no vias under the board texts and the QR code (JLCPCB clips silk at via holes): one via-only
+    rule area per text line / QR, exported to Freerouting as via_keepout; the GND stitching avoids silk anyway."""
+    import checks
+    from shapely.ops import unary_union
+    boxes = [checks.text_ink(d) for d in texts]
+    qr = [checks.item_poly(d) for d in board.GetDrawings() if checks.is_qr(d)]
+    if qr:
+        boxes.append(unary_union(qr).envelope)
+    for bx in boxes:
+        x0, y0, x1, y1 = bx.buffer(margin, join_style=2).bounds
+        rule_area(board, (x0, y0, x1, y1), True, vias_only=True)
+    print('via keep-outs under silk:', len(boxes))
+
+
+def apart(p, q):
+    """A reference never reads as part of a label: 3 mm from it on the same text line, else 0.8 mm."""
+    (ax0, ay0, ax1, ay1), (bx0, by0, bx1, by1) = p.bounds, q.bounds
+    same_line = min(ay1, by1) - max(ay0, by0) > 0.2
+    return p.distance(q) >= (3.0 if same_line else 0.8)
+
+
+def place_refs(board):
+    """v1.2: put every visible reference (U, Q, D, F, L) where it is clear of pads, silk and courtyards:
+    library position first, then around the courtyard. No room -> hidden (logged)."""
+    import checks
+    hidden = []
+    for side in ('F',):
+        pads, yards, region = checks.silk_env(board, side)
+        for fp in sorted(board.GetFootprints(), key=lambda f: f.GetReference()):
+            t = fp.Reference()
+            if not t.IsVisible():
+                continue
+            t.SetTextAngle(pcbnew.EDA_ANGLE(-fp.GetOrientationDegrees(), pcbnew.DEGREES_T))   # horizontal
+            cy = fp.GetCourtyard(pcbnew.F_CrtYd)
+            bb = cy.BBox() if cy.OutlineCount() else fp.GetBoundingBox(False, False)
+            x0, y0, x1, y1 = (pcbnew.ToMM(v) for v in (bb.GetX(), bb.GetY(), bb.GetRight(), bb.GetBottom()))
+            cx, cyy = (x0 + x1) / 2, (y0 + y1) / 2
+            tb = t.GetEffectiveTextShape().BBox()
+            w, h = pcbnew.ToMM(tb.GetWidth()), pcbnew.ToMM(tb.GetHeight())
+            g = 0.15
+            cands = [None]
+            for d in (0.0, 0.8):
+                cands += [(cx, y0 - h / 2 - g - d), (cx, y1 + h / 2 + g + d), (x0 - w / 2 - g - d, cyy),
+                          (x1 + w / 2 + g + d, cyy), (x0 - w / 2 - g - d, y0 - h / 2 - g - d),
+                          (x1 + w / 2 + g + d, y0 - h / 2 - g - d), (x0 - w / 2 - g - d, y1 + h / 2 + g + d),
+                          (x1 + w / 2 + g + d, y1 + h / 2 + g + d), (x0 + w / 2, y0 - h / 2 - g - d),
+                          (x1 - w / 2, y0 - h / 2 - g - d), (x0 + w / 2, y1 + h / 2 + g + d),
+                          (x1 - w / 2, y1 + h / 2 + g + d)]
+            silk = [s for s in checks.silk_geoms(board) if s[1].GetLayer() == pcbnew.F_SilkS]
+            labels = [q for _, it, q in silk if isinstance(it, pcbnew.PCB_TEXT)]
+            ok = False
+            for c in cands:
+                if c is not None:
+                    t.SetPosition(V(*c))
+                    if hasattr(t, 'SetLocalCoord'):
+                        t.SetLocalCoord()
+                p = checks.text_ink(t)
+                if not checks.text_conflicts(p, pads, yards, region, silk, self_item=t) and \
+                        all(apart(p, q) for q in labels):     # never reads as part of a label
+                    ok = True
+                    break
+            if not ok:
+                t.SetVisible(False)
+                hidden.append(fp.GetReference())
+    if hidden:
+        print('place_refs: no room, hidden:', ' '.join(hidden))
+    return hidden
+
+
 def build(path=OUT + '/robo-garage.kicad_pcb', tracks=True):
     os.makedirs(OUT, exist_ok=True)
     board = pcbnew.BOARD()
@@ -118,10 +247,11 @@ def build(path=OUT + '/robo-garage.kicad_pcb', tracks=True):
             fp.SetZoneConnection(pcbnew.ZONE_CONNECTION_FULL)   # PowerPAD + thermal vias solid to GND
         if p.get('lcsc'):
             fp.SetProperty('LCSC', p['lcsc'])
-        # silkscreen reference: keep for connectors / ICs, hide for small passives
-        fp.Reference().SetVisible(ref[0] in 'UQLFD' and not p.get('noref'))
-        fp.Reference().SetTextSize(pcbnew.VECTOR2I(MM(0.8), MM(0.8)))
-        fp.Reference().SetTextThickness(MM(0.12))
+        # silkscreen reference: ICs, transistors, diodes, fuses, inductor (placed later by place_refs: where it fits),
+        # hidden for passives. v1.2: 1.0 mm / 0.17 mm = JLCPCB standard silkscreen
+        fp.Reference().SetVisible(ref[0] in 'UQLFD')
+        fp.Reference().SetTextSize(pcbnew.VECTOR2I(MM(1.0), MM(1.0)))
+        fp.Reference().SetTextThickness(MM(0.17))
         for pad in fp.Pads():
             n = pad.GetNumber()
             if n and p['nets'].get(n):
@@ -164,6 +294,7 @@ def build(path=OUT + '/robo-garage.kicad_pcb', tracks=True):
     for rect in getattr(parts, 'KEEPOUTS', []):
         rule_area(board, rect, True)
 
+    nudge, novia = [], []
     for t in parts.TEXTS if hasattr(parts, 'TEXTS') else []:
         txt = pcbnew.PCB_TEXT(board)
         txt.SetText(t['text'])
@@ -171,7 +302,7 @@ def build(path=OUT + '/robo-garage.kicad_pcb', tracks=True):
         txt.SetLayer(pcbnew.B_SilkS if t.get('back') else pcbnew.F_SilkS)
         sz = t.get('size', 1.0)
         txt.SetTextSize(pcbnew.VECTOR2I(MM(sz), MM(sz)))
-        txt.SetTextThickness(MM(t.get('th', 0.15)))
+        txt.SetTextThickness(MM(t.get('th', max(0.17, sz / 6.0))))     # JLCPCB: >= 0.153 mm, ~1:6
         txt.SetTextAngleDegrees(t.get('rot', 0))
         if t.get('back'):
             txt.SetMirrored(True)
@@ -179,8 +310,15 @@ def build(path=OUT + '/robo-garage.kicad_pcb', tracks=True):
         txt.SetHorizJustify({'l': pcbnew.GR_TEXT_H_ALIGN_LEFT, 'r': pcbnew.GR_TEXT_H_ALIGN_RIGHT,
                              'c': pcbnew.GR_TEXT_H_ALIGN_CENTER}[just])
         board.Add(txt)
+        if t.get('nudge'):
+            nudge.append((txt, t['nudge']))
+        if t.get('novia'):
+            novia.append(txt)
 
     pin1_dots(board)
+    if getattr(parts, 'QR', None):
+        draw_qr(board, parts.QR)
+    nudge_texts(board, nudge)
 
     for poly in getattr(parts, 'SILK_LINES', []):
         for a, b in zip(poly[:-1], poly[1:]):
@@ -203,6 +341,11 @@ def build(path=OUT + '/robo-garage.kicad_pcb', tracks=True):
         v.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu); v.SetNet(net(netname)); v.SetLocked(True)
         board.Add(v)
 
+    place_refs(board)
+    silk_via_keepouts(board, novia)
+    for side, ref, text, c in checks.silk_text_conflicts(board):
+        print('silk conflict %s %s %r: %s' % (side, ref, text, ', '.join(c[:4])))
+
     ds = board.GetDesignSettings()
     ds.m_MinClearance = MM(0.15)
     ds.m_TrackMinWidth = MM(0.2)
@@ -214,7 +357,7 @@ def build(path=OUT + '/robo-garage.kicad_pcb', tracks=True):
     return path
 
 
-POWER = ['+12V_IN', '+12V_F', '+12V', '+12V_MOT', 'MOT_A', 'MOT_B']
+POWER = ['+12V_IN', '+12V_F', '+12V', '+12V_MOT', 'MOT_A', 'MOT_B', '+12V_VLV', 'VALVE_K']   # v1.2: valve 1.5 A
 FIVE = ['+5V', '+5V_LED', '+5V_DEV', 'SW']
 
 

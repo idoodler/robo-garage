@@ -168,6 +168,14 @@
         "pattern": "MOT_B"
       },
       {
+        "netclass": "Power12",
+        "pattern": "+12V_VLV"
+      },
+      {
+        "netclass": "Power12",
+        "pattern": "VALVE_K"
+      },
+      {
         "netclass": "Power5",
         "pattern": "+5V"
       },

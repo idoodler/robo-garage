@@ -372,3 +372,99 @@ def thermals_exact(board, version=9, min_spokes=2, isl=None):
                     lbl = '%s.%s' % (fp.GetReference(), pad.GetNumber())
                     res.append((lbl, board.GetLayerName(layer), spokes, ignored, per))
     return res
+
+
+# ---------------- v1.2: silkscreen text rules (JLCPCB: 0.15 mm pad to silk, text >= 1.0 mm) ----------------
+SIDES = {'F': (pcbnew.F_SilkS, pcbnew.F_Mask, pcbnew.F_CrtYd), 'B': (pcbnew.B_SilkS, pcbnew.B_Mask, pcbnew.B_CrtYd)}
+
+
+def is_text(item):
+    return hasattr(item, 'GetShownText')
+
+
+def text_ink(item):
+    """Rectangle around the printed strokes of a text (KiCad's own text bbox adds line spacing above / below)."""
+    bb = item.GetEffectiveTextShape().BBox()
+    return Polygon([(TM(bb.GetX()), TM(bb.GetY())), (TM(bb.GetRight()), TM(bb.GetY())),
+                    (TM(bb.GetRight()), TM(bb.GetBottom())), (TM(bb.GetX()), TM(bb.GetBottom()))])
+
+
+def silk_geoms(board):
+    """silk_shapes() with texts as their ink rectangle."""
+    return [(ref, it, text_ink(it) if is_text(it) else p) for ref, it, p in silk_shapes(board)]
+
+
+def is_qr(item):
+    """QR modules: filled rectangles on a silk layer (build.draw_qr)."""
+    return item.Type() in (pcbnew.PCB_SHAPE_T,) and item.GetShape() == pcbnew.SHAPE_T_RECT and item.IsFilled()
+
+
+def silk_env(board, side):
+    """Obstacles for silk on one side: exposed pads (+ mask margin + 0.15 mm), part courtyards, board area."""
+    silk, mask, crt = SIDES[side]
+    pads, yards = [], []
+    for fp in board.GetFootprints():
+        for pad in fp.Pads():
+            if pad.IsOnLayer(mask):
+                m = max(0.05, TM(pad.GetLocalSolderMaskMargin()))
+                pads.append(('%s.%s' % (fp.GetReference(), pad.GetNumber()), item_poly(pad).buffer(m + 0.15)))
+        cy = fp.GetCourtyard(crt)
+        if cy.OutlineCount():
+            yards.append((fp.GetReference(), polyset_to_shapely(cy)))
+    for v in board.GetTracks():                  # via holes: JLCPCB clips silk there (even when tented)
+        if v.Type() == pcbnew.PCB_VIA_T:
+            pads.append(('via %s' % v.GetNetname(), item_poly(v).buffer(0.1)))
+    region = board_region(board).buffer(-0.3)
+    return pads, yards, region
+
+
+def text_conflicts(poly, pads, yards, region, silk_items, own_ref=None, self_item=None, gap=0.15):
+    """What a silk text / QR polygon collides with: [str]."""
+    out = []
+    if not region.contains(poly):
+        out.append('board edge')
+    out += ['pad ' + n for n, p in pads if poly.intersects(p)]
+    out += ['courtyard ' + r for r, p in yards if poly.intersection(p).area > 0.02]
+    me = self_item.m_Uuid.AsString() if self_item is not None else None
+    for ref, it, p in silk_items:
+        if me is not None and it.m_Uuid.AsString() == me:          # SWIG wrappers differ: compare the UUID
+            continue
+        if self_item is not None and is_qr(self_item) and is_qr(it):
+            continue
+        if poly.distance(p) < gap:
+            out.append('silk %s %s' % (ref, it.GetShownText() if is_text(it) else it.GetClass()))
+    return out
+
+
+def via_keepouts(board):
+    """Union of all rule areas that forbid vias (SHT40 slot keep-outs, via keep-outs under silk)."""
+    polys = [polyset_to_shapely(z.Outline()) for z in board.Zones() if z.GetIsRuleArea() and z.GetDoNotAllowVias()]
+    return unary_union(polys) if polys else Polygon()
+
+
+def silk_text_conflicts(board):
+    """Every visible silk text and the QR code: clear of pads, other silk, courtyards and the board edge.
+    Returns [(side, ref, text, [conflicts])]."""
+    shapes = silk_geoms(board)
+    vk = via_keepouts(board)
+    res = []
+    for side, (silk, _, _) in SIDES.items():
+        pads, yards, region = silk_env(board, side)
+        items = [s for s in shapes if s[1].GetLayer() == silk]
+        qr = unary_union([p for _, it, p in items if is_qr(it)])
+        for ref, it, p in items:
+            if not is_text(it):
+                continue
+            c = text_conflicts(p, pads, yards, region, [s for s in items if not is_qr(s[1])], self_item=it)
+            if not p.difference(vk).area < 0.01 * p.area:     # text without a via keep-out: a via there is
+                c = [x for x in c if not x.startswith('pad via')]   # only cosmetic (JLC clips the silk at the hole)
+            if not qr.is_empty and p.distance(qr) < 1.2:      # keep a quiet zone of ~2 modules around the QR
+                c.append('QR quiet zone')
+            if c:
+                res.append((side, ref, it.GetShownText(), c))
+        if not qr.is_empty:
+            c = text_conflicts(qr, pads, yards, region, [s for s in items if not is_qr(s[1]) and not is_text(s[1])],
+                               self_item=None)
+            if c:
+                res.append((side, 'QR', 'QR code', c))
+    return res

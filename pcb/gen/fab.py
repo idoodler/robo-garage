@@ -90,7 +90,7 @@ print('BOM lines', len(bom), 'CPL parts', len(cpl))
 
 
 # ---------- renders ----------
-def render(layers, name, flip=False):
+def render(layers, name, flip=False, bg='#0b3d1e'):
     svg = os.path.join(OUT, name + '.svg')
     png = os.path.join(OUT, name + '.png')
     args = ['kicad-cli', 'pcb', 'export', 'svg', '--layers', layers, '--page-size-mode', '2',
@@ -98,15 +98,29 @@ def render(layers, name, flip=False):
     if flip:
         args.insert(-1, '--mirror')
     subprocess.run(args, check=True, capture_output=True)
-    subprocess.run(['rsvg-convert', '-w', '1800', '-b', '#0b3d1e' if 'Cu' in layers else 'white', '-o', png, svg],
-                   check=True)
+    subprocess.run(['rsvg-convert', '-w', '1800'] + (['-b', bg] if bg else []) + ['-o', png, svg], check=True)
     os.remove(svg)
     return png
 
 
-top = render('F.Cu,F.SilkS,Edge.Cuts', 'render_top')
+def render_side(side, name):
+    """Copper + Edge.Cuts, then the silk (+ Edge.Cuts, same page box) composited on top: kicad-cli 7 plots
+    B.Cu over B.SilkS, which would hide the bottom silkscreen in the picture."""
+    from PIL import Image
+    flip = side == 'B'
+    cu = render('%s.Cu,Edge.Cuts' % side, name, flip)
+    sk = render('%s.SilkS,Edge.Cuts' % side, name + '_silk', flip, bg=None)
+    a, b = Image.open(cu).convert('RGBA'), Image.open(sk).convert('RGBA')
+    if a.size != b.size:
+        b = b.resize(a.size)
+    Image.alpha_composite(a, b).convert('RGB').save(cu)
+    os.remove(sk)
+    return cu
+
+
+top = render_side('F', 'render_top')
 print(top)
-print(render('B.Cu,B.SilkS,Edge.Cuts', 'render_bottom', flip=True))
+print(render_side('B', 'render_bottom'))
 
 
 # ---------- pin-1 check picture (compare with JLCPCB's DFM preview before confirming the order) ----------

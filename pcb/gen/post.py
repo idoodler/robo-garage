@@ -288,7 +288,8 @@ def _obstacles(board, r, drill, silk=True):
             if cy.OutlineCount():
                 crt.append(checks.polyset_to_shapely(cy))
     parts = [pads.buffer(r + 0.3), tracks.buffer(r + 0.2), vias.buffer(r + 1.0),
-             _holes(board).buffer(drill / 2 + 0.3), unary_union(crt).buffer(r) if crt else Point(-99, -99)]
+             _holes(board).buffer(drill / 2 + 0.3), unary_union(crt).buffer(r) if crt else Point(-99, -99),
+             checks.via_keepouts(board).buffer(r + 0.05)]            # v1.2: no vias under protected silk
     if silk:
         parts.append(unary_union([p for _, _, p in checks.silk_shapes(board)]).buffer(r + 0.1))
     return unary_union(parts)
@@ -407,6 +408,7 @@ def stitch_grid(board, pitch=6.0, search=1.5, via_d=0.6, drill=0.3, log=print):
                 crt.append(checks.polyset_to_shapely(cy))
     blocked = unary_union([pads.buffer(r + 0.3), tracks.buffer(r + 0.2), unary_union(vias).buffer(r + 1.0),
                            _holes(board).buffer(drill / 2 + 0.3), silk.buffer(r + 0.1),
+                           checks.via_keepouts(board).buffer(r + 0.05),
                            unary_union(crt).buffer(r) if crt else Point(-99, -99)])
     ok = both.buffer(-(r + 0.15)).intersection(checks.board_region(board).buffer(-(r + 1.0))).difference(blocked)
     gnd = board.FindNet('GND')

@@ -2,7 +2,7 @@
 
 Base + lid, OpenSCAD (FOSS). Checked against a PCB stand-in: 0 mm³ overlap with parts.
 
-v1.2: left window + lid cut-out now span VALVE / LEAK / BEAM (KF250 clamps, 11.7 mm high), sound holes above the buzzer, lid vents moved right of the LEAK label, 3 mm bridge keeps the front-left lid corner (screw post) attached, **the DevKit's own USB-C pokes through the left wall** (opening + plug pocket, closed by the lid) so the ESP32 is flashed with the lid on; VALVE clamp now on the right edge.
+v1.2: left window + lid cut-out now span VALVE / LEAK / BEAM (KF250 clamps, 11.7 mm high), sound holes above the buzzer, lid vents moved right of the LEAK label, 3 mm bridge keeps the front-left lid corner (screw post) attached, **the DevKit's own USB-C pokes through the left wall** (opening + plug pocket, closed by the lid) so the ESP32 is flashed with the lid on; VALVE clamp now on the right edge (between BUTTON and REEDS).
 
 ## Files
 | File | Use |
@@ -29,7 +29,7 @@ v1.2: left window + lid cut-out now span VALVE / LEAK / BEAM (KF250 clamps, 11.7
 | Zip ties ≤ 4 mm | ≈ 10 | Strain relief on the 3 shelves |
 
 ## Assembly
-1. PCB on the 4 posts: LEAK/BEAM clamps + USB-C left, ACT/FAN/LED/I2C front, 12V/VALVE/BTN/REEDS right.
+1. PCB on the 4 posts: LEAK/BEAM clamps + USB-C left, ACT/FAN/LED/I2C front, 12V/BTN/VALVE/REEDS right.
 2. Lid on, 4 × M3 × 25. Snug only (plastic thread).
 3. Wire into the clamps, lay the wires on the shelf, zip-tie.
 4. DevKit into the sockets (USB-C towards the left wall, antenna inboard). Lid on: its edge closes the USB-C opening.

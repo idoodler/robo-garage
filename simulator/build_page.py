@@ -194,7 +194,7 @@ rep(old_wiring, '''  <details>
         <tr><td>BUTTON</td><td class="m">BTN, GND, 12V, LED−</td><td>Alu button: NO, C, LED+, LED−</td></tr>
         <tr><td>REEDS</td><td class="m">CL/GND, OP/GND, DR/GND</td><td>Door closed, door open, drawer</td></tr>
         <tr><td>BEAM</td><td class="m">RX+, RX−, SIG, TX+, TX−, GND</td><td>Receiver brown, blue, black · sender brown, blue</td></tr>
-        <tr><td>LEAK</td><td class="m">12V, 3V3, SENSE, GND</td><td>2 electrodes on SENSE + GND, or a digital leak sensor (power from 12V or 3V3)</td></tr>
+        <tr><td>LEAK</td><td class="m">12V, 3V3, SIG, GND</td><td>2 electrodes on SIG + GND, or a digital leak sensor (power from 12V or 3V3)</td></tr>
         <tr><td>VALVE</td><td class="m">+12V, SW</td><td>12 V valve that closes when powered (optional)</td></tr>
         <tr><td>I2C</td><td class="m">3V3, SDA, SCL, GND</td><td>VL53L1X (optional)</td></tr>
       </tbody>

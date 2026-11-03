@@ -39,11 +39,14 @@ for _ in range(2):                           # v1.2: hand spokes for pads the ro
     isl = checks.islands(b)
     t7, t9 = checks.thermals_exact(b, 7, isl=isl), checks.thermals_exact(b, 9, isl=isl)
 silk = checks.silk_edge(b)
-print('self-check: thermals KiCad7 %s | KiCad9 %s | silk-edge %d' % ([t[:4] for t in t7], [t[:4] for t in t9], len(silk)))
+stext = checks.silk_text_conflicts(b)          # v1.2: texts vs pads / parts / silk / edge / vias under protected text
+for c in stext:
+    print('silk text conflict', c)
+print('self-check: thermals KiCad7 %s | KiCad9 %s | silk-edge %d | silk-text %d' % ([t[:4] for t in t7], [t[:4] for t in t9], len(silk), len(stext)))
 out = base + '_routed.kicad_pcb'
 pcbnew.SaveBoard(out, b)
 shutil.copy(base + '.kicad_pro', out.replace('.kicad_pcb', '.kicad_pro'))
 summ, unc, txt = route.drc(out, base + '_drc.rpt')
 print('DRC', summ, 'unconnected', unc)
-if t7 or t9 or silk or summ or unc:
+if t7 or t9 or silk or stext or summ or unc:
     sys.exit(1)

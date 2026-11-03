@@ -44,6 +44,7 @@ win_z0 = floor_t + 2.0;                            // 2 mm curb, wires drop to t
 cx0 = chamber[0]; cy1 = chamber[3];                // sensor chamber: x > cx0 and y < cy1
 
 screw_d = 3.4; pilot_d = 2.8; post_d = 7.0;
+buck = [(l1_pos[0] + u4_pos[0]) / 2, l1_pos[1]];   // 12 V -> 5 V buck (vents in lid + floor)
 
 // v1.2: the DevKit USB-C pokes through the left wall: the receptacle face sits 1 mm outside the PCB edge, i.e. just
 // inside the wall (ix0 = -0.5); a 1 mm pocket in the outer face lets the plug overmold come close enough.
@@ -117,7 +118,7 @@ module base() {
                 translate([0, 0, floor_t - 1.8]) cylinder(d1 = 4.5, d2 = 8.4, h = 1.81);
             }
         // floor vents under the buck, the motor driver and the SHT40 island
-        for (x = [56 : 5 : 76]) rbox([x, 62, -1], [x + 2.5, 76, 5]);
+        for (x = [buck[0] - 12 : 5 : buck[0] + 8]) rbox([x, buck[1] - 7, -1], [x + 2.5, buck[1] + 7, 5]);
         for (x = [22 : 5 : 37]) rbox([x, 21, -1], [x + 2.5, 33, 5]);
         for (x = [78.5 : 3.5 : 89]) rbox([x, 2, -1], [x + 2, 14, 5]);
     }
@@ -147,7 +148,7 @@ module lid() {
         // status LED window
         translate([led1[0], led1[1], z_lid - 1]) cylinder(d = 3.2, h = 9);
         // vents above the buck, the motor driver and the sensor chamber
-        for (x = [52 : 5 : 67]) rbox([x, 63, z_lid - 1], [x + 2.5, 78, 99]);      // ends left of the BTN label
+        for (x = [buck[0] - 8 : 4.5 : buck[0] + 3]) rbox([x, buck[1] - 6, z_lid - 1], [x + 2.5, buck[1] + 6, 99]);   // above L1 / U4
         for (x = [30 : 5 : 45]) rbox([x, 22, z_lid - 1], [x + 2.5, 32.5, 99]);   // right of the LEAK label
         // v1.2: 1 mm notch in the lid edge above the USB-C opening (plug overmold)
         rbox([ox0 - 1, usb_yc - usb_w / 2 - 2, z_lid - 1], [ox0 + 1.5, usb_yc + usb_w / 2 + 2, z_lid + 1.0]);
@@ -167,8 +168,8 @@ module lid() {
         label("LEAK", 17.5, (J13[1] + J13[3]) / 2, s = 2.6, ha = "left");
         label("VALVE", 82.5, (J14[1] + J14[3]) / 2, s = 2.6, ha = "right");
         label("T/H", (cx0 + 92) / 2, cy1, s = 2.6);
-        label("ROBO-GARAGE", 50, 52, s = 5);
-        label("USB-C on the left side", 58, 45, s = 2.2);   // starts right of the BEAM label
+        label("ROBO-GARAGE", 33, 60.5, s = 3.6);
+        label("USB-C on the left side", 36.5, 55.0, s = 2.2);
         label("< USB-C", 3.0, usb_yc, s = 2.6, ha = "left");
         }
     }

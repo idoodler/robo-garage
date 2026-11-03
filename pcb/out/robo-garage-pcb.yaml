@@ -8,10 +8,10 @@ substitutions:
   stall_current: "0.8"   # A: set ~0.3 A above the running current you see in HA ("Door motor current")
   beam_inverted: "true"  # NPN Light-ON receiver (recommended, often sold as "NC") = true; Dark-ON ("NO") = false.
                          # Check: beam clear -> HA "Door beam" must show "Clear". If not, flip this value.
-  leak_threshold: "2.2"  # V at SENSE: electrodes dry = 3.3 V, tap water between them < ~2 V; a digital sensor
+  leak_threshold: "2.2"  # V at SIG: electrodes dry = 3.3 V, tap water between them < ~2 V; a digital sensor
                          # gives 0 V or 3.3 V (see "Leak probe")
-  leak_inverted: "false" # false = wet when SENSE is LOW (electrodes, NPN / open-collector or active-low sensors);
-                         # true = wet when SENSE is HIGH (active-high push-pull sensor)
+  leak_inverted: "false" # false = wet when SIG is LOW (electrodes, NPN / open-collector or active-low sensors);
+                         # true = wet when SIG is HIGH (active-high push-pull sensor)
   supply_low: "10.5"     # V: below this the 12 V supply is sagging (weak PSU, stalled actuator)
 
 esphome:
