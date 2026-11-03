@@ -2,7 +2,7 @@
 # Coordinates in mm, KiCad board coords (x right, y down); board 100 x 100 mm, top-left at (0, 0).
 # rot = KiCad footprint rotation in degrees (CCW).
 
-VERSION = '1.2'   # PCB version: silkscreen title + release zip name (pcb/gen/package.sh)
+VERSION = '1.3'   # PCB version: silkscreen title + release zip name (pcb/gen/package.sh)
 
 W, H = 100.0, 100.0
 
@@ -36,11 +36,15 @@ C0603 = ('Capacitor_SMD', 'C_0603_1608Metric')
 C0805 = ('Capacitor_SMD', 'C_0805_2012Metric')
 C1206 = ('Capacitor_SMD', 'C_1206_3216Metric')
 SOT23 = ('Package_TO_SOT_SMD', 'SOT-23')
+SOT23_6 = ('Package_TO_SOT_SMD', 'SOT-23-6')
+SOIC8 = ('Package_SO', 'SOIC-8_3.9x4.9mm_P1.27mm')
+R1206 = ('Resistor_SMD', 'R_1206_3216Metric')
+F1206, F1812, F2920 = ('Fuse', 'Fuse_1206_3216Metric'), ('Fuse', 'Fuse_1812_4532Metric'), ('Fuse', 'Fuse_2920_7451Metric')
 
 # passives: value -> LCSC (all JLC basic, checked against the basic list of 2026-10-31)
 RES = {'10k': 'C25804', '1k': 'C21190', '100k': 'C25803', '4.7k': 'C23162', '330': 'C23138', '100': 'C22775',
-       '2.2k': 'C4190', '33k': 'C4216', '75k': 'C23242', '22k': 'C31850', '10': 'C22859'}
-CAP = {'100nF': 'C14663', '1nF': 'C1588', '10uF 50V': 'C13585', '22uF 25V': 'C45783'}
+       '2.2k': 'C4190', '75k': 'C23242', '22k': 'C31850', '1.5k': 'C22843'}
+CAP = {'100nF': 'C14663', '1nF': 'C1588', '10uF 50V': 'C13585', '22uF 25V': 'C45783', '22nF': 'C21122'}
 
 # v1.2: spring clamps Cixi Kefa KF250-3.5-nP-1 (3.5 mm pitch, 45 deg, push buttons, 0.2-0.75 mm2, 5 A),
 # JLC extended parts, wave soldered by JLC (Economic PCBA). Footprint: pcb/lib/robo.pretty (fplib.py).
@@ -84,21 +88,30 @@ add('J15', SOCKET, 'DevKitC socket (CLK..GND) inner 22.86', DK_X0, DK_Y0 + ROW_N
     lcsc='C2932678', mpn='KH-2.54FH-1X19P-H8.5', tht=True)
 
 # ================= 12 V input + protection (top right) =================
-clamp('J2', 2, '12V IN', 92.8, 15.0, 90, {'1': '+12V_IN', '2': 'GND'})
-add('F1', ('Fuse', 'Fuse_1812_4532Metric'), 'PTC 2.6A 16V', 78.0, 10.5, 180, {'1': '+12V_IN', '2': '+12V_F'},
-    lcsc='C438899', mpn='SMD1812P260TF/16')
-add('Q1', SOT23, 'AO3407A', 72.8, 10.5, 0, {'1': 'Q1_G', '2': '+12V', '3': '+12V_F'}, lcsc='C15155', mpn='AO3407A')
-add('D1', ('Diode_SMD', 'D_SOD-123'), 'BZT52C12', 67.5, 7.0, 0, {'1': '+12V', '2': 'Q1_G'},
-    lcsc='C43491', mpn='BZT52C12')
-R('R1', '100k', 72.8, 6.6, 0, 'GND', 'Q1_G')
-add('D2', ('Diode_SMD', 'D_SMA'), 'SMAJ15A', 66.5, 13.0, 0, {'1': '+12V', '2': 'GND'},
-    lcsc='C148216', mpn='SMAJ15A')
-add('C1', ('Capacitor_SMD', 'CP_Elec_6.3x7.7'), '100uF 25V', 75.5, 17.5, 0, {'1': '+12V', '2': 'GND'},
+# v1.3: rated 6 A continuous (12 V / 5 A PSU recommended; the old 3 A PSU still works).
+# 4-pole clamp: 2 poles per polarity (KF250 = 5 A per pole: one pair for <= 5 A, both pairs above).
+# F1 PTC 7 A hold / 14 A trip (2920, 24 V) -> Q1 AO4407C (SO-8, 11.5 mOhm) reverse-polarity P-FET.
+# All 12 V branches behind F1 have their own limit: F4 valve 4 A, F7 aux 1.1 A (fan, button LED, beam, leak),
+# DRV8874 current regulation (motor), LMR51430 current limit (5 V), F3/F5 0.2 A (beam / leak sensor feeds).
+clamp('J2', 4, '12V IN', 92.8, 23.0, 90, {'1': 'GND', '2': 'GND', '3': '+12V_IN', '4': '+12V_IN'})
+add('F1', F2920, 'PTC 7A 24V', 74.0, 14.25, 180, {'1': '+12V_IN', '2': '+12V_F'},
+    lcsc='C495361', mpn='SMD2920P700SLR/24')
+add('Q1', SOIC8, 'AO4407C', 70.6, 21.2, 90, {'1': '+12V', '2': '+12V', '3': '+12V', '4': 'Q1_G',
+                                             '5': '+12V_F', '6': '+12V_F', '7': '+12V_F', '8': '+12V_F'},
+    lcsc='C469397', mpn='AO4407C')
+add('D1', ('Diode_SMD', 'D_SOD-123'), 'BZT52C12', 75.9, 23.9, 180, {'1': '+12V', '2': 'Q1_G'},
+    lcsc='C43491', mpn='BZT52C12')                   # gate clamp: Vgs <= 12 V (AO4407C: +-25 V)
+R('R1', '100k', 75.6, 20.5, 0, 'GND', 'Q1_G')
+add('C1', ('Capacitor_SMD', 'CP_Elec_6.3x7.7'), '100uF 25V', 69.6, 30.4, 270, {'1': '+12V', '2': 'GND'},
     lcsc='C3338', mpn='RVT1E101M0607')
-C('C2', '10uF 50V', 75.5, 22.8, 0, '+12V', 'GND', fp=C1206)
+add('D2', ('Diode_SMD', 'D_SMA'), 'SMAJ15A', 63.6, 30.4, 270, {'1': '+12V', '2': 'GND'},
+    lcsc='C148216', mpn='SMAJ15A')
+C('C2', '10uF 50V', 74.4, 31.6, 90, '+12V', 'GND', fp=C1206)
+add('F8', F1206, 'PTC 200mA 30V', 76.6, 27.8, 0, {'1': '+12V', '2': '+12V_BTN'},
+    lcsc='C883118', mpn='BSMD1206-020-30V')           # v1.3: button ring LED (12 V, <= 50 mA)
 
 # ================= 12 V -> 5.1 V buck (LMR51430, TI SLUSEF4 sec. 9.2) =================
-UX, UY = 72.0, 40.0            # v1.2: moved out of the DevKit antenna area
+UX, UY = 72.0, 43.0            # v1.3: 3 mm lower -> 12 V trunk corridor at y 37.8 under the antenna keep-out
 add('U4', ('Package_TO_SOT_SMD', 'TSOT-23-6'), 'LMR51430XFDDCR', UX, UY, 0,
     {'1': 'GND', '2': 'SW', '3': '+12V', '4': 'FB', '5': 'EN', '6': 'CB'}, lcsc='C5219260', mpn='LMR51430XFDDCR')
 add('L1', ('Inductor_SMD', 'L_Chilisin_BMRx00060630'), '6.8uH 6A', UX - 6.8, UY, 0, {'1': '+5V', '2': 'SW'},
@@ -122,29 +135,37 @@ add('D3', ('Diode_SMD', 'D_SOD-123'), 'B5819W', 7.5, 2.3, 0, {'1': '+5V_DEV', '2
 # ================= v1.2: 12 V supply monitor -> GPIO36 (VP, ADC1_CH0) =================
 # 100k / 22k divider: 12 V -> 2.16 V, 24 V -> 4.3 V, clamped by D7 (BAT54S) to 3V3 through the 10k.
 R('R47', '100k', 10.5, 36.5, 0, '+12V', 'VMON')
-R('R48', '22k', 13.5, 36.5, 0, 'VMON', 'GND')
+R('R48', '22k', 13.5, 36.5, 270, 'VMON', 'GND')            # v1.3: vertical, VMON passes between
 R('R49', '10k', 16.5, 36.5, 0, 'VMON', 'VP')
 C('C32', '100nF', 10.5, 38.5, 0, 'VP', 'GND')
-add('D7', SOT23, 'BAT54S', 14.0, 39.0, 0, {'1': 'GND', '2': '+3V3', '3': 'VP'}, lcsc='C408389', mpn='BAT54S', noref=True)
+add('D7', SOT23, 'BAT54S', 14.0, 40.0, 0, {'1': 'GND', '2': '+3V3', '3': 'VP'}, lcsc='C408389', mpn='BAT54S', noref=True)
 
 # ================= motor driver + current sense (left) =================
-add('R6', ('Resistor_SMD', 'R_2512_6332Metric'), '0R1 1W', 21.0, 40.0, 0, {'1': '+12V', '2': '+12V_MOT'},
-    lcsc='C844904', mpn='WSL2512R1000FEA')
-add('U2', ('Package_TO_SOT_SMD', 'SOT-23-8'), 'INA219AIDCNR', 21.0, 46.0, 0,
+# v1.3: shunt 20 mOhm 2 W (INA219 range 16 A, 0.4 W at 4.5 A), Kelvin taps R28 / R29 pre-routed from the inner
+# pad edges (the motor current never flows through them; finish.py checks it).
+add('R6', ('Resistor_SMD', 'R_2512_6332Metric'), '20m 2W', 21.0, 41.0, 0, {'1': '+12V', '2': '+12V_MOT'},
+    lcsc='C160589', mpn='RLP25FEER020')
+add('U2', ('Package_TO_SOT_SMD', 'SOT-23-8'), 'INA219AIDCNR', 21.0, 48.4, 0,
     {'1': 'ISNS_P', '2': 'ISNS_N', '3': 'GND', '4': '+3V3', '5': 'IO22', '6': 'IO21', '7': 'GND', '8': 'GND'},
     lcsc='C87469', mpn='INA219AIDCNR')
-add('R28', R0603, '0R', 16.5, 44.2, 90, {'1': '+12V', '2': 'ISNS_P'}, lcsc='C21189')     # Kelvin tap IN+
-add('R29', R0603, '0R', 25.5, 44.2, 90, {'1': '+12V_MOT', '2': 'ISNS_N'}, lcsc='C21189') # Kelvin tap IN-
-C('C11', '100nF', 25.5, 47.5, 90, '+3V3', 'GND')
-U1X, U1Y = 30.0, 72.0      # v1.1: moved right, the left edge now carries the BEAM clamp
-add('U1', ('Package_SO', 'TI_SO-PowerPAD-8_ThermalVias'), 'DRV8871DDAR', U1X, U1Y, 0,
-    {'1': 'GND', '2': 'IO26', '3': 'IO25', '4': 'ILIM', '5': '+12V_MOT', '6': 'MOT_A', '7': 'GND', '8': 'MOT_B',
-     '9': 'GND'}, lcsc='C75864', mpn='DRV8871DDAR')
-R('R5', '33k', U1X - 5.0, U1Y + 4.0, 90, 'ILIM', 'GND')            # I_trip = 64 kV / 33 k = 1.9 A
-C('C9', '100nF', U1X + 6.5, U1Y + 3.0, 90, '+12V_MOT', 'GND')
-C('C10', '10uF 50V', U1X + 7.0, U1Y - 5.5, 90, '+12V_MOT', 'GND', fp=C1206)
-add('C3', ('Capacitor_SMD', 'CP_Elec_6.3x7.7'), '100uF 25V', 35.5, 57.0, 0, {'1': '+12V_MOT', '2': 'GND'},
-    lcsc='C3338', mpn='RVT1E101M0607')
+add('R28', R0603, '0R', 18.6, 44.5, 270, {'1': '+12V', '2': 'ISNS_P'}, lcsc='C21189')      # Kelvin tap IN+
+add('R29', R0603, '0R', 23.4, 44.5, 270, {'1': '+12V_MOT', '2': 'ISNS_N'}, lcsc='C21189')  # Kelvin tap IN-
+C('C11', '100nF', 25.4, 48.4, 90, '+3V3', 'GND')
+# v1.3: TI DRV8874 (6 A peak, 200 mOhm HS+LS, 37 V): PWM mode (PMODE high), fixed off-time current chopping with
+# auto-retry OCP (IMODE = GND), I_TRIP = VREF / (450 uA/A x R_IPROPI) = 3.3 V / (450 uA/A x 1.5 k) = 4.9 A.
+# nSLEEP + VREF + PMODE from +3V3 (no DevKit -> 3V3 floats -> internal pull-down -> sleep). nFAULT unused.
+U1X, U1Y = 31.0, 71.0
+add('U1', ('robo', 'TI_PWP0016J_HTSSOP-16_ThermalVias'), 'DRV8874PWPR', U1X, U1Y, 0,
+    {'1': 'IO25', '2': 'IO26', '3': '+3V3', '5': '+3V3', '6': 'IPROPI', '7': 'GND', '8': 'MOT_A', '9': 'GND',
+     '10': 'MOT_B', '11': '+12V_MOT', '12': 'VCP', '13': 'CPH', '14': 'CPL', '15': 'GND', '16': '+3V3', '17': 'GND'},
+    lcsc='C1855818', mpn='DRV8874PWPR')
+R('R5', '1.5k', U1X, U1Y + 5.0, 0, 'GND', 'IPROPI')                  # R_IPROPI -> I_TRIP 4.9 A
+C('C9', '100nF', U1X + 6.6, U1Y + 0.2, 90, '+12V_MOT', 'GND')        # VM bypass, pad 1 on the VM bar
+C('C33', '100nF', U1X + 6.15, U1Y - 2.4, 0, 'VCP', '+12V_MOT')       # VCP -> VM (charge pump storage)
+C('C34', '22nF', U1X + 4.85, U1Y - 4.4, 0, 'CPL', 'CPH')             # charge pump flying cap (50 V X7R)
+C('C10', '10uF 50V', U1X + 11.1, U1Y - 0.5, 90, '+12V_MOT', 'GND', fp=C1206)
+add('C3', ('Capacitor_SMD', 'CP_Elec_6.3x7.7'), '100uF 25V', 40.0, 60.5, 90, {'1': '+12V_MOT', '2': 'GND'},
+    lcsc='C3338', mpn='RVT1E101M0607')                # bulk at the driver (pad 1 = + at the bottom)
 clamp('J5', 2, 'ACTUATOR', 11.0, 92.8, 0, {'1': 'MOT_A', '2': 'MOT_B'})
 
 # ================= signal conditioning under the DevKit =================
@@ -177,19 +198,19 @@ add('Q2', SOT23, '2N7002', 30.5, 85.0, 0, {'1': 'Q2_G', '2': 'GND', '3': 'FAN_PW
 R('R11', '100', 26.5, 85.0, 90, 'Q2_G', 'IO17')
 R('R12', '10k', 26.5, 81.0, 90, 'Q2_G', '+3V3')                    # fan off while the ESP32 boots
 add('J6', ('Connector', 'FanPinHeader_1x04_P2.54mm_Vertical'), 'Fan 4-pin', 22.5, 95.0, 0,
-    {'1': 'GND', '2': '+12V', '3': 'FAN_TACH', '4': 'FAN_PWM'}, lcsc='C240840', mpn='Molex 47053-1000', tht=True)
-add('F2', ('Fuse', 'Fuse_1206_3216Metric'), 'PTC 1.5A', 38.5, 78.0, 0, {'1': '+5V', '2': '+5V_LED'},
-    lcsc='C135341', mpn='ASMD1206-150')
-add('C13', ('Capacitor_SMD', 'CP_Elec_8x10'), '470uF 16V', 47.5, 77.0, 90, {'1': '+5V_LED', '2': 'GND'},
+    {'1': 'GND', '2': '+12V_A', '3': 'FAN_TACH', '4': 'FAN_PWM'}, lcsc='C240840', mpn='Molex 47053-1000', tht=True)
+add('F2', F1206, 'PTC 2A 12V', 38.5, 78.0, 0, {'1': '+5V', '2': '+5V_LED'},
+    lcsc='C883135', mpn='BSMD1206-200-12V')            # v1.3: 2 A hold (LED strip <= 1.5 A in a warm case)
+add('C13', ('Capacitor_SMD', 'CP_Elec_8x10'), '470uF 16V', 48.0, 77.0, 90, {'1': '+5V_LED', '2': 'GND'},
     lcsc='C970706', mpn='RVT1C471M0810')
 clamp('J7', 3, 'LED', 37.0, 92.8, 0, {'1': '+5V_LED', '2': 'LED_DATA', '3': 'GND'})
 clamp('J10', 4, 'I2C', 55.0, 92.8, 0, {'1': '+3V3', '2': 'IO21', '3': 'IO22', '4': 'GND'})
 add('J11', ('Connector_PinHeader_2.54mm', 'PinHeader_1x06_P2.54mm_Vertical'), 'EXP (optional)', 31.0, 35.0, 90,
     {'1': '+3V3', '2': 'GND', '3': '+5V', '4': 'IO14', '5': 'VN', '6': 'IO5'}, tht=True, dnp=True)
-add('Q3', SOT23, 'AO3400A', 78.2, 27.5, 0, {'1': 'Q3_G', '2': 'GND', '3': 'RING_K'}, lcsc='C20917', mpn='AO3400A')
-R('R16', '100k', 75.2, 27.5, 90, 'Q3_G', 'GND')
-R('R15', '100', 77.5, 32.5, 90, 'IO23', 'Q3_G')
-clamp('J8', 4, 'BUTTON', 92.8, 42.0, 90, {'1': 'BTN', '2': 'GND', '3': '+12V', '4': 'RING_K'})
+add('Q3', SOT23, 'AO3400A', 81.0, 32.2, 0, {'1': 'Q3_G', '2': 'GND', '3': 'RING_K'}, lcsc='C20917', mpn='AO3400A')
+R('R16', '100k', 78.2, 32.6, 90, 'Q3_G', 'GND')
+R('R15', '100', 80.5, 35.4, 0, 'IO23', 'Q3_G')
+clamp('J8', 4, 'BUTTON', 92.8, 42.0, 90, {'1': 'BTN', '2': 'GND', '3': '+12V_BTN', '4': 'RING_K'})
 clamp('J9', 6, 'REEDS', 92.8, 78.0, 90,
       {'1': 'REED_CL', '2': 'GND', '3': 'REED_OP', '4': 'GND', '5': 'REED_DR', '6': 'GND'})
 
@@ -201,9 +222,11 @@ clamp('J9', 6, 'REEDS', 92.8, 78.0, 90,
 BX, BY = 7.2, 47.0
 clamp('J12', 6, 'BEAM', BX, BY, 270,
       {'1': 'BEAM_12V', '2': 'GND', '3': 'BEAM_SIG', '4': 'BEAM_12V', '5': 'BEAM_TX', '6': 'GND'})
-add('F3', ('Fuse', 'Fuse_1206_3216Metric'), 'PTC 200mA 30V', 21.0, 53.5, 90, {'1': '+12V', '2': 'BEAM_12V'},
+add('F7', F1206, 'PTC 1.1A 30V', 18.0, 52.5, 270, {'1': '+12V', '2': '+12V_A'},
+    lcsc='C21714343', mpn='BSMD1206-110-30V')         # v1.3: aux 12 V for fan, beam and leak sensor (1.1 A)
+add('F3', F1206, 'PTC 200mA 30V', 21.0, 53.5, 90, {'1': '+12V_A', '2': 'BEAM_12V'},
     lcsc='C883118', mpn='BSMD1206-020-30V')
-R('R31', '4.7k', 23.6, 53.5, 90, 'BEAM_SIG', '+12V')                # pull-up to +12V: cut wire = blocked
+R('R31', '4.7k', 23.6, 53.5, 90, 'BEAM_SIG', '+12V_A')              # pull-up to 12 V: cut wire = blocked
 R('R32', '10k', 25.2, 53.5, 90, 'BEAM_SIG', 'Q5_G')
 R('R35', '10k', 24.6, 59.6, 90, 'Q5_G', 'GND')                      # 10k/10k: NPN residual <1.5 V stays off
 C('C27', '1nF', 26.2, 59.6, 90, 'Q5_G', 'GND')
@@ -225,9 +248,9 @@ R('R34', '100k', 24.6, 69.0, 90, 'Q4_G', 'GND')                     # emitter of
 # R41 + C31 filter, D4 clamps IO35 to 3V3 / GND (a 5 V logic high is fine).
 LX, LY = 7.2, 70.5
 clamp('J13', 4, 'LEAK', LX, LY, 270, {'1': '+3V3_LK', '2': 'LEAK_S', '3': 'GND', '4': '+12V_LK'})
-add('F5', ('Fuse', 'Fuse_1206_3216Metric'), 'PTC 200mA 30V', 19.0, 83.0, 0, {'1': '+12V', '2': '+12V_LK'},
+add('F5', F1206, 'PTC 200mA 30V', 19.0, 83.0, 0, {'1': '+12V_A', '2': '+12V_LK'},
     lcsc='C883118', mpn='BSMD1206-020-30V', noref=True)
-add('F6', ('Fuse', 'Fuse_1206_3216Metric'), 'PTC 200mA 30V', 19.0, 80.0, 0, {'1': '+3V3', '2': '+3V3_LK'},
+add('F6', F1206, 'PTC 200mA 30V', 19.0, 80.0, 0, {'1': '+3V3', '2': '+3V3_LK'},
     lcsc='C883118', mpn='BSMD1206-020-30V', noref=True)
 R('R40', '100k', 19.5, 71.8, 0, 'IO4', 'LEAK_S')
 C('C30', '1nF', 19.5, 74.3, 0, 'LEAK_S', 'GND')
@@ -235,19 +258,20 @@ R('R41', '10k', 22.5, 71.8, 0, 'LEAK_S', 'IO35')
 C('C31', '100nF', 22.5, 74.3, 0, 'IO35', 'GND')
 add('D4', SOT23, 'BAT54S', 19.5, 77.0, 0, {'1': 'GND', '2': '+3V3', '3': 'IO35'}, lcsc='C408389', mpn='BAT54S', noref=True)
 
-# ================= v1.2: 12 V valve output (right edge, between BUTTON and REEDS) =================
-# Low-side switch for a 12 V solenoid or motorised valve (<= 1.5 A): IO2 -> R42 -> Q6 (AO3400A), SS34 flyback,
-# PTC F4. Pole 1 = +12V (fused), pole 2 = switched return. IO2 is a strapping pin: R43 keeps it low at boot.
-# The driver sits left of x 83 so the pole labels (x 83.5 .. 87) stay free.
-VX, VY = 92.8, 51.5            # pin 1 (+12V) at y 51.5, pin 2 at 48.0: body in the gap between BUTTON and REEDS
-clamp('J14', 2, 'VALVE', VX, VY, 90, {'1': '+12V_VLV', '2': 'VALVE_K'})
-add('F4', ('Fuse', 'Fuse_1206_3216Metric'), 'PTC 1.5A 16V', 79.5, 46.0, 0, {'1': '+12V', '2': '+12V_VLV'},
-    lcsc='C883133', mpn='BSMD1206-150-16V')          # 16 V part: the ASMD1206-150 (F2) is rated 6 V
-add('D5', ('Diode_SMD', 'D_SMA'), 'SS34', 79.5, 50.0, 0, {'1': '+12V_VLV', '2': 'VALVE_K'},
+# ================= 12 V valve output (right edge, between BUTTON and REEDS) =================
+# v1.3: rated 3 A (12 V solenoid or motorised valve): IO2 -> R42 -> Q6 IRLTS6342 (TSOP-6, 22 mOhm at Vgs 2.5 V,
+# 0.2 W at 3 A), SS34 flyback, F4 PTC 4 A hold / 8 A trip (3.2 A hold at 50 C). Poles from the top: 12V, VLV
+# (switched return) - v1.3 swapped them so the two power paths do not cross. IO2 is a strapping pin: R43 low.
+VX, VY = 92.8, 51.5            # pin 1 (VLV) at y 51.5, pin 2 (+12V) at 48.0
+clamp('J14', 2, 'VALVE', VX, VY, 90, {'1': 'VALVE_K', '2': '+12V_VLV'})
+add('F4', F1812, 'PTC 4A 16V', 80.0, 42.0, 270, {'1': '+12V', '2': '+12V_VLV'},
+    lcsc='C47263807', mpn='BSMD1812-400-16V')
+add('D5', ('Diode_SMD', 'D_SMA'), 'SS34', 80.0, 49.0, 270, {'1': '+12V_VLV', '2': 'VALVE_K'},
     lcsc='C8678', mpn='SS34')
-add('Q6', SOT23, 'AO3400A', 80.2, 53.8, 0, {'1': 'Q6_G', '2': 'GND', '3': 'VALVE_K'}, lcsc='C20917', mpn='AO3400A')
-R('R42', '100', 76.4, 52.9, 0, 'IO2', 'Q6_G')
-R('R43', '10k', 76.4, 54.6, 0, 'Q6_G', 'GND')
+add('Q6', SOT23_6, 'IRLTS6342', 80.4, 54.6, 0, {'1': 'VALVE_K', '2': 'VALVE_K', '3': 'Q6_G', '4': 'GND',
+                                                '5': 'VALVE_K', '6': 'VALVE_K'}, lcsc='C152628', mpn='IRLTS6342TRPBF')
+R('R42', '100', 75.9, 55.6, 0, 'IO2', 'Q6_G')
+R('R43', '10k', 75.9, 53.9, 0, 'Q6_G', 'GND')
 
 # ================= v1.2: buzzer (centre) =================
 # MLT-8530 passive magnetic buzzer (3.6 V, 16 Ohm, 2.7 kHz): +5V -> R44 (10 Ohm) -> BZ1 -> Q7 (AO3400A) -> GND.
@@ -256,7 +280,7 @@ R('R43', '10k', 76.4, 54.6, 0, 'Q6_G', 'GND')
 BZX, BZY = 56.0, 62.0
 add('BZ1', ('robo', 'Buzzer_SMD_MLT-8530_8.5x8.5mm'), 'MLT-8530', BZX, BZY, 0, {'1': 'BZ_P', '2': 'BZ_K'},
     lcsc='C94599', mpn='MLT-8530')
-R('R44', '10', 49.0, 59.5, 0, '+5V', 'BZ_P')
+add('R44', R1206, '10 1206', 47.8, 59.5, 0, {'1': '+5V', '2': 'BZ_P'}, lcsc='C17903')   # v1.3: 1206 (0.19 W)
 add('D6', ('Diode_SMD', 'D_SOD-123'), 'B5819W', 56.0, 69.5, 0, {'1': 'BZ_P', '2': 'BZ_K'},
     lcsc='C8598', mpn='B5819W')
 add('Q7', SOT23, 'AO3400A', 49.0, 65.0, 0, {'1': 'Q7_G', '2': 'GND', '3': 'BZ_K'}, lcsc='C20917', mpn='AO3400A', noref=True)
@@ -267,8 +291,8 @@ R('R46', '10k', 49.0, 62.0, 0, 'Q7_G', 'GND')
 # Sits on an 8 x 8 mm island inside a C-shaped 1.5 mm milled slot; only 4 thin traces cross the neck.
 # The case gives this corner its own vented chamber. No copper pour in the chamber.
 SX, SY = 84.0, 92.0
-add('U5', ('Sensor_Humidity', 'Sensirion_DFN-4_1.5x1.5mm_P0.8mm_SHT4x_NoCentralPad'), 'SHT40-AD1B', SX, SY, 0,
-    {'1': 'IO21', '2': 'IO22', '3': '+3V3', '4': 'GND'}, lcsc='C2909890', mpn='SHT40-AD1B-R2')
+add('U5', ('Sensor_Humidity', 'Sensirion_DFN-4_1.5x1.5mm_P0.8mm_SHT4x_NoCentralPad'), 'SHT41-AD1B', SX, SY, 0,
+    {'1': 'IO21', '2': 'IO22', '3': '+3V3', '4': 'GND'}, lcsc='C7461861', mpn='SHT41-AD1B-R2')   # v1.3: SHT41 (stock)
 C('C28', '100nF', SX + 2.3, SY, 90, '+3V3', 'GND')               # pad 1 (+3V3) below, pad 2 (GND) above
 ISL = (80.0, 88.0, 88.0, 96.0)            # island x0, y0, x1, y1
 SLOT_W, NECK = 1.5, (90.25, 93.75)        # slot width, neck y range (left side)
@@ -284,7 +308,9 @@ NOPOUR = [(CHAMBER[0] + 0.6, CHAMBER[1] + 0.6, W - 0.3, H - 0.3)]
 
 # v1.1.1: GND pins that only get 1 thermal spoke (tracks around them) -> solid pour connection instead.
 # Q3 = 2 A ring-LED low-side switch (solid is better for current anyway), C16 = button debounce cap.
-SOLID_PADS = ['Q3.2', 'C16.2', 'C11.2', 'J15.13']   # v1.2: C11 (INA219 decoupling); J15.13: router boxes it in on B.Cu
+SOLID_PADS = ['Q3.2', 'C16.2', 'C11.2', 'J15.13', 'J4.19',   # v1.2: C11 (INA219); J15.13 / J4.19: boxed in on B.Cu
+              'J2.1', 'J2.2', 'Q6.4', 'D2.2', 'C1.2',    # v1.3: 6 A return path, valve FET source, TVS / bulk GND
+              'J11.2']                                   # v1.3: EXP header GND (not fitted), boxed in by the 12 V trunk
 
 # ================= mounting holes + JLCPCB tooling holes =================
 for i, (x, y) in enumerate([(96.5, 3.5), (3.5, 96.5), (96.5, 96.5), (3.5, 40.0)]):
@@ -300,7 +326,13 @@ TR = []          # (net, width, layer, [points])
 # v1.2: +5V to D3 (5V OR-ing diode at the DevKit 5V pin) along the top edge, above the socket row; the router
 # joins it at the corridor end beside the antenna keep-out (it does not always find this path on its own)
 TR += [('+5V', 0.8, 'F', [(9.15, 2.3), (46.86, 2.3), (48.92, 4.36), (48.92, 6.46)])]
-TR += [('SW', 0.6, 'F', [(UX - 1.14, UY), (UX - 3.8, UY)])]                                  # SW -> L1
+# v1.3: the router lost this link twice -> pre-route the whole corridor beside the antenna keep-out (x 49.55,
+# 0.88 mm left for one signal beside the socket pins), 2 vias under the 12 V trunk, then to C24 (+5V side)
+TR += [('+5V', 0.8, 'F', [(48.92, 6.46), (49.55, 7.09), (49.55, 35.6)]),
+       ('+5V', 0.8, 'B', [(49.55, 35.6), (49.55, 39.7)]),
+       ('+5V', 0.8, 'F', [(49.55, 39.7), (58.45, 39.7), (59.55, 40.8), (59.55, 41.8)])]
+TR += [('SW', 0.6, 'F', [(UX - 1.14, UY), (UX - 2.0, UY)]),                                   # SW -> L1: 0.6 at the pin,
+       ('SW', 1.2, 'F', [(UX - 2.45, UY), (UX - 3.8, UY)])]                                  # 1.2 mm onto the L1 pad
 TR += [('SW', 0.4, 'F', [(UX - c, UY - 4.0), (UX - 3.4, UY - 4.0), (UX - 3.4, UY - 1.6)])]    # CBOOT -> SW
 TR += [('CB', 0.3, 'F', [(UX + c, UY - 4.0), (UX + 1.14, UY - 0.95)])]                       # CBOOT -> CB
 TR += [('GND', 0.3, 'F', [(UX - 1.14, UY - 0.95), (UX, UY - 0.5), (UX, UY + 1.7), (UX + c, UY + 2.6)])]
@@ -312,24 +344,77 @@ TR += [('+5V', 0.8, 'F', [(UX - 9.82, UY), (UX - 12.45, UY - 1.2)]),
 TR += [('FB', 0.25, 'F', [(UX + 1.14, UY + 0.95), (UX + 3.6 - r, UY + 0.95), (UX + 3.6 - r, UY + 2.75)])]
 TR += [('EN', 0.25, 'F', [(UX + 1.14, UY), (UX + 2.0, UY), (UX + 3.6 - r, UY - 0.85)])]
 VIAS = [('GND', UX + 2.9, UY + 5.2), ('GND', UX + 2.9, UY + 8.0), ('GND', UX + 5.4, UY + 0.95),
-        ('GND', UX - 15.4, UY - 1.2), ('GND', UX - 15.4, UY + 1.4)]
+        ('GND', UX - 15.4, UY - 1.2), ('GND', UX - 15.4, UY + 0.9)]
 TR += [('GND', 0.5, 'F', [(UX + 1.48, UY + 5.2), (UX + 2.9, UY + 5.2)]),
        ('GND', 0.5, 'F', [(UX + 1.48, UY + 8.0), (UX + 2.9, UY + 8.0)]),
        ('GND', 0.4, 'F', [(UX + 3.6 + r, UY + 0.95), (UX + 5.4, UY + 0.95)]),
        ('GND', 0.5, 'F', [(UX - 14.35, UY - 1.2), (UX - 15.4, UY - 1.2)]),
-       ('GND', 0.5, 'F', [(UX - 14.35, UY + 1.4), (UX - 15.4, UY + 1.4)])]
+       ('GND', 0.5, 'F', [(UX - 14.35, UY + 1.4), (UX - 15.4, UY + 0.9)])]
 TR += [('+5V', 0.8, 'F', [(UX - 12.45, UY + 1.4), (UX - 12.45, UY + 4.0)]),
-       ('GND', 0.5, 'F', [(UX - 14.35, UY + 4.0), (UX - 15.4, UY + 4.0)])]
-VIAS += [('GND', UX - 15.4, UY + 4.0)]
+       ('GND', 0.5, 'F', [(UX - 14.35, UY + 4.0), (UX - 15.4, UY + 4.9)])]   # v1.3: via below the back title
+VIAS += [('GND', UX - 15.4, UY + 4.9)]
+VIAS += [('+5V', 49.55, 35.6, 0.8, 0.4), ('+5V', 49.55, 39.7, 0.8, 0.4)]       # +5V corridor under the trunk
 # v1.2: GND spokes by hand for the socket pins the router boxes in (J3.6 top row, J4.13 under the EXP header):
 # a short locked track on each layer to a GND via counts as a thermal spoke for the KiCad DRC.
 for (px, py), (vx, vy) in (((DK_X0 + 5 * 2.54, DK_Y0), (DK_X0 + 5 * 2.54, DK_Y0 + 2.6)),
                            ((DK_X0 + 12 * 2.54, DK_Y0 + ROW_WIDE), (DK_X0 + 12 * 2.54, DK_Y0 + ROW_WIDE + 2.1))):
     TR += [('GND', 0.4, 'F', [(px, py), (vx, vy)]), ('GND', 0.4, 'B', [(px, py), (vx, vy)])]
     VIAS += [('GND', vx, vy)]
-# DRV8871 VM -> 100 nF
-TR += [('+12V_MOT', 0.6, 'F', [(U1X + 2.7, U1Y + 1.905), (U1X + 4.4, U1Y + 1.905), (U1X + 4.4, U1Y + 3.775),
-                                (U1X + 6.5, U1Y + 3.775)])]
+# ---- v1.3 power pre-routes (locked; IPC-2221 external 1 oz, <= 20 C rise) ----
+# 12 V IN: both +12V poles of J2 -> F1 (3.0 mm = 7 A), F1 -> Q1 drains (4.2 mm block), Q1 sources -> C1 + hub
+TR += [('+12V_IN', 2.4, 'F', [(92.8, 12.5), (92.8, 16.0)]),
+       ('+12V_IN', 3.0, 'F', [(77.4, 14.25), (92.8, 14.25)]),
+       ('+12V_F', 4.2, 'F', [(70.612, 14.25), (70.6, 18.0)])]
+TR += [('+12V_F', 0.6, 'F', [(x, 18.0), (x, 18.725)]) for x in (68.695, 69.965, 71.235, 72.505)]   # each drain pin
+TR += [('+12V', 1.2, 'F', [(68.695, 23.675), (71.235, 23.675)]),                     # source pins 1-3
+       ('+12V', 2.4, 'F', [(69.965, 23.675), (69.965, 26.0), (69.6, 27.7)]),          # -> C1 + (bulk)
+       ('Q1_G', 0.4, 'F', [(72.505, 23.675), (74.25, 23.9)])]
+# shunt Kelvin taps from the inner pad edges (R28 / R29 = 0R net ties to the INA219 inputs)
+TR += [('+12V', 0.3, 'F', [(18.038, 41.0), (18.45, 42.2), (18.6, 43.675)]),
+       ('+12V_MOT', 0.3, 'F', [(23.962, 41.0), (23.55, 42.2), (23.4, 43.675)])]
+# 12 V west trunk (motor 4.9 A + aux 1.1 A): hub -> left of the TVS -> under the antenna keep-out (y 37.8) -> R6 pad 1
+# 2.0 mm = 4.9 A at ~17 C rise (IPC-2221 ext. 1 oz)
+TR += [('+12V', 2.0, 'F', [(69.4, 25.2), (61.2, 25.2), (61.2, 37.8), (19.0, 37.8), (18.038, 38.76), (18.038, 41.0)]),
+       ('+12V', 1.0, 'F', [(61.2, 28.4), (63.6, 28.4)]),                                    # TVS D2
+       ('+12V', 0.3, 'F', [(9.675, 36.5), (9.675, 34.5), (18.8, 34.5), (18.8, 37.8)]),      # VMON divider R47
+       ('+12V', 0.6, 'F', [(18.038, 39.6), (17.2, 40.4), (17.2, 50.4), (18.0, 51.1)]),     # aux PTC F7 (1.1 A)
+       ('+12V', 0.8, 'F', [(61.2, 37.8), (65.2, 37.8), (65.2, 47.0), (69.4, 47.0), (UX - 1.475, UY + 5.2)]),
+                                                             # buck VIN: between the L1 pads -> C22 (<= 1.5 A)
+# 12 V east branch: hub (C1 +) -> between C1 and C2 -> C2 + -> F4 (valve, 4 A hold): 2.0 mm; F8 (button) 1.0 mm
+       ('+12V', 2.0, 'F', [(69.6, 28.0), (72.1, 28.0), (72.1, 33.1), (74.4, 33.1), (80.0, 38.7), (80.0, 39.862)]),
+       ('+12V', 1.0, 'F', [(72.1, 27.8), (75.2, 27.8)]),
+       ('VMON', 0.25, 'F', [(11.325, 36.5), (15.675, 36.5)]),                              # R47 - R49 under R48
+       ('VMON', 0.25, 'F', [(13.5, 35.675), (13.5, 36.5)]),
+       ('+12V', 0.3, 'F', [(UX + 3.6 + 0.825, UY - 0.85), (78.6, 40.6), (80.0, 39.862)])]   # buck EN pull-up -> F4 pad
+# motor supply: R6 -> C3 (bulk) -> VM bar (C9, C10, C33) -> DRV8874 VM pin; 2.0 mm (4.9 A at ~17 C rise), the VM pin
+# neck (0.45 mm) is kept to 0.9 mm beyond the pad toe: VCP above, MOT_B below
+TR += [('+12V_MOT', 2.0, 'F', [(23.962, 41.0), (28.5, 41.0), (33.4, 45.9), (33.4, 59.0), (37.6, 63.2), (39.8, 63.2),
+                               (39.8, U1Y + 1.25)]),                                   # C3 (+ pad) -> VM bar
+       ('+12V_MOT', 1.4, 'F', [(U1X + 5.6, U1Y + 1.25), (U1X + 11.1, U1Y + 1.25)]),     # VM bar: C9, C10
+       ('+12V_MOT', 0.8, 'F', [(U1X + 4.75, U1Y + 1.35), (U1X + 5.6, U1Y + 1.35)]),
+       ('+12V_MOT', 0.45, 'F', [(U1X + 2.86, U1Y + 0.975), (U1X + 4.3, U1Y + 0.975), (U1X + 4.75, U1Y + 1.35)]),  # neck
+       ('+12V_MOT', 0.4, 'F', [(U1X + 6.925, U1Y - 2.4), (39.8, U1Y - 2.4)])]          # C33 VM side
+# DRV8874 right column fan-out, top -> bottom: PMODE (router), GND (-> pad), CPL, CPH, VCP: nested, 0.4 mm pitch
+TR += [('CPL', 0.25, 'F', [(U1X + 2.86, U1Y - 0.975), (U1X + 4.25, U1Y - 0.975), (U1X + 4.25, U1Y - 4.4),
+                           (U1X + 4.075, U1Y - 4.4)]),
+       ('CPH', 0.25, 'F', [(U1X + 2.86, U1Y - 0.325), (U1X + 4.65, U1Y - 0.325), (U1X + 4.65, U1Y - 3.5),
+                           (U1X + 5.625, U1Y - 3.5), (U1X + 5.625, U1Y - 4.4)]),
+       ('VCP', 0.25, 'F', [(U1X + 2.86, U1Y + 0.325), (U1X + 5.05, U1Y + 0.325), (U1X + 5.05, U1Y - 2.1),
+                           (U1X + 5.375, U1Y - 2.4)])]
+# DRV8874 outputs: 0.4 mm at the 0.65 mm pins, 1.2 mm as soon as the neighbour pads allow, the router continues (1.5 mm)
+TR += [('MOT_B', 0.4, 'F', [(U1X + 2.86, U1Y + 1.625), (U1X + 3.8, U1Y + 1.625), (U1X + 4.4, U1Y + 2.225),
+                            (U1X + 4.4, U1Y + 2.95)]),
+       ('MOT_B', 1.2, 'F', [(U1X + 4.4, U1Y + 2.95), (U1X + 4.4, U1Y + 4.0)]),
+       ('MOT_A', 0.4, 'F', [(U1X - 2.86, U1Y + 2.275), (U1X - 3.9, U1Y + 2.275), (U1X - 4.3, U1Y + 2.675)]),
+       ('MOT_A', 1.2, 'F', [(U1X - 4.3, U1Y + 2.675), (U1X - 5.2, U1Y + 3.575)])]
+# GND pins next to the PowerPAD: short stubs into the exposed pad (PGND 9, GND 15, IMODE 7)
+TR += [('GND', 0.4, 'F', [(U1X + 2.86, U1Y + 2.275), (U1X + 1.4, U1Y + 2.275)]),
+       ('GND', 0.3, 'F', [(U1X + 2.86, U1Y - 1.625), (U1X + 1.4, U1Y - 1.625)]),
+       ('GND', 0.3, 'F', [(U1X - 2.86, U1Y + 1.625), (U1X - 1.4, U1Y + 1.625)])]
+# valve FET: the four drain pins joined under the TSOP-6 body
+TR += [('VALVE_K', 0.6, 'F', [(80.4 - 1.137, 54.6 - 0.95), (80.4 + 1.137, 54.6 - 0.95)]),
+       ('VALVE_K', 0.6, 'F', [(80.4 - 1.137, 54.6 - 0.95), (80.4 - 1.137, 54.6)]),
+       ('VALVE_K', 0.6, 'F', [(80.4 + 1.137, 54.6 - 0.95), (80.4 + 1.137, 54.6)])]
 # SHT40 island: hand fan-out of the 0.8 mm-pitch DFN through the neck, ending left of the chamber wall (x = 76)
 XE = 75.0
 TR += [('GND', 0.3, 'F', [(XE, 90.9), (SX + 2.3, 90.9), (SX + 2.3, SY - 0.775)]),
@@ -379,22 +464,22 @@ def pin_labels_left(y0, labels, x=13.0):
 pin_labels_bottom(11.0, ['M+', 'M-'])
 pin_labels_bottom(37.0, ['5V', 'DAT', 'GND'])
 pin_labels_bottom(55.0, ['3V3', 'SDA', 'SCL', 'GND'])
-pin_labels_right(15.0, ['+12V', 'GND'])
+pin_labels_right(23.0, ['GND', 'GND', '+12V', '+12V'])     # v1.3: 2 poles each
 pin_labels_right(42.0, ['BTN', 'GND', '12V', 'LED-'])
-pin_labels_right(VY, ['12V', 'VLV'])
+pin_labels_right(VY, ['VLV', '12V'])
 pin_labels_right(78.0, ['CLOSED', 'GND', 'OPEN', 'GND', 'DRAWER', 'GND'])
 pin_labels_left(BY, ['RX+', 'RX-', 'SIG', 'TX+', 'TX-', 'GND'])
 pin_labels_left(LY, ['3V3', 'SIG', 'GND', '12V'])
-T('BEAM', 12.6, 41.6, just='l')
+T('BEAM', 12.6, 42.9, just='l')
 T('LEAK', 13.0, LY - 2.4, just='l')
 T('DOOR ACTUATOR', 18.0, 88.6, just='l')
 T('FAN PWM', 26.3, 91.0)
 T('WS2812 LED', 40.5, 84.6)
 T('I2C  ToF', 60.25, 84.6)
-T('12 V IN', 87.0, 7.8, just='r')
+T('12 V IN', 87.0, 8.5, just='r')
 T('BUTTON', 87.0, 28.3, just='r')
 T('VALVE', 87.0, 44.9, just='r')
-T('DOOR REEDS', 87.0, 56.8, just='r')
+T('DOOR REEDS', 87.0, 57.2, just='r')
 T('EXP: 3V3 GND 5V IO14 IO39 IO5', 37.35, 37.6)
 T('BUZZER', BZX, BZY - 6.6)
 T('<- USB-C   ESP32 DevKitC V4   antenna ->', 28.0, 2.4)
@@ -402,7 +487,7 @@ T('DevKit rows: 25.4 or 22.86', 3.0, 33.6, just='l')
 # ---- front: circuit blocks
 T('INPUT PROTECTION', 72.0, 2.4, nudge=3.0)
 T('5V BUCK', 65.0, 46.6, nudge=3.0)
-T('MOTOR DRV', 31.4, 67.6, nudge=2.0)
+T('MOTOR DRV', 30.0, 67.2, nudge=3.0)
 # ---- front: title, author, repo
 T('ROBO-GARAGE v' + VERSION, 41.0, 43.0, 1.8, novia=True)
 T('robot vacuum cabinet controller', 41.0, 45.6)
@@ -419,11 +504,12 @@ T('ROBO-GARAGE CONTROLLER v' + VERSION, 50.0, 46.0, 1.8, back=True, novia=True)
 T('Robot vacuum cabinet  ·  ESPHome  ·  Home Assistant', 50.0, 48.9, 1.1, back=True)
 T(AUTHOR + '  ·  ' + HANDLE, 50.0, 51.9, 1.6, back=True, novia=True)
 T(REPO, 50.0, 54.7, 1.2, back=True, novia=True)
-for k, line in enumerate(['RESETTABLE FUSES (PTC)', 'F1  2.6 A   12 V IN', 'F2  1.5 A   LED', 'F3  0.2 A   BEAM',
-                          'F4  1.5 A   VALVE', 'F5  0.2 A   LEAK 12V', 'F6  0.2 A   LEAK 3V3', 'Reset: unplug 1 min']):
+# v1.3 ratings: PTC hold currents at 25 C; the limits below keep >= 20 % margin for a warm case (~50 C)
+for k, line in enumerate(['RESETTABLE FUSES (PTC)', 'F1  7 A    12 V IN', 'F2  2 A    LED 5 V', 'F3  0.2 A  BEAM',
+                          'F4  4 A    VALVE', 'F5  0.2 A  LEAK 12V', 'F6  0.2 A  LEAK 3V3', 'F7  1.1 A  FAN 12V', 'F8  0.2 A  BUTTON',
+                          'Reset: unplug 1 min']):
     T(line, 80.0, 58.2 + 1.75 * k, just='l', back=True)       # back: 'left' = as read from below (board x 80 -> 62)
-for k, line in enumerate(['CLAMPS 0.2-0.75 mm², 5 A', 'PSU  12 V / 3 A', 'ACTUATOR  1.9 A limit',
-                          'LED  5 V, max 1.2 A', 'VALVE  12 V, max 1.2 A', 'BEAM  NPN, Light-ON',
-                          'LEAK  3V3 max 50 mA']):              # 1.2 A: the 1.5 A PTCs derate in a warm case
-    T(line, 38.0, 58.2 + 1.75 * k, just='l', back=True)       # ends above the U1 thermal pad (y 69.75)
+for k, line in enumerate(['CLAMPS 0.2-0.75 mm², 5 A/pole', '12 V IN  max 6 A, PSU 12 V/5 A', 'ACTUATOR  3 A, limit 4.9 A',
+                          'VALVE  12 V, max 3 A', 'LED  5 V, max 1.5 A', 'BEAM NPN Light-ON, LEAK 50 mA']):
+    T(line, 38.0, 58.2 + 1.75 * k, just='l', back=True)       # ends above the U1 thermal pad (B.Cu, y 68.5)
 T('PCB v' + VERSION + '  ·  made in code: KiCad + Freerouting  ·  2026', 50.0, 78.6, back=True)

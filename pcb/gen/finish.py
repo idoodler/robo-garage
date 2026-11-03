@@ -5,6 +5,7 @@ import sys
 
 import pcbnew
 
+import build                                  # net classes (clearances) for the widening
 import checks
 import parts
 import post
@@ -18,6 +19,9 @@ post.remove_duplicate_tracks(b)              # the SES re-imports the locked pre
 post.remove_dangling(b)                      # redundant router stubs (KiCad: track_dangling)
 post.trim_locked_stubs(b)                    # hand stubs the router joined mid-way
 post.remove_redundant(b, parts.CHAMBER)      # duplicate router jogs at the SHT40 (no pour there)
+CLR = {n: c for names, c in ((build.POWER, 0.3), (build.MOTOR, 0.2), (build.AUX12, 0.3), (build.FIVE, 0.25),
+                             (build.SIG12, 0.3)) for n in names}
+post.widen(b, build.MOTOR, 1.8, lambda n: CLR.get(n, 0.15))   # v1.3: motor copper 1.8 mm where it fits (IPC-2221)
 post.set_solid(b, getattr(parts, 'SOLID_PADS', []))
 route.add_zones(b)                           # GND both layers + NOPOUR areas, filled
 post.stitch_grid(b, pitch=8.0)              # tie both GND pours together every ~8 mm
@@ -42,11 +46,15 @@ silk = checks.silk_edge(b)
 stext = checks.silk_text_conflicts(b)          # v1.2: texts vs pads / parts / silk / edge / vias under protected text
 for c in stext:
     print('silk text conflict', c)
-print('self-check: thermals KiCad7 %s | KiCad9 %s | silk-edge %d | silk-text %d' % ([t[:4] for t in t7], [t[:4] for t in t9], len(silk), len(stext)))
+kel = checks.kelvin(b)                         # v1.3: no load current through the INA219 sense taps
+for c in kel:
+    print('kelvin', c)
+print('self-check: thermals KiCad7 %s | KiCad9 %s | silk-edge %d | silk-text %d | kelvin %d' % (
+    [t[:4] for t in t7], [t[:4] for t in t9], len(silk), len(stext), len(kel)))
 out = base + '_routed.kicad_pcb'
 pcbnew.SaveBoard(out, b)
 shutil.copy(base + '.kicad_pro', out.replace('.kicad_pcb', '.kicad_pro'))
 summ, unc, txt = route.drc(out, base + '_drc.rpt')
 print('DRC', summ, 'unconnected', unc)
-if t7 or t9 or silk or stext or summ or unc:
+if t7 or t9 or silk or stext or kel or summ or unc:
     sys.exit(1)

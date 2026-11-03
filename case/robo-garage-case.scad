@@ -1,13 +1,13 @@
-// Robo-Garage controller PCB v1.2 - 3D printed base + lid (OpenSCAD, FOSS)
+// Robo-Garage controller PCB v1.3 - 3D printed base + lid (OpenSCAD, FOSS)
 // Coordinates: x right, y up, z up. PCB occupies [0,100] x [0,100]; y = 0 is the edge with the
 // ACTUATOR / FAN / LED / I2C clamps, x = 100 the edge with 12V IN / VALVE / BUTTON / REEDS, x = 0 the BEAM / LEAK clamps
 // and the DevKit USB-C (through the wall).
-// The front-right corner is a separate vented chamber for the SHT40 (measures cabinet air, not box air).
+// The front-right corner is a separate vented chamber for the SHT41 (measures cabinet air, not box air).
 // part = "base" | "lid" | "lid_print" (lid flipped for printing) | "assembly" | "check_base" | "check_lid"
 part = "assembly";
 labels = true;     // false: no engraved text (small 3D model for the simulator page)
 show_plug = true;  // USB-C plug stand-in in the assembly / fit views
-version = "1.2";   // case version: release zip name (case/build.sh)
+version = "1.3";   // case version: release zip name (case/build.sh). v1.3: PCB v1.3 data (4-pole 12 V clamp)
 
 include <pcb_data.scad>
 
@@ -117,7 +117,7 @@ module base() {
                 translate([0, 0, -1]) cylinder(d = 4.5, h = 5);
                 translate([0, 0, floor_t - 1.8]) cylinder(d1 = 4.5, d2 = 8.4, h = 1.81);
             }
-        // floor vents under the buck, the motor driver and the SHT40 island
+        // floor vents under the buck, the motor driver and the SHT41 island
         for (x = [buck[0] - 12 : 5 : buck[0] + 8]) rbox([x, buck[1] - 7, -1], [x + 2.5, buck[1] + 7, 5]);
         for (x = [22 : 5 : 37]) rbox([x, 21, -1], [x + 2.5, 33, 5]);
         for (x = [78.5 : 3.5 : 89]) rbox([x, 2, -1], [x + 2, 14, 5]);
@@ -148,7 +148,8 @@ module lid() {
         // status LED window
         translate([led1[0], led1[1], z_lid - 1]) cylinder(d = 3.2, h = 9);
         // vents above the buck, the motor driver and the sensor chamber
-        for (x = [buck[0] - 8 : 4.5 : buck[0] + 3]) rbox([x, buck[1] - 6, z_lid - 1], [x + 2.5, buck[1] + 6, 99]);   // above L1 / U4
+        // v1.3: 4 mm further left than v1.2 (buck 3 mm lower): keeps 1 mm to the BTN / VALVE labels
+        for (x = [buck[0] - 12 : 4.5 : buck[0] - 3]) rbox([x, buck[1] - 6, z_lid - 1], [x + 2.5, buck[1] + 6, 99]);   // above L1
         for (x = [30 : 5 : 45]) rbox([x, 22, z_lid - 1], [x + 2.5, 32.5, 99]);   // right of the LEAK label
         // v1.2: slot through the lid edge above the USB-C opening: room for tall plug overmolds
         rbox([ox0 - 1, usb_yc - usb_w / 2, z_lid - 1], [ix0 + 1.0, usb_yc + usb_w / 2, 99]);
@@ -177,7 +178,7 @@ module lid() {
 
 // ---------------- PCB stand-in for fit checks ----------------
 module pcb_model() {
-    // board with the C-slot around the SHT40 island (neck on the left)
+    // board with the C-slot around the SHT41 island (neck on the left)
     color("green") difference() {
         rbox([0, 0, z_pcb_bot], [pcb, pcb, z_pcb_top]);
         difference() {
@@ -197,7 +198,7 @@ module pcb_model() {
         rbox([0.4, 93.7, z_pcb_top], [48.7, 96.3, z_pcb_top + 8.5]);
         rbox([0.4, 68.3, z_pcb_top], [48.7, 73.5, z_pcb_top + 8.5]);
     }
-    // fan header with plug, electrolytics, inductor, SHT40
+    // fan header with plug, electrolytics, inductor, SHT41
     color("white") rbox([20.0, 1.8, z_pcb_top], [32.6, 8.2, z_pcb_top + 16]);
     color("navy") {
         translate([c13_pos[0], c13_pos[1], z_pcb_top]) cylinder(d = 8.6, h = 10.6);

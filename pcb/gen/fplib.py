@@ -120,10 +120,45 @@ def pinsocket_tight(n=19):
     return name, s
 
 
+def pwp16():
+    """v1.3: TI PWP0016J (HTSSOP-16 PowerPAD, 5.0 x 4.4 mm) for the DRV8874PWPR, after the land pattern in TI SLVSF66A:
+    16 pads 0.65 mm pitch, rows 5.72 mm apart (1.55 x 0.4 mm: 0.25 mm gap = the Motor net-class clearance),
+    exposed pad 2.46 x 3.55 mm. Copper under the pad 3.4 x 5.0 mm (heat spreading on F.Cu), solder-mask opening
+    2.56 x 3.65 mm, paste 4 windows (~70 %), 6 tented thermal vias 0.3 / 0.6 mm at both ends of the pad (no via in
+    the paste area -> no solder wicking), B.Cu pad 3.0 x 5.0 mm that merges into the GND pour."""
+    name = 'TI_PWP0016J_HTSSOP-16_ThermalVias'
+    s = _header(name, 'TI PWP0016J PowerPAD HTSSOP-16 5.0 x 4.4 mm, P0.65, EP 2.46 x 3.55 mm, 6 tented thermal vias; '
+                      'DRV8874PWPR (LCSC C1855818)', 'HTSSOP-16 PowerPAD PWP DRV8874 thermal vias', 'smd')
+    s += _text('reference', 'REF**', 0, -3.6, 'F.SilkS', 0.8)
+    s += _text('value', name, 0, 3.6, 'F.Fab', 0.6)
+    s += _text('user', '${REFERENCE}', 0, 0, 'F.Fab', 0.6)
+    s += _rect(-2.2, -2.5, 2.2, 2.5, 'F.Fab', 0.1)
+    s += _line((-2.2, -1.7), (-1.4, -2.5), 'F.Fab', 0.1)                      # pin-1 bevel
+    s += _line((-1.6, -2.61), (1.6, -2.61), 'F.SilkS') + _line((-1.6, 2.61), (1.6, 2.61), 'F.SilkS')
+    s += _circle(-3.1, -3.1, 0.2, 'F.SilkS', 0.12, fill=True)                  # pin-1 dot
+    s += _rect(-3.9, -2.85, 3.9, 2.85, 'F.CrtYd', 0.05)
+    for k in range(8):
+        y = -2.275 + 0.65 * k
+        for num, x in ((k + 1, -2.86), (16 - k, 2.86)):
+            s += ('  (pad "%d" smd roundrect (at %.3f %.3f) (size 1.55 0.4) (layers "F.Cu" "F.Paste" "F.Mask") '
+                  '(roundrect_rratio 0.25) (tstamp %s))\n' % (num, x, y, _id()))
+    s += ('  (pad "17" smd rect (at 0 0) (size 3.4 5.0) (layers "F.Cu") (zone_connect 2) (tstamp %s))\n' % _id())
+    s += ('  (pad "" smd rect (at 0 0) (size 2.56 3.65) (layers "F.Mask") (tstamp %s))\n' % _id())
+    for x in (-0.6, 0.6):
+        for y in (-0.88, 0.88):
+            s += ('  (pad "" smd rect (at %.2f %.2f) (size 1.0 1.5) (layers "F.Paste") (tstamp %s))\n' % (x, y, _id()))
+    for y in (-2.2, 2.2):
+        for x in (-1.0, 0.0, 1.0):
+            s += ('  (pad "17" thru_hole circle (at %.2f %.2f) (size 0.6 0.6) (drill 0.3) (layers "*.Cu") '
+                  '(zone_connect 2) (tstamp %s))\n' % (x, y, _id()))
+    s += ('  (pad "17" smd rect (at 0 0) (size 3.0 5.0) (layers "B.Cu") (zone_connect 2) (tstamp %s))\n' % _id())
+    return name, s + ')\n'
+
+
 def make_lib():
     os.makedirs(LIB, exist_ok=True)
     made = []
-    for name, text in [kf250(n) for n in (2, 3, 4, 6)] + [tooling_hole(), mlt8530(), pinsocket_tight(19)]:
+    for name, text in [kf250(n) for n in (2, 3, 4, 6)] + [tooling_hole(), mlt8530(), pinsocket_tight(19), pwp16()]:
         path = os.path.join(LIB, name + '.kicad_mod')
         old = open(path).read() if os.path.exists(path) else None
         if old is None or _strip_ids(old) != _strip_ids(text):

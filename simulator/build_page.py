@@ -1,5 +1,6 @@
-# Build Robo-Garage simulator v5.2 (PCB v1.2, case v1.2) from v4.9: light barrier + auto vent + PCB/case section with downloads,
-# leak probe + valve + buzzer (v1.2). Run simulator/build_files.py first (download manifests + pictures).
+# Build Robo-Garage simulator v5.3 (PCB + case version from parts.py / the SCAD file) from v4.9: light barrier + auto vent +
+# PCB/case section with downloads, leak probe + valve + buzzer (v1.2), power headroom (v1.3).
+# Run simulator/build_files.py first (download manifests + pictures).
 import html
 import os
 import re
@@ -8,6 +9,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(HERE, 'robo-garage.html')
 OUT = os.path.join(HERE, 'index.html')
 YAML = os.path.join(HERE, '..', 'esphome', 'robo-garage-pcb.yaml')
+PCB_V = re.search(r"^VERSION = '([^']*)'", open(os.path.join(HERE, '..', 'pcb', 'gen', 'parts.py')).read(), re.M).group(1)
+CASE_V = re.search(r'^version = "([^"]*)"', open(os.path.join(HERE, '..', 'case', 'robo-garage-case.scad')).read(), re.M).group(1)
+from PIL import Image                                       # picture sizes for the <img> tags
+PCB_WH = Image.open(os.path.join(HERE, 'img', 'pcb-v%s-top.webp' % PCB_V)).size
+CASE_WH = Image.open(os.path.join(HERE, 'img', 'case-v%s.webp' % CASE_V)).size
 
 s = open(SRC, encoding='utf-8').read()
 n_ok = 0
@@ -83,11 +89,11 @@ rep('''    <div class="status">
 rep('''      <tr><td>BTS7960 "IBT-2" H-bridge</td><td>1</td><td class="num">1–4</td><td><a href="https://www.aliexpress.com/item/4000002701244.html">item</a></td></tr>
       <tr><td>MP1584EN buck → set to 5.0 V first</td><td>1</td><td class="num">1–2</td><td><a href="https://www.aliexpress.com/item/32261885063.html">item</a></td></tr>
 ''', '')
-rep('''      <tr class="grp"><td colspan="4">Hardware store (cut to size)</td></tr>''', '''      <tr class="grp"><td colspan="4">Controller PCB v1.2 – <a href="#pcb">files below</a></td></tr>
-      <tr><td>JLCPCB: 5 PCBs, 2 fully assembled (Economic PCBA: SMD + push-button clamps + DevKit sockets) – Gerber zip, BOM, CPL from the download <span class="tag">≈ 30 extended parts × $3</span></td><td>1 order</td><td class="num">140–180</td><td><a href="https://jlcpcb.com/">JLCPCB</a></td></tr>
+rep('''      <tr class="grp"><td colspan="4">Hardware store (cut to size)</td></tr>''', '''      <tr class="grp"><td colspan="4">Controller PCB v''' + PCB_V + ''' – <a href="#pcb">files below</a></td></tr>
+      <tr><td>JLCPCB: 5 PCBs, 2 fully assembled (Economic PCBA: SMD + push-button clamps + DevKit sockets) – Gerber zip, BOM, CPL from the download <span class="tag">≈ 26 extended parts × $3</span></td><td>1 order</td><td class="num">140–180</td><td><a href="https://jlcpcb.com/">JLCPCB</a></td></tr>
       <tr><td>Light barrier pair 12–24 V, through-beam, NPN, Light-ON ("NC") – door safety</td><td>1 pair</td><td class="num">9–15</td><td><a href="https://www.aliexpress.com/w/wholesale-through-beam-photoelectric-sensor.html">AliExpress</a></td></tr>
       <tr class="opt"><td>Leak detection: 2 stainless screws on the cabinet floor, or any water-leak sensor with a digital output (NPN / 3.3–5 V logic, powered from the clamp) <span class="tag">optional</span> – LEAK clamp</td><td>1</td><td class="num">0–8</td><td><a href="https://www.aliexpress.com/w/wholesale-water-leak-sensor-module.html">AliExpress</a></td></tr>
-      <tr class="opt"><td>Water valve 12 V DC ≤ 1.2 A that closes when powered (NO solenoid / motorised ball valve) <span class="tag">optional</span> – VALVE clamp, for the water kit</td><td>1</td><td class="num">10–30</td><td><a href="https://www.aliexpress.com/w/wholesale-12v-normally-open-solenoid-valve.html">AliExpress</a></td></tr>
+      <tr class="opt"><td>Water valve 12 V DC ≤ 3 A that closes when powered (NO solenoid / motorised ball valve) <span class="tag">optional</span> – VALVE clamp, for the water kit</td><td>1</td><td class="num">10–30</td><td><a href="https://www.aliexpress.com/w/wholesale-12v-normally-open-solenoid-valve.html">AliExpress</a></td></tr>
       <tr><td>Case: PETG ≈ 70 g + 4× M3×25 screws (STL in the download)</td><td>–</td><td class="num">2–4</td><td>–</td></tr>
       <tr class="grp"><td colspan="4">Hardware store (cut to size)</td></tr>''')
 rep('''      <tr><td>Wire, Wago, 3 A fuse, screws, wood glue, 4 steel angles 30 mm, 330 Ω, 1000 µF/10 V, BC547 + 1 kΩ (button ring)</td><td>–</td><td class="num">12–22</td><td>–</td></tr>''',
@@ -103,14 +109,14 @@ yaml_txt = open(YAML, encoding='utf-8').read()
 assert yaml_txt.count('num_leds: 16') == 1
 yaml_html = html.escape(yaml_txt, quote=False).replace('num_leds: 16', 'num_leds: <span id="numLeds">16</span>')
 pcb_section = '''<section class="card" style="margin-top:14px" id="pcb">
-  <div class="vhead"><h2>Controller PCB v1.2 + 3D-printed case</h2><span class="lbl">KiCad + OpenSCAD · all files open</span></div>
+  <div class="vhead"><h2>Controller PCB v''' + PCB_V + ''' + 3D-printed case</h2><span class="lbl">KiCad + OpenSCAD · all files open</span></div>
   <div class="cols2">
-    <figure class="shot"><img src="img/pcb-v1.2-top.webp" width="1200" height="1241" loading="lazy" alt="PCB v1.2 top view: ESP32 DevKitC sockets at the top, push-button clamps on the left, right and bottom edge, buzzer in the middle, SHT40 on a slotted island in the bottom-right corner"><figcaption>PCB 100 × 100 mm, 2 layers · JLCPCB assembles every part, clamps included · DRC: 0 errors, 0 warnings</figcaption></figure>
-    <figure class="shot light"><img src="img/case-v1.2.webp" width="1000" height="629" loading="lazy" alt="3D-printed case: base with wire shelves, lid with clamp cut-outs and buzzer holes, vented sensor corner at the front right"><figcaption>Case: base + lid, PETG, no supports · vented SHT40 corner</figcaption></figure>
+    <figure class="shot"><img src="img/pcb-v''' + PCB_V + '''-top.webp" width="''' + str(PCB_WH[0]) + '''" height="''' + str(PCB_WH[1]) + '''" loading="lazy" alt="PCB v''' + PCB_V + ''' top view: ESP32 DevKitC sockets at the top, push-button clamps on the left, right and bottom edge, buzzer in the middle, SHT41 on a slotted island in the bottom-right corner"><figcaption>PCB 100 × 100 mm, 2 layers · JLCPCB assembles every part, clamps included · DRC: 0 errors, 0 warnings</figcaption></figure>
+    <figure class="shot light"><img src="img/case-v''' + CASE_V + '''.webp" width="''' + str(CASE_WH[0]) + '''" height="''' + str(CASE_WH[1]) + '''" loading="lazy" alt="3D-printed case: base with wire shelves, lid with clamp cut-outs and buzzer holes, vented sensor corner at the front right"><figcaption>Case: base + lid, PETG, no supports · vented sensor corner</figcaption></figure>
   </div>
   <div class="dl">
-    <button class="btn primary" data-dl="pcb" disabled>⬇ PCB v1.2 · JLCPCB files, KiCad, YAML (zip, 1.1 MB)</button>
-    <button class="btn primary" data-dl="case" disabled>⬇ Case v1.2 · STL + OpenSCAD (zip, 0.4 MB)</button>
+    <button class="btn primary" data-dl="pcb" disabled>⬇ PCB v''' + PCB_V + ''' · JLCPCB files, KiCad, YAML (zip, 1.2 MB)</button>
+    <button class="btn primary" data-dl="case" disabled>⬇ Case v''' + CASE_V + ''' · STL + OpenSCAD (zip, 0.4 MB)</button>
     <span class="note" id="dlNote" role="status">Checking downloads…</span>
   </div>
   <div class="cols2" style="margin-top:14px">
@@ -118,22 +124,22 @@ pcb_section = '''<section class="card" style="margin-top:14px" id="pcb">
       <h3>On the board</h3>
       <table class="kv"><tbody>
         <tr><td>ESP32</td><td>DevKitC V4 plugs into a socket, its USB-C sits in the case wall: flash with the lid on, then OTA</td></tr>
-        <tr><td>Power</td><td>12 V in → PTC, reverse protection, TVS → 5.1 V buck on board (no 5 V adapter)</td></tr>
-        <tr><td>Door</td><td>DRV8871 driver (1.9 A limit) + INA219 current sense → stall stop</td></tr>
-        <tr><td>Sensors</td><td>SHT40 temperature + humidity on a slotted island · light-barrier input (12 V safe, self-test) · water-leak input: bare electrodes (pulsed, no corrosion) or a digital sensor (12 V / 3.3 V on the clamp) · 12 V rail monitor</td></tr>
-        <tr><td>Outputs</td><td>Fan PWM + tach · WS2812 level shifter · 12 V button ring · 12 V valve output (1.2 A, a leak closes the water) · buzzer</td></tr>
+        <tr><td>Power</td><td>12 V in, 6 A (4-pole clamp) → 7 A PTC, reverse protection, TVS → 5.1 V buck on board (no 5 V adapter)</td></tr>
+        <tr><td>Door</td><td>DRV8874 driver (3 A moves, 4.9 A hardware limit) + INA219 current sense (20 mΩ shunt) → stall stop</td></tr>
+        <tr><td>Sensors</td><td>SHT41 temperature + humidity on a slotted island · light-barrier input (12 V safe, self-test) · water-leak input: bare electrodes (pulsed, no corrosion) or a digital sensor (12 V / 3.3 V on the clamp) · 12 V rail monitor</td></tr>
+        <tr><td>Outputs</td><td>Fan PWM + tach · WS2812 level shifter · 12 V button ring · 12 V valve output (3 A, a leak closes the water) · buzzer</td></tr>
         <tr><td>Clamps</td><td>9 push-button spring clamps (KF250, 0.2–0.75 mm²) on 3 edges, soldered by JLCPCB</td></tr>
       </tbody></table>
     </div>
     <div>
       <h3>ESP32 pins</h3>
       <table><tbody>
-        <tr><td class="m">25 / 26</td><td>DRV8871 IN1 (open) / IN2 (close)</td></tr>
+        <tr><td class="m">25 / 26</td><td>DRV8874 IN1 (open) / IN2 (close)</td></tr>
         <tr><td class="m">32 / 33 / 18</td><td>Reed door closed / door open / drawer</td></tr>
         <tr><td class="m">19 / 23</td><td>Clean button / button ring</td></tr>
         <tr><td class="m">16</td><td>WS2812 data (level shifter)</td></tr>
         <tr><td class="m">17 / 27</td><td>Fan PWM / fan tach</td></tr>
-        <tr><td class="m">21 / 22</td><td>I²C: INA219 0x40, SHT40 0x44, VL53L1X (clamp)</td></tr>
+        <tr><td class="m">21 / 22</td><td>I²C: INA219 0x40, SHT41 0x44, VL53L1X (clamp)</td></tr>
         <tr><td class="m">34 / 13</td><td>Light barrier input / sender on-off</td></tr>
         <tr><td class="m">4 / 35</td><td>Leak probe drive / leak ADC</td></tr>
         <tr><td class="m">2 / 15 / 36</td><td>Valve / buzzer / 12 V rail ADC</td></tr>
@@ -146,7 +152,7 @@ pcb_section = '''<section class="card" style="margin-top:14px" id="pcb">
       <h3>Order at JLCPCB</h3>
       <ol class="steps">
         <li>PCB: upload <code>robo-garage_gerbers_JLCPCB.zip</code> → 2 layers, 1.6 mm, HASL.</li>
-        <li>Assembly: Economic, top side, 2 boards, tooling holes "added by customer" → upload BOM + CPL (all 45 lines match by LCSC number).</li>
+        <li>Assembly: Economic, top side, 2 boards, tooling holes "added by customer" → upload BOM + CPL (all 48 lines match by LCSC number).</li>
         <li>Compare the placement preview with <code>pin1-check.png</code> from the download (ICs, transistors, diodes, clamps).</li>
         <li>Plug in the ESP32 DevKitC (both row pitches fit). Nothing to solder.</li>
       </ol>
@@ -162,7 +168,7 @@ pcb_section = '''<section class="card" style="margin-top:14px" id="pcb">
     </div>
   </div>
   <details>
-    <summary>ESPHome config v1.2</summary>
+    <summary>ESPHome config v''' + PCB_V + '''</summary>
     <div class="dl" style="margin-top:8px"><button class="btn" id="cpYaml">Copy YAML</button><span class="note" id="cpNote" role="status"></span></div>
     <pre id="yaml" style="margin-top:8px;max-height:420px">''' + yaml_html + '''</pre>
   </details>
@@ -179,15 +185,15 @@ rep('''<section class="card" style="margin-top:14px">
 rep('<li>Lift door: PTFE tape in the channels; if it ever tilts, add a second actuator on the right, wired in parallel. All other doors push when closing → add the INA219 stall stop.</li>',
     '<li>Lift door: PTFE tape in the channels; if it ever tilts, add a second actuator on the right, wired in parallel. Every door: the light barrier keeps it from closing on anything in front; the INA219 stall stop on the PCB is the backup.</li>')
 rep('Switch between GPIO19 and GND; ring: 12 V → ring → BC547 → GND, base via 1 kΩ from GPIO23. The fascia is fixed, so no wires through the drag chain.</li>',
-    'Wire it to the BUTTON clamp (BTN, GND, 12V, LED−): GPIO19 reads the switch, a MOSFET on the PCB switches the ring (GPIO23). The fascia is fixed, so no wires through the drag chain.</li>\n      <li><b>Light barrier:</b> sender + receiver on 2 small L-brackets at the front corners of the cabinet sides. Beam ≈12 cm in front of the door, ≈2 cm above the floor – past the ramp wedge and under the door\'s swing, so the door never breaks it itself. Both cables go to the BEAM clamp.</li>\n      <li><b>Controller:</b> PCB in its printed case under the top, the vented SHT40 corner open to the cabinet air. Keep those vents free.</li>')
+    'Wire it to the BUTTON clamp (BTN, GND, 12V, LED−): GPIO19 reads the switch, a MOSFET on the PCB switches the ring (GPIO23). The fascia is fixed, so no wires through the drag chain.</li>\n      <li><b>Light barrier:</b> sender + receiver on 2 small L-brackets at the front corners of the cabinet sides. Beam ≈12 cm in front of the door, ≈2 cm above the floor – past the ramp wedge and under the door\'s swing, so the door never breaks it itself. Both cables go to the BEAM clamp.</li>\n      <li><b>Controller:</b> PCB in its printed case under the top, the vented sensor corner open to the cabinet air. Keep those vents free.</li>')
 old_wiring = s[s.index('  <details>\n    <summary>ESP32 wiring + ESPHome snippets</summary>'):s.index('  </details>\n</section>\n</div>\n\n<script>') + len('  </details>\n')]
 assert old_wiring.count('<details>') == 1
 rep(old_wiring, '''  <details>
-    <summary>Wiring · PCB v1.2 clamps</summary>
+    <summary>Wiring · PCB v''' + PCB_V + ''' clamps</summary>
     <div class="tablewrap" style="margin-top:8px"><table>
       <thead><tr><th>Clamp</th><th>Pins</th><th>Connect</th></tr></thead>
       <tbody>
-        <tr><td>12 V IN</td><td class="m">+12V, GND</td><td>Mean Well GST36E12 → DC jack adapter</td></tr>
+        <tr><td>12 V IN</td><td class="m">+12V, +12V, GND, GND</td><td>12 V / 5 A adapter (e.g. Mean Well GST60A12) → DC jack adapter; above 5 A use both pairs</td></tr>
         <tr><td>ACTUATOR</td><td class="m">M+, M−</td><td>Linear actuator (wrong direction → swap the 2 wires)</td></tr>
         <tr><td>FAN</td><td class="m">4-pin</td><td>ARCTIC P12 Slim PWM plug</td></tr>
         <tr><td>LED</td><td class="m">5V, DAT, GND</td><td>WS2812B strip or ring (DIN)</td></tr>
@@ -195,7 +201,7 @@ rep(old_wiring, '''  <details>
         <tr><td>REEDS</td><td class="m">CL/GND, OP/GND, DR/GND</td><td>Door closed, door open, drawer</td></tr>
         <tr><td>BEAM</td><td class="m">RX+, RX−, SIG, TX+, TX−, GND</td><td>Receiver brown, blue, black · sender brown, blue</td></tr>
         <tr><td>LEAK</td><td class="m">3V3, SIG, GND, 12V</td><td>2 electrodes on SIG + GND, or a digital leak sensor (power from 3V3 ≤ 50 mA or 12V; NPN: 10 kΩ 3V3–SIG)</td></tr>
-        <tr><td>VALVE</td><td class="m">+12V, SW</td><td>12 V valve that closes when powered (optional)</td></tr>
+        <tr><td>VALVE</td><td class="m">+12V, VLV</td><td>12 V valve ≤ 3 A that closes when powered (optional)</td></tr>
         <tr><td>I2C</td><td class="m">3V3, SDA, SCL, GND</td><td>VL53L1X (optional)</td></tr>
       </tbody>
     </table></div>
@@ -205,5 +211,7 @@ rep(old_wiring, '''  <details>
 
 print('html replacements ok:', n_ok)
 exec(open(os.path.join(HERE, 'build_js.py'), encoding='utf-8').read())
+s = s.replace('@@PCB_V@@', PCB_V).replace('@@CASE_V@@', CASE_V)   # file names inside the JS (v1.3)
+assert '@@' not in s
 open(OUT, 'w', encoding='utf-8').write(s)
 print('written', OUT, len(s), 'bytes, replacements', n_ok)

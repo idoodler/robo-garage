@@ -9,10 +9,10 @@ ESP32 + ESPHome + Home Assistant: motorised door, light barrier, reed contacts, 
 
 | Part | Version | Status |
 |---|---|---|
-| Controller PCB | v1.2 | DRC 0 errors / 0 warnings (KiCad 7). JLCPCB assembles all parts (SMD + clamps), only the DevKitC is plugged in (USB-C reachable from outside) |
-| Case | v1.2 | fits PCB v1.2, DevKit USB-C through the left wall |
+| Controller PCB | v1.3 | DRC 0 errors / 0 warnings (KiCad 7). JLCPCB assembles all parts (SMD + clamps), only the DevKitC is plugged in (USB-C reachable from outside). Power headroom: 12 V in 6 A, actuator 4.9 A limit, valve 3 A, every power path checked against IPC-2221 |
+| Case | v1.3 | fits PCB v1.3 (0 mm³ overlap with the part stand-in), DevKit USB-C through the left wall |
 | ESPHome config | – | checked with ESPHome 2026.10.1 |
-| Simulator | v5.2 | case as a 3D model in the scene |
+| Simulator | v5.3 | case as a 3D model in the scene, PCB v1.3 texts + downloads |
 
 ## Folders
 
@@ -36,7 +36,7 @@ Locally: run from the repo root. Tested with KiCad 7.0.11 (Python `pcbnew`), Pyt
 | PCB: tracks + GND pour + DRC | `python3 pcb/gen/finish.py` (stops with an error on any DRC issue) |
 | PCB: gerbers, BOM, CPL, renders | `python3 pcb/gen/fab.py pcb/robo-garage/robo-garage_routed.kicad_pcb pcb/out` |
 | PCB: copy to `pcb/out` + zip | `pcb/gen/package.sh` |
-| PCB: re-route (optional) | `pcb/gen/pipeline.sh` |
+| PCB: re-route (optional) | `pcb/gen/pipeline.sh` (Freerouting is not deterministic: run it again if `finish.py` reports unconnected items) |
 | Case: PCB data, STL, zip | `case/build.sh` |
 | Simulator page | `python3 simulator/build_files.py` (downloads, pictures, case GLB) then `python3 simulator/build_page.py` |
 | Flash ESP32 | `esphome run esphome/robo-garage-pcb.yaml` |
@@ -58,7 +58,7 @@ Moved a part in `parts.py`? Then the old tracks no longer fit: run `pcb/gen/pipe
 |---|---|
 | 1 | Set the versions: `VERSION` in `pcb/gen/parts.py` (also printed on the board), `version` in `case/robo-garage-case.scad` |
 | 2 | Push to `main` → GitHub Actions builds everything and checks the DRC |
-| 3 | Push a tag: `git tag v1.2.0 && git push origin v1.2.0` → GitHub Actions publishes the release with both zips |
-| or | On github.com: *Releases* → *Draft a new release* → new tag `v1.2.0` → *Publish*. The zips get attached about 2 min later |
+| 3 | Push a tag: `git tag v1.3.0 && git push origin v1.3.0` → GitHub Actions publishes the release with both zips |
+| or | On github.com: *Releases* → *Draft a new release* → new tag `v1.3.0` → *Publish*. The zips get attached about 2 min later |
 
 Every build also keeps both zips for 30 days: *Actions* → run → *Artifacts*.

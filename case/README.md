@@ -1,6 +1,8 @@
-# Robo-Garage case v1.2 (for controller PCB v1.2)
+# Robo-Garage case v1.3 (for controller PCB v1.3)
 
-Base + lid, OpenSCAD (FOSS). Checked against a PCB stand-in: 0 mm³ overlap with parts.
+Base + lid, OpenSCAD (FOSS). Checked against a PCB v1.3 stand-in (clamps, DevKit + USB-C plug, electrolytics, inductor, buzzer, fan plug): 0 mm³ overlap with parts.
+
+v1.3: follows PCB v1.3 – the 12 V IN clamp has 4 poles now (right window and rail cover it), the LED window and the vents above / below the buck and the motor driver moved with their parts. Same print, same screws.
 
 v1.2: left window + lid cut-out now span VALVE / LEAK / BEAM (KF250 clamps, 11.7 mm high), sound holes above the buzzer, lid vents moved right of the LEAK label, 3 mm bridge keeps the front-left lid corner (screw post) attached, **the DevKit's own USB-C pokes through the left wall** (opening + plug pocket, closed by the lid) so the ESP32 is flashed with the lid on; VALVE clamp now on the right edge (between BUTTON and REEDS).
 
@@ -38,7 +40,7 @@ v1.2: left window + lid cut-out now span VALVE / LEAK / BEAM (KF250 clamps, 11.7
 ## Notes
 | Topic | Note |
 |---|---|
-| T/H chamber | Front-right corner = own chamber for the SHT40, vents in wall, floor and lid. Keep them free. |
+| T/H chamber | Front-right corner = own chamber for the SHT41, vents in wall, floor and lid. Keep them free. |
 | WiFi | Antenna sits back-left (vented wall): no metal within 15 mm there. |
 | Rails | Under each clamp strip a rail carries the push-button force. |
 | Clamps | KF250: wire in at 45° from the window side, push button on top (lid is 4.8 mm above it). |

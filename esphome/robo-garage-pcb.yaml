@@ -1,8 +1,10 @@
-# ESPHome config for the Robo-Garage controller PCB v1.2 (ESP32 DevKitC V4 plugged in)
+# ESPHome config for the Robo-Garage controller PCB v1.3 (ESP32 DevKitC V4 plugged in)
 # v1.1: SHT40 cabinet temperature / humidity (auto vent), door light barrier with self-test.
 # v1.2: water leak input (LEAK clamp: electrodes or a digital sensor), buzzer, 12 V valve output (VALVE clamp),
 # 12 V rail monitor on the ADC. DevKit USB-C is reachable through the case wall.
-# Pin changes vs. the module build: DRV8871 instead of BTS7960 (no EN pin), INA219 on the board,
+# v1.3: power headroom - DRV8874 motor driver (3 A moves, 4.9 A hardware current limit), 20 mOhm shunt,
+# valve output 3 A, 12 V input 6 A. Same GPIOs and logic as v1.2, only the INA219 shunt / range changed.
+# Pin changes vs. the module build: H-bridge IC instead of BTS7960 (no EN pin), INA219 on the board,
 # fan tach on GPIO27, external pull-ups on reeds / button (internal pull-ups stay on, harmless).
 substitutions:
   stall_current: "0.8"   # A: set ~0.3 A above the running current you see in HA ("Door motor current")
@@ -43,8 +45,8 @@ globals:
 output:
   - {platform: gpio, pin: GPIO4, id: leak_drive}              # v1.2: IO4 -> R40 100k -> leak probe (pulsed)
   - {platform: ledc, pin: {number: GPIO15, ignore_strapping_warning: true}, id: buzzer_pwm}  # v1.2: buzzer, R46 pull-down
-  - {platform: ledc, pin: GPIO25, id: door_open_out}          # DRV8871 IN1 -> actuator extends
-  - {platform: ledc, pin: GPIO26, id: door_close_out}         # DRV8871 IN2 -> actuator retracts
+  - {platform: ledc, pin: GPIO25, id: door_open_out}          # DRV8874 IN1 -> actuator extends (PWM mode)
+  - {platform: ledc, pin: GPIO26, id: door_close_out}         # DRV8874 IN2 -> actuator retracts
   - {platform: ledc, pin: GPIO23, id: btn_ring_out}           # AO3400A -> button ring (12 V)
   - {platform: ledc, pin: GPIO17, id: fan_pwm, frequency: 25000Hz, inverted: true}  # 2N7002 open drain
 
@@ -53,7 +55,7 @@ rtttl:
   output: buzzer_pwm
 
 switch:
-  - platform: gpio                                             # v1.2: AO3400A low side -> VALVE clamp (12 V, <= 1.5 A)
+  - platform: gpio                                             # v1.3: IRLTS6342 low side -> VALVE clamp (12 V, <= 3 A)
     id: valve                                                  # on = valve powered. Use a valve that CLOSES when
     name: "Water valve"                                        # powered (normally-open solenoid / motorised valve),
     pin: {number: GPIO2, ignore_strapping_warning: true}        # then a leak powers it and the water is off. R43 pull-down.
@@ -217,18 +219,18 @@ sensor:
     filters: [multiply: 5.545, sliding_window_moving_average: {window_size: 5, send_every: 5}]
     accuracy_decimals: 1
     unit_of_measurement: V
-  - platform: ina219                                           # on the PCB, shunt 0.1 ohm
+  - platform: ina219                                           # v1.3: on the PCB, shunt 20 mOhm (range 8 A)
     address: 0x40
-    shunt_resistance: 0.1 ohm
+    shunt_resistance: 0.02 ohm
     max_voltage: 16V
-    max_current: 3.2A
+    max_current: 8A
     update_interval: 100ms
     current:
       name: "Door motor current"
       id: motor_current
     bus_voltage:
       name: "12 V supply"
-  - platform: sht4x                                            # SHT40 on the PCB island
+  - platform: sht4x                                            # SHT41 (v1.3; SHT40 on older boards) on the island
     address: 0x44
     update_interval: 30s
     temperature:
@@ -256,7 +258,7 @@ interval:
       - component.update: leak_v
       - delay: 20ms
       - output.turn_off: leak_drive
-  - interval: 30s                                              # auto vent from the SHT40
+  - interval: 30s                                              # auto vent from the SHT41
     then:
       - if:
           condition:

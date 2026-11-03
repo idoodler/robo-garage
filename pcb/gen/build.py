@@ -336,9 +336,11 @@ def build(path=OUT + '/robo-garage.kicad_pcb', tracks=True):
             t.SetLayer(pcbnew.F_Cu if layer == 'F' else pcbnew.B_Cu)
             t.SetNet(net(netname)); t.SetLocked(True)
             board.Add(t)
-    for netname, x, y in (getattr(parts, 'VIAS', []) if tracks else []):
+    for vdef in (getattr(parts, 'VIAS', []) if tracks else []):    # (net, x, y[, diameter, drill])
+        netname, x, y = vdef[:3]
+        dia, drill = vdef[3:5] if len(vdef) >= 5 else (0.6, 0.3)
         v = pcbnew.PCB_VIA(board)
-        v.SetPosition(V(x, y)); v.SetDrill(MM(0.3)); v.SetWidth(MM(0.6))
+        v.SetPosition(V(x, y)); v.SetDrill(MM(drill)); v.SetWidth(MM(dia))
         v.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu); v.SetNet(net(netname)); v.SetLocked(True)
         board.Add(v)
 
@@ -358,7 +360,15 @@ def build(path=OUT + '/robo-garage.kicad_pcb', tracks=True):
     return path
 
 
-POWER = ['+12V_IN', '+12V_F', '+12V', '+12V_MOT', 'MOT_A', 'MOT_B', '+12V_VLV', 'VALVE_K']   # v1.2: valve 1.5 A
+# v1.3 net classes, widths after IPC-2221 (external layer, 1 oz, <= 20 C rise at the rated current):
+# Power12 1.5 mm: valve 4 A (F4 hold) and short 12 V links; the trunks are pre-routed (parts.py): input 3.0 / 4.2 mm
+# (7 A), west trunk + motor supply 2.0 mm (4.9 A), east branch 2.0 mm (valve + buck);
+# Motor 1.5 mm, 0.2 mm clearance (the DRV8874 pins sit 0.25 mm apart): routed at 1.5 mm, finish.py widens every
+# segment to 1.8 mm where the clearances allow (4.9 A current limit at ~20 C rise);
+# Aux12 0.6 mm: fan / button LED / beam / leak behind F7 (1.1 A); Power5 0.8 mm: 5 V up to 2 A.
+POWER = ['+12V_IN', '+12V_F', '+12V', '+12V_VLV', 'VALVE_K']
+MOTOR = ['+12V_MOT', 'MOT_A', 'MOT_B']
+AUX12 = ['+12V_A', '+12V_BTN']
 FIVE = ['+5V', '+5V_LED', '+5V_DEV', 'SW']
 SIG12 = ['+12V_LK']                 # v1.2: 12 V sensor feed on the LEAK clamp: 0.3 mm clearance to the 3V3 / SIG nets
 
@@ -369,7 +379,15 @@ def write_project(path):
          "microvia_diameter": 0.3, "microvia_drill": 0.1, "diff_pair_width": 0.2, "diff_pair_gap": 0.25,
          "diff_pair_via_gap": 0.25, "wire_width": 6, "bus_width": 12, "line_style": 0, "schematic_color": "rgba(0, 0, 0, 0.000)",
          "pcb_color": "rgba(0, 0, 0, 0.000)"},
-        {"name": "Power12", "clearance": 0.3, "track_width": 1.0, "via_diameter": 0.9, "via_drill": 0.45,
+        {"name": "Power12", "clearance": 0.3, "track_width": 1.5, "via_diameter": 1.1, "via_drill": 0.6,
+         "microvia_diameter": 0.3, "microvia_drill": 0.1, "diff_pair_width": 0.2, "diff_pair_gap": 0.25,
+         "diff_pair_via_gap": 0.25, "wire_width": 6, "bus_width": 12, "line_style": 0, "schematic_color": "rgba(0, 0, 0, 0.000)",
+         "pcb_color": "rgba(0, 0, 0, 0.000)"},
+        {"name": "Motor", "clearance": 0.2, "track_width": 1.5, "via_diameter": 1.1, "via_drill": 0.6,
+         "microvia_diameter": 0.3, "microvia_drill": 0.1, "diff_pair_width": 0.2, "diff_pair_gap": 0.25,
+         "diff_pair_via_gap": 0.25, "wire_width": 6, "bus_width": 12, "line_style": 0, "schematic_color": "rgba(0, 0, 0, 0.000)",
+         "pcb_color": "rgba(0, 0, 0, 0.000)"},
+        {"name": "Aux12", "clearance": 0.3, "track_width": 0.6, "via_diameter": 0.8, "via_drill": 0.4,
          "microvia_diameter": 0.3, "microvia_drill": 0.1, "diff_pair_width": 0.2, "diff_pair_gap": 0.25,
          "diff_pair_via_gap": 0.25, "wire_width": 6, "bus_width": 12, "line_style": 0, "schematic_color": "rgba(0, 0, 0, 0.000)",
          "pcb_color": "rgba(0, 0, 0, 0.000)"},
@@ -386,7 +404,8 @@ def write_project(path):
          "diff_pair_via_gap": 0.25, "wire_width": 6, "bus_width": 12, "line_style": 0, "schematic_color": "rgba(0, 0, 0, 0.000)",
          "pcb_color": "rgba(0, 0, 0, 0.000)"},
     ]
-    pats = [{"netclass": "Power12", "pattern": n} for n in POWER] + \
+    pats = [{"netclass": "Power12", "pattern": n} for n in POWER] + [{"netclass": "Motor", "pattern": n} for n in MOTOR] + \
+           [{"netclass": "Aux12", "pattern": n} for n in AUX12] + \
            [{"netclass": "Power5", "pattern": n} for n in FIVE] + [{"netclass": "Sig12", "pattern": n} for n in SIG12] + \
            [{"netclass": "Gnd", "pattern": "GND"}]
     pro = {
@@ -399,9 +418,9 @@ def write_project(path):
                       "min_hole_clearance": 0.25, "min_copper_edge_clearance": 0.4, "min_silk_clearance": 0.0,
                       "min_text_height": 0.8, "min_text_thickness": 0.12, "solder_mask_clearance": 0.05,
                       "allow_blind_buried_vias": False, "allow_microvias": False},
-            "track_widths": [0.0, 0.25, 0.5, 0.8, 1.0, 1.5],
+            "track_widths": [0.0, 0.25, 0.5, 0.8, 1.0, 1.5, 1.8, 2.0, 2.4, 3.0],
             "via_dimensions": [{"diameter": 0.0, "drill": 0.0}, {"diameter": 0.6, "drill": 0.3},
-                               {"diameter": 0.9, "drill": 0.45}],
+                               {"diameter": 0.8, "drill": 0.4}, {"diameter": 1.1, "drill": 0.6}],
             "rule_severities": {"silk_overlap": "ignore", "starved_thermal": "warning", "silk_over_copper": "warning",
                                 "silk_edge_clearance": "warning", "lib_footprint_mismatch": "ignore",
                                 "lib_footprint_issues": "ignore", "text_height": "warning",

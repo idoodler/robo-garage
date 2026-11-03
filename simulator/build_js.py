@@ -9,15 +9,15 @@ rep("going down it simply follows by its own weight (≈5 N), so it can never pi
 
 # ---------------- parts info
 rep(" esp:['ESP32 + BTS7960 + buck','In the fixed space above the station: door cover, 3 reeds, LED, rear fan PWM, optional VL53L1X / INA219.'],",
-    " esp:['Controller PCB v1.2','Own 100 × 100 mm board (fully assembled by JLCPCB) in a 3D-printed case under the top: ESP32 DevKitC socket, DRV8871 actuator driver + INA219 stall stop, 12 V → 5 V on board, SHT40 temperature/humidity, light-barrier input with self-test, water-leak probe + 12 V valve output, buzzer, fan PWM, LED level shifter, 9 push-button clamps, DevKit USB-C through the case wall (flash without opening it). Files and order steps: \"Controller PCB\" below.'],")
+    " esp:['Controller PCB v" + PCB_V + "','Own 100 × 100 mm board (fully assembled by JLCPCB) in a 3D-printed case under the top: ESP32 DevKitC socket, DRV8874 actuator driver (4.9 A limit) + INA219 stall stop, 12 V → 5 V on board, SHT41 temperature/humidity, light-barrier input with self-test, water-leak probe + 12 V valve output, buzzer, fan PWM, LED level shifter, 9 push-button clamps, DevKit USB-C through the case wall (flash without opening it). Files and order steps: \"Controller PCB\" below.'],")
 rep(" fan:['Rear fan · ARCTIC P12 Slim','On the inside of the back panel, blows into the 4 cm wall gap – invisible from the front. Runs while washing/drying, stops when the drawer is open.'],",
-    " fan:['Rear fan · ARCTIC P12 Slim','On the inside of the back panel, blows into the 4 cm wall gap – invisible from the front. Auto vent on the ESP32: above 65 % humidity or 30 °C (SHT40) it runs at 30–100 %, off again 5 %RH / 1 °C below. Stops while the drawer is open.'],")
+    " fan:['Rear fan · ARCTIC P12 Slim','On the inside of the back panel, blows into the 4 cm wall gap – invisible from the front. Auto vent on the ESP32: above 65 % humidity or 30 °C (SHT41) it runs at 30–100 %, off again 5 %RH / 1 °C below. Stops while the drawer is open.'],")
 rep(" led:['Status LED','Dot/Ring in the fascia, Line in the fascia gap, Underglow under the ramp edge · WS2812B · GPIO16 · 330 Ω + 1000 µF.'],",
     " led:['Status LED','Dot/Ring in the fascia, Line in the fascia gap, Underglow under the ramp edge · WS2812B · GPIO16 → level shifter + 330 Ω on the PCB, 470 µF at the LED clamp.'],")
 rep(""" obstacle:['Obstacle test','Something in the way while closing. Lift door: it rests on it, "closed" never triggers → HA re-opens. All other doors: INA219 sees the stall → stop + re-open.']""",
     """ obstacle:['Obstacle test','A toy on the floor in front of the door. The light barrier sees it: the door does not close, or stops and re-opens if it is already closing. It closes again 1.5 s after the beam is clear. Backup: INA219 stall stop.'],
  beam:['Light barrier · door safety','12–24 V through-beam pair (NPN, Light-ON) on 2 small brackets at the front corners of the cabinet sides: beam ≈12 cm in front of the door, ≈2 cm above the floor – past the ramp wedge and under the door\\'s swing, so the door never breaks it itself. Before every close the ESP32 switches the sender off for a moment: the receiver must react (self-test), else "Door beam fault" and the door stays open. Try "Toy in front" and "Beam fault".'],
- th:['SHT40 · cabinet air','Temperature + humidity sensor on the controller PCB, on an island with a milled slot, in its own vented corner of the case – it measures cabinet air, not board heat. Drives the auto vent: hot mop drying → humid cabinet → rear fan.']""")
+ th:['SHT41 · cabinet air','Temperature + humidity sensor on the controller PCB, on an island with a milled slot, in its own vented corner of the case – it measures cabinet air, not board heat. Drives the auto vent: hot mop drying → humid cabinet → rear fan.']""")
 rep('<div class="info" id="info"><b>Tap any part</b>door, ramp, actuator, drawer, wheels, tanks, LED, rear fan, sensors – to see what it is and what to buy.</div>',
     '<div class="info" id="info"><b>Tap any part</b>door, ramp, actuator, drawer, wheels, tanks, LED, rear fan, light barrier, controller, sensors – to see what it is and what to buy.</div>')
 
@@ -33,7 +33,7 @@ function beamBlocked(){
  if(!onPath()){const x0=S.rx-(S.rx>=1.9?S.drawer:0);if(x0<=BX&&x0+35>=BX)return true;}
  return false;
 }
-/* cabinet air (SHT40) + auto vent on the ESP32 – same rule as the YAML */
+/* cabinet air (SHT41) + auto vent on the ESP32 – same rule as the YAML */
 const ROOM=[22,50],SRC={idle:[22.6,50],emptying:[24,50],washing:[27,88],drying:[35,72]},V_H=65,V_T=30;
 function climate(dtr){
  if(!(dtr>0))return;
@@ -140,7 +140,7 @@ add(B(.5,1.7,2.2),M.pcbBlue,-27.7,71.2,-17,carcass,'esp');""",
 const caseG=new THREE.Group();caseG.position.set(-26.0,80,-3.25);carcass.add(caseG);
 const caseBox=add(B(10.5,2.81,10.5),M.plug,5,-1.405,-5,caseG,'esp');
 M.caseLid=std(0x9fb8d6,.35,0,{transparent:true,opacity:.5,depthWrite:false});
-fetch('files/case-model-v1.2.json').then(r=>r.ok?r.json():Promise.reject(r.status)).then(j=>{const s=atob(j.glb),a=new Uint8Array(s.length);for(let i=0;i<s.length;i++)a[i]=s.charCodeAt(i);
+fetch('files/case-model-v@@CASE_V@@.json').then(r=>r.ok?r.json():Promise.reject(r.status)).then(j=>{const s=atob(j.glb),a=new Uint8Array(s.length);for(let i=0;i<s.length;i++)a[i]=s.charCodeAt(i);
  new GLTFLoader().parse(a.buffer,'',g=>{const mats={base:M.plug,lid:M.caseLid,pcb:M.pcb};
  g.scene.traverse(o=>{if(o.isMesh){if(!o.geometry.attributes.normal)o.geometry.computeVertexNormals();o.material=mats[o.name]||M.plug;o.castShadow=o.name!=='lid';o.receiveShadow=true;o.userData.part='esp';pick.push(o);}});
  caseG.remove(caseBox);caseG.add(g.scene);},()=>{});}).catch(()=>{});""")
@@ -165,7 +165,7 @@ rep(""" const fanOn=(id==='washing'||id==='drying')&&!SIM.svc()&&!S.err;
 rep('<script type="module">', """<script>
 (()=>{
  const E=id=>document.getElementById(id),note=E('dlNote'),btns=[...document.querySelectorAll('[data-dl]')];
- const PKG={pcb:'files/pcb-v1.2.json',case:'files/case-v1.2.json'};
+ const PKG={pcb:'files/pcb-v@@PCB_V@@.json',case:'files/case-v@@CASE_V@@.json'};
  E('cpYaml').onclick=async()=>{try{await navigator.clipboard.writeText(E('yaml').textContent);E('cpNote').textContent='Copied.';}catch(e){E('cpNote').textContent='Copy is blocked here – select the text and copy it.';}};
  let zipLib=null;
  const loadZip=()=>zipLib||(zipLib=new Promise((res,rej)=>{if(window.JSZip)return res(window.JSZip);
@@ -198,7 +198,7 @@ rep('<script type="module">', """<script>
 # ---------------- totals (PCB replaces BTS7960 + buck + loose parts; INA219 now on the PCB)
 rep("const BASE=[273.13,326.13],", "const BASE=[418.13,512.13],")   # PCB order 140-180 replaces BTS7960, buck, loose parts, WAGO, headers
 rep("DP={lift:[8.09,17.89],flap:[12.79,18.79],upover:[14.09,29.89],parallel:[10.15,26.05]}", "DP={lift:[8.09,17.89],flap:[11.79,15.79],upover:[13.09,26.89],parallel:[9.15,23.05]}")
-# ---------------- phase messages (fan now runs from the SHT40, not from the phase)
+# ---------------- phase messages (fan now runs from the SHT41, not from the phase)
 rep("msg:'Hot mop wash (1150 W) → rear fan on'}", "msg:'Hot mop wash (1150 W) → humidity rises'}")
 rep("msg:'Mop drying → rear fan 60 %'}", "msg:'Mop drying with hot air → auto vent as needed'}")
 print('js replacements ok')

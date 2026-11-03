@@ -468,3 +468,43 @@ def silk_text_conflicts(board):
             if c:
                 res.append((side, 'QR', 'QR code', c))
     return res
+
+
+def kelvin(board, taps=(('R28', '1', 'R6', '1'), ('R29', '1', 'R6', '2'))):
+    """v1.3: Kelvin sense check. Each tap pad (0R into the INA219) may touch exactly one track, and that track must
+    end in the shunt pad: then no load current can flow through the sense path. Returns a list of problems."""
+    import pcbnew
+    fps = {f.GetReference(): f for f in board.GetFootprints()}
+
+    def pad(ref, num):
+        return [p for p in fps[ref].Pads() if p.GetNumber() == num][0]
+
+    problems = []
+    for tref, tnum, sref, snum in taps:
+        tp, sp = pad(tref, tnum), pad(sref, snum)
+        net = tp.GetNetname()
+        near = []
+        for t in board.GetTracks():
+            if t.GetNetname() != net:
+                continue
+            if t.GetClass() == 'PCB_VIA':
+                if tp.HitTest(t.GetPosition()):
+                    near.append(t)
+                continue
+            if tp.HitTest(t.GetStart()) or tp.HitTest(t.GetEnd()):
+                near.append(t)
+        if len(near) != 1 or near[0].GetClass() == 'PCB_VIA':
+            problems.append('%s.%s: %d items touch the Kelvin tap pad' % (tref, tnum, len(near)))
+            continue
+        t = near[0]
+        other = t.GetEnd() if tp.HitTest(t.GetStart()) else t.GetStart()
+        if not sp.HitTest(other):
+            problems.append('%s.%s: Kelvin track does not end in %s.%s' % (tref, tnum, sref, snum))
+        # nothing else may start on the Kelvin track (a load branching off the sense line)
+        for u in board.GetTracks():
+            if u is t or u.GetNetname() != net or u.GetClass() == 'PCB_VIA':
+                continue
+            for e in (u.GetStart(), u.GetEnd()):
+                if t.HitTest(e) and not sp.HitTest(e) and not tp.HitTest(e):
+                    problems.append('%s.%s: a %s track joins the Kelvin line' % (tref, tnum, net))
+    return problems

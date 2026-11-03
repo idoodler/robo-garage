@@ -36,7 +36,9 @@ b = pcbnew.LoadBoard(PCB)
 # KiCad -> JLCPCB rotation offsets, checked against JLC's DFM preview of order SMT026110160950 (Nov 2026):
 # 3-pin SOT-23 needs +180, SOT-23-5/6/8 and TSOT-23-6 need 0 (v1.1.1 had them at +180: U2/U4 came out
 # rotated), SOIC / PowerPAD +270, electrolytics +180. Everything else 0; check pin1-check.png in the preview.
-ROT = [(r'^SOT-23$', 180), (r'^(SOIC-|TI_SO-PowerPAD)', 270), (r'^CP_Elec_', 180)]
+ROT = [(r'^SOT-23$', 180), (r'^(SOIC-|TI_SO-PowerPAD|TI_PWP)', 270), (r'^CP_Elec_', 180)]
+# v1.3: the DRV8874 HTSSOP-16 (TI_PWP0016J) follows the SOIC rule (JLC/EasyEDA: pin 1 bottom-left, rows horizontal);
+# SOT-23-6 (Q6 TSOP-6) like SOT-23-5 = 0. New footprints: verify in JLC's DFM preview / pin1-check.png.
 
 
 def jlc_rot(fpname, rot):

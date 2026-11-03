@@ -186,6 +186,10 @@ def trim_locked_stubs(board, log=print):
                 t.SetEnd(far)
             else:
                 t.SetStart(far)
+            if t.GetLength() < 1000:           # v1.3: nothing left of the stub (< 1 um): remove it
+                changed.append(('removed', net, _geo(t)))
+                board.Remove(t)
+                continue
             changed.append(('trimmed', net, _geo(t)))
         board.BuildConnectivity()
         if board.GetConnectivity().GetUnconnectedCount(False) > before:
@@ -530,3 +534,89 @@ def fix_starved(board, starved, isl=None, width=0.4, log=print):
     if fixed:
         board.BuildConnectivity()
     return fixed
+
+
+# ---------------------------------------------------------------- v1.3: post-route track widening
+def widen(board, nets, width, clearance, edge_clr=0.4, hole_clr=0.25, step=0.1, log=print):
+    """Router tracks of `nets` get wider (up to `width` mm, in `step` mm steps) wherever every clearance allows:
+    copper of other nets on the same layer (pads, tracks, vias) at max(clearance(a), clearance(b)), the board edge
+    and slots (edge_clr), non-plated holes (hole_clr) and track keep-out areas. The router keeps its class width
+    (room to route), the copper gets the IPC-2221 width where there is space. Locked hand routes stay unchanged.
+    clearance(netname) -> mm. Returns [(net, old width, new width, length)]."""
+    from shapely.geometry import LineString as LS
+    layers = (pcbnew.F_Cu, pcbnew.B_Cu)
+    obs = {L: [] for L in layers}                     # [geometry, netname, track or None]
+    npth = []
+    for fp in board.GetFootprints():
+        for p in fp.Pads():
+            if p.GetAttribute() == pcbnew.PAD_ATTRIB_NPTH:
+                npth.append(Point(checks._pt(p.GetPosition())).buffer(max(TM(p.GetDrillSizeX()), TM(p.GetDrillSizeY())) / 2))
+                continue
+            g = checks.item_poly(p)
+            for L in layers:
+                if p.IsOnLayer(L):
+                    obs[L].append([g, p.GetNetname(), None])
+    for t in board.GetTracks():
+        g = checks.item_poly(t)
+        for L in layers:
+            if t.Type() == pcbnew.PCB_VIA_T or t.GetLayer() == L:
+                obs[L].append([g, t.GetNetname(), t if t.Type() == pcbnew.PCB_TRACE_T else None])
+    edges = checks.board_edges(board)
+    holes = unary_union(npth) if npth else None
+    keep = {L: unary_union([checks.polyset_to_shapely(z.Outline()) for z in board.Zones()
+                            if z.GetIsRuleArea() and z.GetDoNotAllowTracks() and z.IsOnLayer(L)]) for L in layers}
+    margin = 0.01                                     # shapely circles are polygons: stay 10 um clear of the rule
+
+    def fits(sh, n, L):
+        if sh.distance(edges) < edge_clr + margin or (holes is not None and sh.distance(holes) < hole_clr + margin) \
+                or (not keep[L].is_empty and sh.intersects(keep[L])):
+            return False
+        return all(n2 == n or sh.distance(g) >= max(clearance(n), clearance(n2)) + margin for g, n2, _ in obs[L])
+
+    def best(a, e, n, L, old):
+        w = width
+        while w > old + 1e-6:
+            if fits(LS([a, e]).buffer(w / 2) if a != e else Point(a).buffer(w / 2), n, L):
+                return w
+            w = round(w - step, 3)
+        return old
+
+    done = []
+    cands = [t for t in board.GetTracks() if t.Type() == pcbnew.PCB_TRACE_T and t.GetNetname() in nets
+             and not t.IsLocked() and TM(t.GetWidth()) < width - 1e-6]
+    for t in sorted(cands, key=lambda t: -t.GetLength()):
+        n, L = t.GetNetname(), t.GetLayer()
+        a, e = checks._pt(t.GetStart()), checks._pt(t.GetEnd())
+        old, length = TM(t.GetWidth()), TM(t.GetLength())
+        w = best(a, e, n, L, old)
+        if w >= width - 1e-6 or length < 2.0:         # whole segment (or too short to split)
+            pieces = [(a, e, w)]
+        else:                                         # split into ~1 mm pieces, each as wide as it fits there
+            k = int(math.ceil(length / 1.0))
+            pts = [(a[0] + (e[0] - a[0]) * i / k, a[1] + (e[1] - a[1]) * i / k) for i in range(k + 1)]
+            ws = [best(p, q, n, L, old) for p, q in zip(pts[:-1], pts[1:])]
+            pieces, i = [], 0
+            while i < k:                              # merge neighbours of equal width
+                j = i
+                while j + 1 < k and abs(ws[j + 1] - ws[i]) < 1e-6:
+                    j += 1
+                pieces.append((pts[i], pts[j + 1], ws[i]))
+                i = j + 1
+        if all(abs(pw - old) < 1e-6 for _, _, pw in pieces):
+            continue
+        for o in [o for o in obs[L] if o[2] is t]:
+            obs[L].remove(o)
+        board.Remove(t)
+        for p, q, pw in pieces:
+            nt = pcbnew.PCB_TRACK(board)
+            nt.SetStart(V(*p)); nt.SetEnd(V(*q)); nt.SetWidth(pcbnew.FromMM(pw))
+            nt.SetLayer(L); nt.SetNet(board.FindNet(n))
+            board.Add(nt)
+            obs[L].append([LS([p, q]).buffer(pw / 2) if p != q else Point(p).buffer(pw / 2), n, nt])
+            if pw > old + 1e-6:
+                done.append((n, old, pw, math.hypot(q[0] - p[0], q[1] - p[1])))
+    for n in sorted(set(d[0] for d in done)):
+        lst = [d for d in done if d[0] == n]
+        log('widened %s: %d segments, %.1f mm (%s)' % (n, len(lst), sum(d[3] for d in lst),
+                                                       ', '.join(sorted(set('%.1f' % d[2] for d in lst)))))
+    return done
