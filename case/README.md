@@ -43,6 +43,6 @@ v1.2: left window + lid cut-out now span VALVE / LEAK / BEAM (KF250 clamps, 11.7
 | Rails | Under each clamp strip a rail carries the push-button force. |
 | Clamps | KF250: wire in at 45° from the window side, push button on top (lid is 4.8 mm above it). |
 | Buzzer | 9 holes Ø1.6 in the lid above BZ1. |
-| USB-C | 13 mm wide opening in the left wall from 4 mm below the receptacle centre up to the lid, with a 1 mm plug pocket outside; fits the 25.4 mm and the 22.86 mm DevKit widths. The receptacle face is ≈ 0.5 mm behind the pocket floor, so any USB-C cable reaches. |
+| USB-C | 14.5 mm wide opening in the left wall from 4.5 mm below the receptacle centre up to the lid, a 1 mm plug pocket outside and a slot in the lid edge above it: fits both DevKit widths and plug overmolds up to 12 × 9 mm (checked in OpenSCAD: no collision at full insertion). The receptacle face is ≈ 0.5 mm behind the pocket floor. USB-C DevKit clones differ: if yours has the connector set back more than 1.6 mm from the board end, set the USB face offset (2.68 mm from pin 19) in `gen_pcb_data.py` and rebuild. |
 | Mounting | Base plate against the cabinet top (lid down, clamp buttons reachable from below), USB-C wall towards the cabinet front. |
 | Wi-Fi | The DevKit antenna now sits over the board (copper keep-out underneath): a little less range than the v1.1 overhang, fine inside a flat. |

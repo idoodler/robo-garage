@@ -95,7 +95,8 @@ def draw_qr(board, q):
     so it reads correctly from below."""
     import segno
     code = segno.make(q['data'], error=q.get('error', 'm'), micro=False)
-    rows = [list(r) for r in code.matrix_iter(scale=1, border=0)]
+    neg = q.get('negative')                 # print the light modules + quiet zone (dark modules = bare mask)
+    rows = [[(not v) if neg else v for v in r] for r in code.matrix_iter(scale=1, border=4 if neg else 0)]
     n, m = len(rows), q['module']
     x0, y0 = q['x'] - n * m / 2, q['y'] - n * m / 2
     layer = pcbnew.B_SilkS if q.get('back') else pcbnew.F_SilkS
@@ -359,6 +360,7 @@ def build(path=OUT + '/robo-garage.kicad_pcb', tracks=True):
 
 POWER = ['+12V_IN', '+12V_F', '+12V', '+12V_MOT', 'MOT_A', 'MOT_B', '+12V_VLV', 'VALVE_K']   # v1.2: valve 1.5 A
 FIVE = ['+5V', '+5V_LED', '+5V_DEV', 'SW']
+SIG12 = ['+12V_LK']                 # v1.2: 12 V sensor feed on the LEAK clamp: 0.3 mm clearance to the 3V3 / SIG nets
 
 
 def write_project(path):
@@ -375,13 +377,18 @@ def write_project(path):
          "microvia_diameter": 0.3, "microvia_drill": 0.1, "diff_pair_width": 0.2, "diff_pair_gap": 0.25,
          "diff_pair_via_gap": 0.25, "wire_width": 6, "bus_width": 12, "line_style": 0, "schematic_color": "rgba(0, 0, 0, 0.000)",
          "pcb_color": "rgba(0, 0, 0, 0.000)"},
+        {"name": "Sig12", "clearance": 0.3, "track_width": 0.3, "via_diameter": 0.6, "via_drill": 0.3,
+         "microvia_diameter": 0.3, "microvia_drill": 0.1, "diff_pair_width": 0.2, "diff_pair_gap": 0.25,
+         "diff_pair_via_gap": 0.25, "wire_width": 6, "bus_width": 12, "line_style": 0, "schematic_color": "rgba(0, 0, 0, 0.000)",
+         "pcb_color": "rgba(0, 0, 0, 0.000)"},
         {"name": "Gnd", "clearance": 0.15, "track_width": 0.3, "via_diameter": 0.6, "via_drill": 0.3,
          "microvia_diameter": 0.3, "microvia_drill": 0.1, "diff_pair_width": 0.2, "diff_pair_gap": 0.25,
          "diff_pair_via_gap": 0.25, "wire_width": 6, "bus_width": 12, "line_style": 0, "schematic_color": "rgba(0, 0, 0, 0.000)",
          "pcb_color": "rgba(0, 0, 0, 0.000)"},
     ]
     pats = [{"netclass": "Power12", "pattern": n} for n in POWER] + \
-           [{"netclass": "Power5", "pattern": n} for n in FIVE] + [{"netclass": "Gnd", "pattern": "GND"}]
+           [{"netclass": "Power5", "pattern": n} for n in FIVE] + [{"netclass": "Sig12", "pattern": n} for n in SIG12] + \
+           [{"netclass": "Gnd", "pattern": "GND"}]
     pro = {
         "board": {"design_settings": {
             "defaults": {"board_outline_line_width": 0.1, "copper_line_width": 0.2, "copper_text_size_h": 1.5,

@@ -27,7 +27,7 @@ z_pcb_bot = floor_t + stand_h;      // 7.0
 z_pcb_top = z_pcb_bot + pcb_t;      // 8.6
 z_lid = z_pcb_top + inner_h;        // 26.1
 
-ix0 = -ant; ix1 = pcb + clr; iy0 = -clr; iy1 = pcb + clr;   // cavity
+ix0 = -ant - clr; ix1 = pcb + clr; iy0 = -clr; iy1 = pcb + clr;   // cavity: 0.5 mm play on all four sides
 ox0 = ix0 - wall; ox1 = ix1 + wall; oy0 = iy0 - wall; oy1 = iy1 + wall;
 
 // clamp windows (open sides) and lid cut-outs, from the clamp bodies in pcb_data.scad
@@ -50,8 +50,8 @@ buck = [(l1_pos[0] + u4_pos[0]) / 2, l1_pos[1]];   // 12 V -> 5 V buck (vents in
 // inside the wall (ix0 = -0.5); a 1 mm pocket in the outer face lets the plug overmold come close enough.
 usb_yc = (devkit[2] + devkit[3]) / 2;                 // between the 25.4 mm and the 22.86 mm board centre lines
 usb_zc = z_pcb_top + 8.5 + 2.54 + 1.6 + 1.6;          // USB-C receptacle centre (3.2 mm tall on the DevKit top)
-usb_w = 13.0;                                         // opening width (receptacle 9 mm + both board widths)
-usb_z0 = usb_zc - 3.8;                                // opening from here up to the wall top (the lid closes it)
+usb_w = 14.5;                                         // opening width: 12 mm plug overmold + both board widths (+-0.64)
+usb_z0 = usb_zc - 4.5;                                // opening from here up to the wall top (overmolds up to 9 mm)
 
 module rbox(p0, p1) { translate(p0) cube([p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]]); }
 
@@ -150,8 +150,8 @@ module lid() {
         // vents above the buck, the motor driver and the sensor chamber
         for (x = [buck[0] - 8 : 4.5 : buck[0] + 3]) rbox([x, buck[1] - 6, z_lid - 1], [x + 2.5, buck[1] + 6, 99]);   // above L1 / U4
         for (x = [30 : 5 : 45]) rbox([x, 22, z_lid - 1], [x + 2.5, 32.5, 99]);   // right of the LEAK label
-        // v1.2: 1 mm notch in the lid edge above the USB-C opening (plug overmold)
-        rbox([ox0 - 1, usb_yc - usb_w / 2 - 2, z_lid - 1], [ox0 + 1.5, usb_yc + usb_w / 2 + 2, z_lid + 1.0]);
+        // v1.2: slot through the lid edge above the USB-C opening: room for tall plug overmolds
+        rbox([ox0 - 1, usb_yc - usb_w / 2, z_lid - 1], [ix0 + 1.0, usb_yc + usb_w / 2, 99]);
         // v1.2: sound holes above the buzzer
         for (dx = [-2.5, 0, 2.5], dy = [-2.5, 0, 2.5]) translate([bz_pos[0] + dx, bz_pos[1] + dy, z_lid - 1]) cylinder(d = 1.6, h = 9);
         for (x = [cx0 + 3 : 3.5 : 90]) rbox([x, 2, z_lid - 1], [x + 2, 13.5, 99]);

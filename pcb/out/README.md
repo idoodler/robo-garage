@@ -7,7 +7,7 @@
 | Change | Detail |
 |---|---|
 | Clamps assembled | WAGO 804 (not at LCSC) → Cixi Kefa **KF250-3.5** spring clamps (push button, 45° wire entry, 0.2–0.75 mm², 5 A), 2P/3P/4P/6P all in stock at LCSC |
-| LEAK clamp (J13) | 4 poles: 12V + 3V3 (both PTC-fused) to power a sensor, SIG, GND. Bare electrodes (pulsed 3.3 V, no corrosion) **or** any leak sensor with a digital output. ADC on IO35, clamp diode. HA: "Water leak", "Leak probe" |
+| LEAK clamp (J13) | 4 poles: 3V3, SIG, GND, 12V (3V3 and 12V PTC-fused; 12V only next to GND, 0.3 mm clearance). Bare electrodes (pulsed 3.3 V, no corrosion) **or** any leak sensor with a digital output. ADC on IO35, clamp diode. HA: "Water leak", "Leak probe" |
 | VALVE clamp (J14) | Right edge, between BUTTON and REEDS. 12 V low-side switch (AO3400A, SS34 flyback, PTC 1.5 A / 16 V) for a water valve. A leak powers it automatically. HA: "Water valve" |
 | Buzzer (BZ1) | MLT-8530 on 5 V, driven by IO15 (rtttl). Leak alarm beeps even with the "Buzzer" switch off |
 | 12 V monitor | 100k/22k divider on VP (IO36). HA: "12 V rail", "Supply voltage low" (< 10.5 V) |
@@ -19,7 +19,7 @@
 | File | Use |
 |---|---|
 | `robo-garage_gerbers_JLCPCB.zip` | Upload at JLCPCB (PCB) |
-| `robo-garage_BOM_JLCPCB.csv`, `robo-garage_CPL_JLCPCB.csv` | PCB Assembly: BOM + pick & place (45 lines, 108 parts) |
+| `robo-garage_BOM_JLCPCB.csv`, `robo-garage_CPL_JLCPCB.csv` | PCB Assembly: BOM + pick & place (45 lines, 110 parts) |
 | `pin1-check.png` | Intended orientation of every polarised part: compare with JLC's placement preview |
 | `robo-garage-pcb.yaml` | ESPHome config for this board |
 | `kicad/` | KiCad project to edit later |
@@ -31,7 +31,7 @@
 | 1 PCB | Upload the gerbers zip → 2 layers, 1.6 mm, LeadFree HASL, 1 oz, via covering *Tented*, "Mark on PCB": default (no order number since May 2026). The C-shaped slot around the SHT40 (bottom right) is intended (heat isolation): confirm if JLC asks |
 | 2 Assembly | **Economic**, top side, 2 boards, **Tooling holes: Added by Customer** (TH1–TH3 are on the board), *Confirm Parts Placement* = yes |
 | 3 Files | Upload BOM + CPL. Parts list: all 45 lines must match by LCSC number (0 "no part selected") |
-| 4 THT | The clamps, the 3 sockets and the fan header are THT: keep them ticked → JLC solders them (wave / hand soldering fee ≈ $3.5 + $0.02 per joint, ≈ 92 joints per board) |
+| 4 THT | The clamps, the 3 sockets and the fan header are THT: keep them ticked → JLC solders them (wave / hand soldering fee ≈ $3.5 + $0.02 per joint, 94 joints per board) |
 | 5 Preview | Compare the placement preview with **`pin1-check.png`**: U1–U5, Q1–Q7, D1–D7, LED1, C1, C3, C13 and the clamps (wire entry towards the board edge, J3/J4/J15 pin 1 at the left = DevKit USB end). Rotate in the preview if one differs |
 | 6 Price | ≈ 30 "extended" part types (≈ $3 loading fee each, once per order) — normal for a board like this |
 
@@ -42,8 +42,8 @@ Out of stock? SHT40 → SHT40-AD1B-R3 (C2848306) / SHT41-AD1B-R2 (C7461861). F3 
 |---|---|---|
 | ESP32 DevKitC V4, **WROOM** (not WROVER: GPIO16/17 are used), board 1.1 in (28 mm) or 1.0 in (25.4 mm) wide – not the narrow 0.9 in clone | 1 | Plugs into J3 + J4 (25.4 mm rows) or J3 + J15 (22.86 mm), USB-C to the left board edge |
 | Light barrier pair, 12–24 V DC, through-beam, **NPN**, **Light-ON** (often sold as "NC"), e.g. Omron E3Z-T61 set to L-ON. Dark-ON ("NO", e.g. E3F-5DN1) works too → `beam_inverted: "false"` | 1 | BEAM clamp |
-| Leak detection: 2 stainless screws / bare wire ends 5–10 mm apart on the cabinet floor (nothing else needed), **or** a leak sensor with a digital output: NPN / open-collector (12 V or 3.3 V supply) or 3.3–5 V logic module (LM393 type, 3.3 V supply) | 1 | LEAK clamp |
-| Water valve 12 V DC, ≤ 1.5 A, that **closes when powered** (normally-open solenoid or motorised ball valve "NO") | 1 | VALVE clamp (optional) |
+| Leak detection: 2 stainless screws / bare wire ends 5–10 mm apart on the cabinet floor (nothing else needed), **or** a leak sensor with a digital output: NPN / open-collector (12 V or 3.3 V supply, plus a 10 kΩ resistor between the 3V3 and SIG poles) or 3.3–5 V logic module (LM393 type, 3.3 V supply, ≤ 50 mA) | 1 | LEAK clamp |
+| Water valve 12 V DC, ≤ 1.2 A, that **closes when powered** (normally-open solenoid or motorised ball valve "NO") | 1 | VALVE clamp (optional) |
 | VL53L1X module | 1 | I2C clamp (optional) |
 
 ## Wiring
@@ -56,8 +56,8 @@ Out of stock? SHT40 → SHT40-AD1B-R3 (C2848306) / SHT41-AD1B-R2 (C7461861). F3 
 | BUTTON | BTN, GND, 12V, LED− | Alu button: NO, C, LED+, LED− |
 | REEDS | CL/GND, OP/GND, DR/GND | Door closed, door open, drawer reed |
 | BEAM (left) | RX+, RX−, SIG, TX+, TX−, GND | Receiver: brown, blue, black. Emitter: brown, blue. Beam across the cabinet front, ≈ 12 cm in front of the door, ≈ 2 cm above the floor |
-| LEAK (left) | 12V, 3V3, SIG, GND | Electrodes: SIG + GND (no polarity). Digital sensor: VCC → 12V or 3V3 (200 mA PTC each), OUT → SIG, GND. Wet = SIG low (NPN / active-low); active-high sensor → `leak_inverted: "true"` |
-| VALVE (right) | +12V, SW | Valve + → +12V, valve − → SW (low side, flyback diode on board) |
+| LEAK (left) | 3V3, SIG, GND, 12V | Electrodes: SIG + GND (no polarity). Digital sensor: VCC → 3V3 (≤ 50 mA) or 12V, OUT → SIG (0–5 V only, never 12 V), GND; NPN / open collector: 10 kΩ between 3V3 and SIG. Wet = SIG low (NPN / active-low); active-high sensor → `leak_inverted: "true"` |
+| VALVE (right) | 12V, VLV | Valve + → 12V, valve − → VLV (low side, flyback diode on board), ≤ 1.2 A |
 | I2C ToF | 3V3, SDA, SCL, GND | VL53L1X module (optional) |
 
 **Clamps:** push the button with a 2.5 mm screwdriver, insert the stripped wire (6–7 mm, 0.2–0.75 mm², ferrules OK) at 45° from the board edge, release.
@@ -98,9 +98,9 @@ Worst case ≈ 2.5 A from the adapter with the valve on. Keep LED brightness low
 
 | Limit | Value |
 |---|---|
-| LED clamp | 1.5 A (PTC) ≈ 25 LEDs at full white; 16 LEDs are fine |
+| LED clamp | 1.2 A continuous (PTC 1.5 A hold at 23 °C, less when warm) ≈ 20 LEDs at full white; 16 LEDs are fine |
 | BEAM clamp | 200 mA (PTC) for receiver + emitter (typ. 30–50 mA) |
-| VALVE clamp | 1.5 A (PTC), 12 V, inductive loads OK (SS34) |
+| VALVE clamp | 1.2 A continuous (PTC 1.5 A hold at 23 °C), 12 V, inductive loads OK (SS34) |
 | Actuator | DRV8871 limits at ≈ 1.9 A (R5 = 33 kΩ) |
 | Clamps | 5 A, 0.2–0.75 mm² |
-| LEAK 12V / 3V3 poles | 200 mA (PTC) each |
+| LEAK poles | 12V: 200 mA (PTC). 3V3: ≤ 50 mA (it shares the DevKit regulator with the ESP32; PTC 200 mA only against shorts) |

@@ -458,7 +458,7 @@ def silk_text_conflicts(board):
             c = text_conflicts(p, pads, yards, region, [s for s in items if not is_qr(s[1])], self_item=it)
             if not p.difference(vk).area < 0.01 * p.area:     # text without a via keep-out: a via there is
                 c = [x for x in c if not x.startswith('pad via')]   # only cosmetic (JLC clips the silk at the hole)
-            if not qr.is_empty and p.distance(qr) < 1.2:      # keep a quiet zone of ~2 modules around the QR
+            if not qr.is_empty and p.distance(qr.envelope) < 0.6:   # the quiet zone is printed (negative QR)
                 c.append('QR quiet zone')
             if c:
                 res.append((side, ref, it.GetShownText(), c))

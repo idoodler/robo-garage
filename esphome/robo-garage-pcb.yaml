@@ -105,7 +105,8 @@ number:
 
 binary_sensor:
   - platform: template                                         # v1.2: LEAK clamp: 2 electrodes on the cabinet floor
-                                                               # or a sensor with a digital output (12V / 3V3 on the clamp)
+                                                               # or a sensor with a digital output. Clamp poles: 3V3 (<= 50 mA),
+                                                               # SIG (0-5 V), GND, 12V. NPN output: 10k between 3V3 and SIG.
     id: leak
     name: "Water leak"
     device_class: moisture

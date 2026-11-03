@@ -214,18 +214,20 @@ R('R33', '100', 26.2, 64.5, 90, 'IO13', 'Q4_G')
 R('R34', '100k', 24.6, 69.0, 90, 'Q4_G', 'GND')                     # emitter off while the ESP32 boots
 
 # ================= v1.2: water leak input (left edge, below BEAM) =================
-# 4 poles: 12V (PTC F5) and 3V3 (PTC F6) to power a sensor, SIG, GND. Works with
+# 4 poles, in this order: 3V3 (PTC F6, sensor load <= 50 mA), SIG, GND, 12V (PTC F5). 12V sits only next to GND
+# (a stray strand / bridge can never put 12 V on 3V3 or SIG); +12V_LK has 0.3 mm clearance (net class Sig12). Works with
 #  a) two bare electrodes between SIG and GND: IO4 drives SIG through R40 only while measuring (70 ms every
 #     10 s, no DC across the electrodes -> no corrosion), IO35 (ADC1) reads the divider R40 / water:
 #     dry 3.3 V, tap water (< 200 kOhm) below 2.2 V;
-#  b) a sensor with a digital output: NPN / open collector (sinks SIG to GND when wet, powered from 12 V or 3V3)
-#     or 3.3-5 V push-pull logic. SIG reads 0 V or 3.3 V during the same measurement window.
+#  b) a sensor with a digital output: NPN / open collector (sinks SIG to GND when wet, powered from 12 V or 3V3;
+#     add a 10k pull-up between the 3V3 and SIG poles, R40 alone is only 100k) or 3.3-5 V push-pull logic.
+#     SIG reads 0 V or 3.3 V during the same measurement window. SIG: 0-5 V only.
 # R41 + C31 filter, D4 clamps IO35 to 3V3 / GND (a 5 V logic high is fine).
 LX, LY = 7.2, 70.5
-clamp('J13', 4, 'LEAK', LX, LY, 270, {'1': '+12V_LK', '2': '+3V3_LK', '3': 'LEAK_S', '4': 'GND'})
-add('F5', ('Fuse', 'Fuse_1206_3216Metric'), 'PTC 200mA 30V', 19.0, 80.0, 0, {'1': '+12V', '2': '+12V_LK'},
+clamp('J13', 4, 'LEAK', LX, LY, 270, {'1': '+3V3_LK', '2': 'LEAK_S', '3': 'GND', '4': '+12V_LK'})
+add('F5', ('Fuse', 'Fuse_1206_3216Metric'), 'PTC 200mA 30V', 19.0, 83.0, 0, {'1': '+12V', '2': '+12V_LK'},
     lcsc='C883118', mpn='BSMD1206-020-30V', noref=True)
-add('F6', ('Fuse', 'Fuse_1206_3216Metric'), 'PTC 200mA 30V', 19.0, 83.0, 0, {'1': '+3V3', '2': '+3V3_LK'},
+add('F6', ('Fuse', 'Fuse_1206_3216Metric'), 'PTC 200mA 30V', 19.0, 80.0, 0, {'1': '+3V3', '2': '+3V3_LK'},
     lcsc='C883118', mpn='BSMD1206-020-30V', noref=True)
 R('R40', '100k', 19.5, 71.8, 0, 'IO4', 'LEAK_S')
 C('C30', '1nF', 19.5, 74.3, 0, 'LEAK_S', 'GND')
@@ -295,6 +297,9 @@ for i, (x, y) in enumerate([(90.0, 3.5), (3.5, 90.0), (94.0, 90.0)]):
 # ================= pre-routed tracks (locked) =================
 c, r = 0.775, 0.825          # 0603 cap / resistor pad offsets
 TR = []          # (net, width, layer, [points])
+# v1.2: +5V to D3 (5V OR-ing diode at the DevKit 5V pin) along the top edge, above the socket row; the router
+# joins it at the corridor end beside the antenna keep-out (it does not always find this path on its own)
+TR += [('+5V', 0.8, 'F', [(9.15, 2.3), (46.86, 2.3), (48.92, 4.36), (48.92, 6.46)])]
 TR += [('SW', 0.6, 'F', [(UX - 1.14, UY), (UX - 3.8, UY)])]                                  # SW -> L1
 TR += [('SW', 0.4, 'F', [(UX - c, UY - 4.0), (UX - 3.4, UY - 4.0), (UX - 3.4, UY - 1.6)])]    # CBOOT -> SW
 TR += [('CB', 0.3, 'F', [(UX + c, UY - 4.0), (UX + 1.14, UY - 0.95)])]                       # CBOOT -> CB
@@ -379,7 +384,7 @@ pin_labels_right(42.0, ['BTN', 'GND', '12V', 'LED-'])
 pin_labels_right(VY, ['12V', 'VLV'])
 pin_labels_right(78.0, ['CLOSED', 'GND', 'OPEN', 'GND', 'DRAWER', 'GND'])
 pin_labels_left(BY, ['RX+', 'RX-', 'SIG', 'TX+', 'TX-', 'GND'])
-pin_labels_left(LY, ['12V', '3V3', 'SIG', 'GND'])
+pin_labels_left(LY, ['3V3', 'SIG', 'GND', '12V'])
 T('BEAM', 12.6, 41.6, just='l')
 T('LEAK', 13.0, LY - 2.4, just='l')
 T('DOOR ACTUATOR', 18.0, 88.6, just='l')
@@ -405,7 +410,9 @@ T(AUTHOR + ' · ' + HANDLE, 41.0, 48.0, novia=True)
 T(REPO, 41.0, 50.2, novia=True)
 
 # ---- back (mirrored, reads correctly from below): about, fuses, clamp limits, QR code to the repo
-QR = dict(data='HTTPS://' + REPO.upper(), x=50.0, y=65.6, module=0.55, error='q', back=True)
+QR = dict(data='HTTPS://' + REPO.upper(), x=50.0, y=66.6, module=0.55, error='q', back=True, negative=True)
+# negative = the light modules and the 4-module quiet zone are printed: dark modules on a white square, the normal
+# polarity every phone camera reads (white modules on the green mask would need an 'inverted' scanner).
 # upper case = QR alphanumeric mode: 39 characters fit version 3 (29 x 29) at ECC level Q (25 % may be damaged);
 # GitHub resolves owner / repo names case-insensitively. Text block starts at y 46: GND vias of the buck sit above.
 T('ROBO-GARAGE CONTROLLER v' + VERSION, 50.0, 46.0, 1.8, back=True, novia=True)
@@ -413,9 +420,10 @@ T('Robot vacuum cabinet  ·  ESPHome  ·  Home Assistant', 50.0, 48.9, 1.1, back
 T(AUTHOR + '  ·  ' + HANDLE, 50.0, 51.9, 1.6, back=True, novia=True)
 T(REPO, 50.0, 54.7, 1.2, back=True, novia=True)
 for k, line in enumerate(['RESETTABLE FUSES (PTC)', 'F1  2.6 A   12 V IN', 'F2  1.5 A   LED', 'F3  0.2 A   BEAM',
-                          'F4  1.5 A   VALVE', 'F5  0.2 A   LEAK 12V', 'F6  0.2 A   LEAK 3V3', 'Tripped? Power off 1 min.']):
+                          'F4  1.5 A   VALVE', 'F5  0.2 A   LEAK 12V', 'F6  0.2 A   LEAK 3V3', 'Reset: unplug 1 min']):
     T(line, 80.0, 58.2 + 1.75 * k, just='l', back=True)       # back: 'left' = as read from below (board x 80 -> 62)
 for k, line in enumerate(['CLAMPS 0.2-0.75 mm², 5 A', 'PSU  12 V / 3 A', 'ACTUATOR  1.9 A limit',
-                          'LED  5 V, max 1.5 A', 'VALVE  12 V, max 1.5 A', 'BEAM  NPN, Light-ON']):
+                          'LED  5 V, max 1.2 A', 'VALVE  12 V, max 1.2 A', 'BEAM  NPN, Light-ON',
+                          'LEAK  3V3 max 50 mA']):              # 1.2 A: the 1.5 A PTCs derate in a warm case
     T(line, 38.0, 58.2 + 1.75 * k, just='l', back=True)       # ends above the U1 thermal pad (y 69.75)
-T('PCB v' + VERSION + '  ·  made in code: KiCad + Freerouting  ·  2026', 50.0, 76.6, back=True)
+T('PCB v' + VERSION + '  ·  made in code: KiCad + Freerouting  ·  2026', 50.0, 78.6, back=True)

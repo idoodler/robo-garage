@@ -120,6 +120,23 @@
         "pcb_color": "rgba(0, 0, 0, 0.000)"
       },
       {
+        "name": "Sig12",
+        "clearance": 0.3,
+        "track_width": 0.3,
+        "via_diameter": 0.6,
+        "via_drill": 0.3,
+        "microvia_diameter": 0.3,
+        "microvia_drill": 0.1,
+        "diff_pair_width": 0.2,
+        "diff_pair_gap": 0.25,
+        "diff_pair_via_gap": 0.25,
+        "wire_width": 6,
+        "bus_width": 12,
+        "line_style": 0,
+        "schematic_color": "rgba(0, 0, 0, 0.000)",
+        "pcb_color": "rgba(0, 0, 0, 0.000)"
+      },
+      {
         "name": "Gnd",
         "clearance": 0.15,
         "track_width": 0.3,
@@ -190,6 +207,10 @@
       {
         "netclass": "Power5",
         "pattern": "SW"
+      },
+      {
+        "netclass": "Sig12",
+        "pattern": "+12V_LK"
       },
       {
         "netclass": "Gnd",
