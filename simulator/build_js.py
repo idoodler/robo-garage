@@ -9,7 +9,7 @@ rep("going down it simply follows by its own weight (≈5 N), so it can never pi
 
 # ---------------- parts info
 rep(" esp:['ESP32 + BTS7960 + buck','In the fixed space above the station: door cover, 3 reeds, LED, rear fan PWM, optional VL53L1X / INA219.'],",
-    " esp:['Controller PCB v1.1.1','Own 100 × 100 mm board (JLCPCB-assembled) in a 3D-printed case under the top: ESP32 DevKitC socket, DRV8871 actuator driver + INA219 stall stop, 12 V → 5 V on board, SHT40 temperature/humidity, light-barrier input with self-test, fan PWM, LED level shifter, 8 push-in clamp blocks. Files and order steps: \"Controller PCB\" below.'],")
+    " esp:['Controller PCB v1.2','Own 100 × 100 mm board (fully assembled by JLCPCB) in a 3D-printed case under the top: ESP32 DevKitC socket, DRV8871 actuator driver + INA219 stall stop, 12 V → 5 V on board, SHT40 temperature/humidity, light-barrier input with self-test, water-leak probe + 12 V valve output, buzzer, fan PWM, LED level shifter, 9 push-button clamps. Files and order steps: \"Controller PCB\" below.'],")
 rep(" fan:['Rear fan · ARCTIC P12 Slim','On the inside of the back panel, blows into the 4 cm wall gap – invisible from the front. Runs while washing/drying, stops when the drawer is open.'],",
     " fan:['Rear fan · ARCTIC P12 Slim','On the inside of the back panel, blows into the 4 cm wall gap – invisible from the front. Auto vent on the ESP32: above 65 % humidity or 30 °C (SHT40) it runs at 30–100 %, off again 5 %RH / 1 °C below. Stops while the drawer is open.'],")
 rep(" led:['Status LED','Dot/Ring in the fascia, Line in the fascia gap, Underglow under the ramp edge · WS2812B · GPIO16 · 330 Ω + 1000 µF.'],",
@@ -157,7 +157,7 @@ rep(""" const fanOn=(id==='washing'||id==='drying')&&!SIM.svc()&&!S.err;
 rep('<script type="module">', """<script>
 (()=>{
  const E=id=>document.getElementById(id),note=E('dlNote'),btns=[...document.querySelectorAll('[data-dl]')];
- const PKG={pcb:'files/pcb-v1.1.1.json',case:'files/case-v1.1.json'};
+ const PKG={pcb:'files/pcb-v1.2.json',case:'files/case-v1.2.json'};
  E('cpYaml').onclick=async()=>{try{await navigator.clipboard.writeText(E('yaml').textContent);E('cpNote').textContent='Copied.';}catch(e){E('cpNote').textContent='Copy is blocked here – select the text and copy it.';}};
  let zipLib=null;
  const loadZip=()=>zipLib||(zipLib=new Promise((res,rej)=>{if(window.JSZip)return res(window.JSZip);
@@ -188,7 +188,7 @@ rep('<script type="module">', """<script>
 <script type="module">""")
 
 # ---------------- totals (PCB replaces BTS7960 + buck + loose parts; INA219 now on the PCB)
-rep("const BASE=[273.13,326.13],", "const BASE=[375.13,468.13],")
+rep("const BASE=[273.13,326.13],", "const BASE=[418.13,512.13],")   # PCB order 140-180 replaces BTS7960, buck, loose parts, WAGO, headers
 rep("DP={lift:[8.09,17.89],flap:[12.79,18.79],upover:[14.09,29.89],parallel:[10.15,26.05]}", "DP={lift:[8.09,17.89],flap:[11.79,15.79],upover:[13.09,26.89],parallel:[9.15,23.05]}")
 # ---------------- phase messages (fan now runs from the SHT40, not from the phase)
 rep("msg:'Hot mop wash (1150 W) → rear fan on'}", "msg:'Hot mop wash (1150 W) → humidity rises'}")

@@ -127,16 +127,19 @@ def _state(board):
     return conn.GetUnconnectedCount(False), dang
 
 
-def remove_redundant(board, region, log=print):
-    """Remove autorouter (unlocked) track segments inside region (x0, y0, x1, y1 mm) that only duplicate
-    an existing connection: after removal the board is still fully connected and no track end is loose.
-    Single segments, repeated until nothing changes (a 2-piece jog goes in 2 steps).
-    Use only where there is no copper pour: inside a pour every GND track would look redundant."""
+def remove_redundant(board, region=None, log=print, nets=None):
+    """Remove autorouter (unlocked) track segments that only duplicate an existing connection: after removal
+    the board is still fully connected and no track end is loose. Single segments, repeated until nothing
+    changes (a 2-piece jog goes in 2 steps). region = (x0, y0, x1, y1) mm or None = whole board; nets = list of
+    net names or None = all. Before the pour exists, use a region without pour (every GND track would look
+    redundant inside a filled pour); after the pour is filled, nets=['GND'] drops the router's GND tracks that
+    the pour makes unnecessary (v1.2), which frees the room for the thermal spokes."""
     removed = []
     while True:
         cands = [_geo(t) for t in board.GetTracks() if t.Type() == pcbnew.PCB_TRACE_T and not t.IsLocked()
-                 and all(region[0] <= x <= region[2] and region[1] <= y <= region[3]
-                         for x, y in (checks._pt(t.GetStart()), checks._pt(t.GetEnd())))]
+                 and (nets is None or t.GetNetname() in nets)
+                 and (region is None or all(region[0] <= x <= region[2] and region[1] <= y <= region[3]
+                                            for x, y in (checks._pt(t.GetStart()), checks._pt(t.GetEnd()))))]
         changed = False
         for g in cands:
             before = _state(board)
@@ -372,3 +375,70 @@ def via_margins(board):
 def refill(board):
     filler = pcbnew.ZONE_FILLER(board)
     filler.Fill(board.Zones())
+
+
+# ---------------------------------------------------------------- v1.2: thermal spokes by hand
+def fix_starved(board, starved, isl=None, width=0.4, log=print):
+    """For every GND pad the KiCad check reports with < 2 spokes: add a short locked GND track from the pad
+    into the pour (a track counts as a spoke for the DRC). 8 directions are tried; the stub must stay clear
+    (0.25 mm) of other copper on that layer and end inside the current fill. SMD pads with no free direction
+    fall back to a solid zone connection. Returns the number of pads fixed."""
+    import math
+    isl = isl or checks.islands(board)
+    region = checks.board_region(board).buffer(-0.4)
+    fixed = 0
+    done = set()
+    for entry in starved:
+        label, lname = entry[0], entry[1]
+        if (label, lname) in done:
+            continue
+        done.add((label, lname))
+        layer = board.GetLayerID(lname)
+        pads = find_pad(board, label)
+        if not pads:
+            continue
+        pad = pads[0]
+        fills = [unary_union(sp) for (z, ly), (sp, _) in isl.items() if ly == layer]
+        fill = unary_union(fills) if fills else None
+        pp = checks.item_poly(pad)
+        cx, cy = checks._pt(pad.GetPosition())
+        others = unary_union([checks.item_poly(p) for fp in board.GetFootprints() for p in fp.Pads()
+                              if p.GetNetname() != 'GND' and p.IsOnLayer(layer)] +
+                             [checks.item_poly(t) for t in board.GetTracks()
+                              if t.GetNetname() != 'GND' and t.IsOnLayer(layer)])
+        half = max(TM(pad.GetSize().x), TM(pad.GetSize().y)) / 2
+        best = None
+        for k in range(8):
+            a = math.radians(45 * k)
+            L = half + 1.4
+            ex, ey = cx + L * math.cos(a), cy + L * math.sin(a)
+            stub = LineString([(cx, cy), (ex, ey)]).buffer(width / 2)
+            if not region.covers(stub):
+                continue
+            if stub.buffer(0.25).intersects(others):
+                continue
+            if fill is not None and not fill.covers(Point(ex, ey)):
+                continue
+            best = (ex, ey)
+            break
+        if best is None:
+            if not pad.HasHole():
+                pad.SetZoneConnection(pcbnew.ZONE_CONNECTION_FULL)
+                log('spoke %s %s: no free direction -> solid pad' % (label, lname))
+                fixed += 1
+            else:
+                log('spoke %s %s: no free direction, left as is' % (label, lname))
+            continue
+        t = pcbnew.PCB_TRACK(board)
+        t.SetStart(pcbnew.VECTOR2I(pcbnew.FromMM(cx), pcbnew.FromMM(cy)))
+        t.SetEnd(pcbnew.VECTOR2I(pcbnew.FromMM(best[0]), pcbnew.FromMM(best[1])))
+        t.SetWidth(pcbnew.FromMM(width))
+        t.SetLayer(layer)
+        t.SetNet(board.FindNet('GND'))
+        t.SetLocked(True)
+        board.Add(t)
+        log('spoke %s %s: stub to (%.2f, %.2f)' % (label, lname, best[0], best[1]))
+        fixed += 1
+    if fixed:
+        board.BuildConnectivity()
+    return fixed

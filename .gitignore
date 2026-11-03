@@ -25,3 +25,6 @@ case/robo-garage-case_v*.zip
 fp-info-cache
 *-backups/
 .history/
+
+# Freerouting logs
+pcb/gen/logs/

@@ -1,7 +1,7 @@
 # Robo-Garage
 
 Kitchen cabinet garage for a **Dreame L10s Pro Ultra Heat** robot vacuum.
-ESP32 + ESPHome + Home Assistant: motorised door, light barrier, reed contacts, fan, LED ring, temperature/humidity.
+ESP32 + ESPHome + Home Assistant: motorised door, light barrier, reed contacts, fan, LED ring, temperature/humidity, water leak probe + valve, buzzer.
 
 **Live simulator:** https://claude.ai/artifact/KapGY8dMDmhuJijCuEXQXC
 
@@ -9,8 +9,8 @@ ESP32 + ESPHome + Home Assistant: motorised door, light barrier, reed contacts, 
 
 | Part | Version | Status |
 |---|---|---|
-| Controller PCB | v1.1.1 | DRC 0 errors / 0 warnings (KiCad 7 + KiCad 10) |
-| Case | v1.1 | fits PCB v1.1 / v1.1.1 |
+| Controller PCB | v1.2 | DRC 0 errors / 0 warnings (KiCad 7). JLCPCB assembles all parts (SMD + clamps), only the DevKitC is plugged in |
+| Case | v1.2 | fits PCB v1.2 |
 | ESPHome config | – | checked with ESPHome 2026.10.1 |
 | Simulator | v5.1 | |
 
@@ -19,9 +19,9 @@ ESP32 + ESPHome + Home Assistant: motorised door, light barrier, reed contacts, 
 | Folder | What is inside |
 |---|---|
 | `esphome/` | ESPHome config for the board (needs `secrets.yaml` with `wifi_ssid`, `wifi_password`) |
-| `pcb/gen/` | PCB generator (Python + KiCad `pcbnew`). `parts.py` = single source of truth |
+| `pcb/gen/` | PCB generator (Python + KiCad `pcbnew`). `parts.py` = single source of truth, `fplib.py` makes the own footprints (`pcb/lib/robo.pretty`) |
 | `pcb/robo-garage/` | Work folder. Only `robo-garage.ses` (Freerouting result) is in git |
-| `pcb/out/` | Order files: gerbers zip, BOM + CPL for JLCPCB, KiCad project, renders. **Order guide: `pcb/out/README.md`** |
+| `pcb/out/` | Order files: gerbers zip, BOM + CPL for JLCPCB, KiCad project, renders, `pin1-check.png`. **Order guide: `pcb/out/README.md`** |
 | `case/` | 3D-printed case: OpenSCAD source, STL files, pictures, print guide |
 | `simulator/` | Simulator web page: `robo-garage.html` (source) → `build_page.py` → `index.html` |
 
@@ -44,7 +44,7 @@ Locally: run from the repo root. Tested with KiCad 7.0.11 (Python `pcbnew`), Pyt
 | Tool | Needed for |
 |---|---|
 | Python package `shapely` 2.2 | `finish.py` |
-| `kicad-cli`, `rsvg-convert` | `fab.py` |
+| `kicad-cli`, `rsvg-convert`, Python package `Pillow` | `fab.py` |
 | `zip` | `package.sh`, `case/build.sh` |
 | `openscad`, font DejaVu Sans | `case/build.sh` |
 | Java, `xvfb-run`, `pcb/tools/freerouting-1.9.0.jar` ([Freerouting releases](https://github.com/freerouting/freerouting/releases)) | `pipeline.sh` only |

@@ -33,7 +33,10 @@ print('gerber files:', sorted(os.listdir(G)))
 
 # ---------- BOM + CPL ----------
 b = pcbnew.LoadBoard(PCB)
-ROT = [(r'^(SOT-23|TSOT-23)', 180), (r'^(SOIC-|TI_SO-PowerPAD)', 270), (r'^CP_Elec_', 180)]
+# KiCad -> JLCPCB rotation offsets, checked against JLC's DFM preview of order SMT026110160950 (Nov 2026):
+# 3-pin SOT-23 needs +180, SOT-23-5/6/8 and TSOT-23-6 need 0 (v1.1.1 had them at +180: U2/U4 came out
+# rotated), SOIC / PowerPAD +270, electrolytics +180. Everything else 0; check pin1-check.png in the preview.
+ROT = [(r'^SOT-23$', 180), (r'^(SOIC-|TI_SO-PowerPAD)', 270), (r'^CP_Elec_', 180)]
 
 
 def jlc_rot(fpname, rot):
@@ -49,7 +52,8 @@ for fp in b.GetFootprints():
     p = parts.P[ref]
     if p.get('nobom') or p.get('dnp'):
         continue
-    key = (p['val'], p['fp'], p.get('lcsc') or '', p.get('mpn') or '')
+    # one BOM line per LCSC part (JLC warns when several lines match the same part), else per value/footprint
+    key = (p['lcsc'], p['fp']) if p.get('lcsc') else (p['val'], p['fp'], p.get('mpn') or '')
     bom.setdefault(key, []).append(ref)
     if p.get('tht'):
         xs = [pcbnew.ToMM(pad.GetPosition().x) for pad in fp.Pads()]
@@ -68,10 +72,14 @@ def natkey(r):
 with open(os.path.join(OUT, 'robo-garage_BOM_JLCPCB.csv'), 'w', newline='') as f:
     w = csv.writer(f)
     w.writerow(['Comment', 'Designator', 'Footprint', 'LCSC Part #', 'MPN', 'Mount'])
-    for (val, fpn, lcsc, mpn), refs in sorted(bom.items(), key=lambda kv: natkey(sorted(kv[1], key=natkey)[0])):
+    for key, refs in sorted(bom.items(), key=lambda kv: natkey(sorted(kv[1], key=natkey)[0])):
         refs = sorted(refs, key=natkey)
-        mount = 'THT (hand solder)' if parts.P[refs[0]].get('tht') else 'SMD'
-        w.writerow([val, ','.join(refs), fpn, lcsc, mpn, mount])
+        p0 = parts.P[refs[0]]
+        vals = sorted({parts.P[r]['val'] for r in refs})
+        mount = 'THT' if p0.get('tht') else 'SMD'
+        # Comment: the value; the MPN when the values differ or for THT parts (clamp values are their roles)
+        val = vals[0] if len(vals) == 1 and not (mount == 'THT' and p0.get('mpn')) else (p0.get('mpn') or vals[0])
+        w.writerow([val, ','.join(refs), p0['fp'], p0.get('lcsc') or '', p0.get('mpn') or '', mount])
 with open(os.path.join(OUT, 'robo-garage_CPL_JLCPCB.csv'), 'w', newline='') as f:
     w = csv.writer(f)
     w.writerow(['Designator', 'Mid X', 'Mid Y', 'Layer', 'Rotation'])
@@ -95,5 +103,39 @@ def render(layers, name, flip=False):
     return png
 
 
-print(render('F.Cu,F.SilkS,Edge.Cuts', 'render_top'))
+top = render('F.Cu,F.SilkS,Edge.Cuts', 'render_top')
+print(top)
 print(render('B.Cu,B.SilkS,Edge.Cuts', 'render_bottom', flip=True))
+
+
+# ---------- pin-1 check picture (compare with JLCPCB's DFM preview before confirming the order) ----------
+def pin1_check(png_in, png_out, refs=r'^(U|Q|D|LED|BZ|J|C1$|C3$|C13$)'):
+    from PIL import Image, ImageDraw, ImageFont
+    im = Image.open(png_in).convert('RGB')
+    d = ImageDraw.Draw(im)
+    bb = b.GetBoundingBox()                                  # = the SVG page with --page-size-mode 2
+    x0, y0 = pcbnew.ToMM(bb.GetLeft()), pcbnew.ToMM(bb.GetTop())
+    sx = im.width / pcbnew.ToMM(bb.GetWidth())
+    sy = im.height / pcbnew.ToMM(bb.GetHeight())
+    try:
+        font = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', 18)
+    except OSError:
+        font = ImageFont.load_default()
+    for fp in b.GetFootprints():
+        ref = fp.GetReference()
+        if not re.match(refs, ref) or parts.P[ref].get('nobom') or parts.P[ref].get('dnp'):
+            continue
+        p1 = [pd for pd in fp.Pads() if pd.GetNumber() == '1']
+        if not p1:
+            continue
+        px = (pcbnew.ToMM(p1[0].GetPosition().x) - x0) * sx
+        py = (pcbnew.ToMM(p1[0].GetPosition().y) - y0) * sy
+        r = max(10, 0.9 * sx * max(pcbnew.ToMM(p1[0].GetSize().x), pcbnew.ToMM(p1[0].GetSize().y)) / 2)
+        d.ellipse([px - r, py - r, px + r, py + r], outline=(0, 230, 255), width=3)
+        d.text((px + r + 2, py - r - 4), ref, fill=(0, 230, 255), font=font)
+    d.text((10, 8), 'cyan ring = pin 1 / + / cathode (compare with the JLCPCB preview)', fill=(255, 255, 255), font=font)
+    im.save(png_out)
+    return png_out
+
+
+print(pin1_check(top, os.path.join(OUT, 'pin1-check.png')))

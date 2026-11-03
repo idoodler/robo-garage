@@ -12,6 +12,8 @@ import parts
 importlib.reload(parts)
 
 FPDIR = '/usr/share/kicad/footprints/'
+import fplib                       # project footprints (clamps, tooling hole, buzzer) -> pcb/lib/robo.pretty
+fplib.make_lib()
 OUT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'robo-garage'))
 MM = pcbnew.FromMM
 
@@ -42,6 +44,41 @@ def rule_area(board, rect, tracks):
     return z
 
 
+def pin1_dots(board, refs=r'^(U|Q|D|LED)\d', r=0.2, gap=0.5):
+    """v1.2: a filled silk dot next to pad 1 of every IC / transistor / diode (what JLC checks in the preview).
+    The dot sits 'gap' outside pad 1, away from the footprint centre; skipped if it would touch any pad."""
+    import re
+    pads = [(pcbnew.ToMM(pd.GetPosition().x), pcbnew.ToMM(pd.GetPosition().y),
+             max(pcbnew.ToMM(pd.GetSize().x), pcbnew.ToMM(pd.GetSize().y)) / 2)
+            for f in board.GetFootprints() for pd in f.Pads()]
+    n = 0
+    for f in board.GetFootprints():
+        if not re.match(refs, f.GetReference()):
+            continue
+        p1 = [pd for pd in f.Pads() if pd.GetNumber() == '1']
+        if not p1:
+            continue
+        p1 = p1[0]
+        cx, cy = pcbnew.ToMM(f.GetPosition().x), pcbnew.ToMM(f.GetPosition().y)
+        px, py = pcbnew.ToMM(p1.GetPosition().x), pcbnew.ToMM(p1.GetPosition().y)
+        dx, dy = px - cx, py - cy
+        d = math.hypot(dx, dy) or 1.0
+        half = max(pcbnew.ToMM(p1.GetSize().x), pcbnew.ToMM(p1.GetSize().y)) / 2
+        x, y = px + dx / d * (half + gap + r), py + dy / d * (half + gap + r)
+        if any(math.hypot(x - qx, y - qy) < qr + r + 0.25 for qx, qy, qr in pads):
+            continue
+        dot = pcbnew.PCB_SHAPE(board)
+        dot.SetShape(pcbnew.SHAPE_T_CIRCLE)
+        dot.SetCenter(V(x, y))
+        dot.SetEnd(V(x + r, y))
+        dot.SetFilled(True)
+        dot.SetWidth(MM(0.1))
+        dot.SetLayer(pcbnew.F_SilkS)
+        board.Add(dot)
+        n += 1
+    return n
+
+
 def build(path=OUT + '/robo-garage.kicad_pcb', tracks=True):
     os.makedirs(OUT, exist_ok=True)
     board = pcbnew.BOARD()
@@ -56,7 +93,8 @@ def build(path=OUT + '/robo-garage.kicad_pcb', tracks=True):
         return nets[name]
 
     for ref, p in parts.P.items():
-        fp = pcbnew.FootprintLoad(FPDIR + p['lib'] + '.pretty', p['fp'])
+        libdir = fplib.LIB if p['lib'] == 'robo' else FPDIR + p['lib'] + '.pretty'
+        fp = pcbnew.FootprintLoad(libdir, p['fp'])
         if fp is None:
             raise SystemExit('missing footprint %s:%s' % (p['lib'], p['fp']))
         fp.SetReference(ref)
@@ -73,7 +111,7 @@ def build(path=OUT + '/robo-garage.kicad_pcb', tracks=True):
         if p.get('lcsc'):
             fp.SetProperty('LCSC', p['lcsc'])
         # silkscreen reference: keep for connectors / ICs, hide for small passives
-        fp.Reference().SetVisible(ref[0] in 'UQLFD')
+        fp.Reference().SetVisible(ref[0] in 'UQLFD' and not p.get('noref'))
         fp.Reference().SetTextSize(pcbnew.VECTOR2I(MM(0.8), MM(0.8)))
         fp.Reference().SetTextThickness(MM(0.12))
         for pad in fp.Pads():
@@ -133,6 +171,8 @@ def build(path=OUT + '/robo-garage.kicad_pcb', tracks=True):
         txt.SetHorizJustify({'l': pcbnew.GR_TEXT_H_ALIGN_LEFT, 'r': pcbnew.GR_TEXT_H_ALIGN_RIGHT,
                              'c': pcbnew.GR_TEXT_H_ALIGN_CENTER}[just])
         board.Add(txt)
+
+    pin1_dots(board)
 
     for poly in getattr(parts, 'SILK_LINES', []):
         for a, b in zip(poly[:-1], poly[1:]):

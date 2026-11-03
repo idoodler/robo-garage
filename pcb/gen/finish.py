@@ -27,6 +27,15 @@ for _ in range(3):                           # KiCad 8+ ignore spokes into singl
 post.remove_dangling(b)
 isl = checks.islands(b)
 t7, t9 = checks.thermals_exact(b, 7, isl=isl), checks.thermals_exact(b, 9, isl=isl)
+for _ in range(2):                           # v1.2: hand spokes for pads the router boxed in
+    if not (t7 or t9):
+        break
+    if not post.fix_starved(b, t7 + t9, isl=isl):
+        break
+    post.refill(b)
+    post.remove_dangling(b)
+    isl = checks.islands(b)
+    t7, t9 = checks.thermals_exact(b, 7, isl=isl), checks.thermals_exact(b, 9, isl=isl)
 silk = checks.silk_edge(b)
 print('self-check: thermals KiCad7 %s | KiCad9 %s | silk-edge %d' % ([t[:4] for t in t7], [t[:4] for t in t9], len(silk)))
 out = base + '_routed.kicad_pcb'

@@ -1,11 +1,14 @@
-# ESPHome config for the Robo-Garage controller PCB v1.1 (ESP32 DevKitC V4 plugged in)
+# ESPHome config for the Robo-Garage controller PCB v1.2 (ESP32 DevKitC V4 plugged in)
 # v1.1: SHT40 cabinet temperature / humidity (auto vent), door light barrier with self-test.
+# v1.2: water leak probe (LEAK clamp), buzzer, 12 V valve output (VALVE clamp), 12 V rail monitor on the ADC.
 # Pin changes vs. the module build: DRV8871 instead of BTS7960 (no EN pin), INA219 on the board,
 # fan tach on GPIO27, external pull-ups on reeds / button (internal pull-ups stay on, harmless).
 substitutions:
   stall_current: "0.8"   # A: set ~0.3 A above the running current you see in HA ("Door motor current")
   beam_inverted: "true"  # NPN Light-ON receiver (recommended, often sold as "NC") = true; Dark-ON ("NO") = false.
                          # Check: beam clear -> HA "Door beam" must show "Clear". If not, flip this value.
+  leak_threshold: "2.2"  # V at the probe: dry = 3.3 V, tap water between the electrodes < ~2 V (see "Leak probe")
+  supply_low: "10.5"     # V: below this the 12 V supply is sagging (weak PSU, stalled actuator)
 
 esphome:
   name: robo-garage
@@ -34,12 +37,30 @@ globals:
   - {id: beam_dark_ok, type: bool, initial_value: "true"}    # last self-test: receiver saw "no light"
 
 output:
+  - {platform: gpio, pin: GPIO4, id: leak_drive}              # v1.2: IO4 -> R40 100k -> leak probe (pulsed)
+  - {platform: ledc, pin: {number: GPIO15, ignore_strapping_warning: true}, id: buzzer_pwm}  # v1.2: buzzer, R46 pull-down
   - {platform: ledc, pin: GPIO25, id: door_open_out}          # DRV8871 IN1 -> actuator extends
   - {platform: ledc, pin: GPIO26, id: door_close_out}         # DRV8871 IN2 -> actuator retracts
   - {platform: ledc, pin: GPIO23, id: btn_ring_out}           # AO3400A -> button ring (12 V)
   - {platform: ledc, pin: GPIO17, id: fan_pwm, frequency: 25000Hz, inverted: true}  # 2N7002 open drain
 
+rtttl:
+  id: buzzer
+  output: buzzer_pwm
+
 switch:
+  - platform: gpio                                             # v1.2: AO3400A low side -> VALVE clamp (12 V, <= 1.5 A)
+    id: valve                                                  # on = valve powered. Use a valve that CLOSES when
+    name: "Water valve"                                        # powered (normally-open solenoid / motorised valve),
+    pin: {number: GPIO2, ignore_strapping_warning: true}        # then a leak powers it and the water is off. R43 pull-down.
+    restore_mode: RESTORE_DEFAULT_OFF
+    icon: mdi:valve
+  - platform: template
+    id: buzzer_enabled
+    name: "Buzzer"                                             # off = silent (the leak alarm still beeps)
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    entity_category: config
   - platform: gpio                                             # AO3400A -> light barrier emitter (TX-)
     id: beam_tx
     pin: GPIO13
@@ -79,6 +100,26 @@ number:
     entity_category: config
 
 binary_sensor:
+  - platform: template                                         # v1.2: LEAK clamp (probe on the cabinet floor)
+    id: leak
+    name: "Water leak"
+    device_class: moisture
+    lambda: |-
+      if (std::isnan(id(leak_v).state)) return {};
+      return id(leak_v).state < ${leak_threshold};
+    filters: [delayed_on: 25s, delayed_off: 60s]               # 3 readings in a row (one every 10 s)
+    on_press:
+      - logger.log: "WATER LEAK -> valve powered, alarm"
+      - switch.turn_on: valve
+      - light.turn_on: {id: status_led, red: 100%, green: 0%, blue: 0%, effect: "Error strobe"}
+      - rtttl.play: "leak:d=4,o=7,b=140:e,p,e,p,e,p,e,p,e,p,e"
+    on_release:
+      - light.turn_off: status_led                             # the valve stays powered until you switch it off in HA
+  - platform: template                                         # v1.2: 12 V rail sagging (ADC on GPIO36)
+    name: "Supply voltage low"
+    device_class: problem
+    lambda: return id(supply_v).state < ${supply_low};
+    filters: [delayed_on: 2s, delayed_off: 5s]
   - {platform: gpio, id: door_closed_reed, name: "Door closed", pin: {number: GPIO32, mode: INPUT_PULLUP, inverted: true}}
   - {platform: gpio, id: door_open_reed, name: "Door open", pin: {number: GPIO33, mode: INPUT_PULLUP, inverted: true}}
   - {platform: gpio, id: drawer_reed, name: "Drawer", device_class: opening,
@@ -122,6 +163,14 @@ binary_sensor:
     device_class: problem
 
 script:
+  - id: beep_move                                              # 3 short beeps before the door moves
+    mode: single
+    then:
+      - if:
+          condition:
+            switch.is_on: buzzer_enabled
+          then:
+            - rtttl.play: "move:d=16,o=7,b=200:e,p,e,p,e"
   - id: beam_selftest                                          # emitter off -> receiver must report "no light"
     mode: single
     then:
@@ -143,6 +192,24 @@ script:
           state: !lambda 'return !id(beam_dark_ok);'
 
 sensor:
+  - platform: adc                                              # v1.2: leak probe, read only while IO4 drives it
+    id: leak_v
+    name: "Leak probe"
+    pin: GPIO35
+    attenuation: 12db
+    update_interval: never
+    unit_of_measurement: V
+    accuracy_decimals: 2
+    entity_category: diagnostic
+  - platform: adc                                              # v1.2: 100k / 22k divider on the 12 V rail
+    id: supply_v
+    name: "12 V rail"
+    pin: GPIO36
+    attenuation: 12db
+    update_interval: 1s
+    filters: [multiply: 5.545, sliding_window_moving_average: {window_size: 5, send_every: 5}]
+    accuracy_decimals: 1
+    unit_of_measurement: V
   - platform: ina219                                           # on the PCB, shunt 0.1 ohm
     address: 0x40
     shunt_resistance: 0.1 ohm
@@ -175,6 +242,13 @@ fan:
   - {platform: speed, id: rear_fan, output: fan_pwm, name: "Rear fan"}
 
 interval:
+  - interval: 10s                                              # v1.2: leak probe, 70 ms of 3.3 V every 10 s (no corrosion)
+    then:
+      - output.turn_on: leak_drive
+      - delay: 50ms
+      - component.update: leak_v
+      - delay: 20ms
+      - output.turn_off: leak_drive
   - interval: 30s                                              # auto vent from the SHT40
     then:
       - if:
@@ -217,11 +291,13 @@ cover:
     device_class: garage
     open_action:
       - output.turn_off: door_close_out
+      - script.execute: beep_move
       - output.turn_on: door_open_out
     open_endstop: door_open_reed
     open_duration: 11s
     close_action:
       - output.turn_off: door_open_out
+      - script.execute: beep_move
       - script.execute: beam_selftest                          # 0.1-1.5 s before every close
       - script.wait: beam_selftest
       - if:
