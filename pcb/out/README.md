@@ -9,6 +9,7 @@
 | KF250 clamps (9 ×) | all pins in one row | **2 pin rows 5 mm apart (zig-zag)**, as on the real part (datasheet + JLC footprint). The v1.3 clamps would not have fitted |
 | Pick & place rotation | package rules | **computed from JLC's own footprint of each part** (`pcb/gen/jlc_footprints.json`); the build stops if a part fits no rotation |
 | Rotation corrected | – | U2, U3 (pin 1 corner), Q6 (90°), C13 (polarity), BZ1 (− lead was on a dummy pad), J6 (latch peg), J3 / J4 / J15 (90°) |
+| Fan header J6 peg hole | Ø1.10 (KiCad stock) | **Ø1.25** as on the Molex drawing |
 
 **New in v1.3: power headroom**
 | Area | v1.2 | v1.3 |

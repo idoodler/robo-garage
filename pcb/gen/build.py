@@ -257,6 +257,9 @@ def build(path=OUT + '/robo-garage.kicad_pcb', tracks=True):
             n = pad.GetNumber()
             if n and p['nets'].get(n):
                 pad.SetNet(net(p['nets'][n]))
+            if p.get('npth') and pad.GetAttribute() == pcbnew.PAD_ATTRIB_NPTH:      # v1.3.1: peg hole per datasheet
+                pad.SetDrillSize(pcbnew.VECTOR2I(MM(p['npth']), MM(p['npth'])))
+                pad.SetSize(pcbnew.VECTOR2I(MM(p['npth']), MM(p['npth'])))
 
     # outline with 2 mm rounded corners
     W, H, r = parts.W, parts.H, 2.0

@@ -198,7 +198,8 @@ add('Q2', SOT23, '2N7002', 30.5, 85.0, 0, {'1': 'Q2_G', '2': 'GND', '3': 'FAN_PW
 R('R11', '100', 26.5, 85.0, 90, 'Q2_G', 'IO17')
 R('R12', '10k', 26.5, 81.0, 90, 'Q2_G', '+3V3')                    # fan off while the ESP32 boots
 add('J6', ('Connector', 'FanPinHeader_1x04_P2.54mm_Vertical'), 'Fan 4-pin', 22.5, 95.0, 0,
-    {'1': 'GND', '2': '+12V_A', '3': 'FAN_TACH', '4': 'FAN_PWM'}, lcsc='C240840', mpn='Molex 47053-1000', tht=True)
+    {'1': 'GND', '2': '+12V_A', '3': 'FAN_TACH', '4': 'FAN_PWM'}, lcsc='C240840', mpn='Molex 47053-1000', tht=True,
+    npth=1.25)   # v1.3.1: latch peg hole 1.25 mm as on the Molex drawing SD-47053-001 (KiCad stock: 1.1, JLC: 1.3)
 add('F2', F1206, 'PTC 2A 12V', 38.5, 78.0, 0, {'1': '+5V', '2': '+5V_LED'},
     lcsc='C883135', mpn='BSMD1206-200-12V')            # v1.3: 2 A hold (LED strip <= 1.5 A in a warm case)
 add('C13', ('Capacitor_SMD', 'CP_Elec_8x10'), '470uF 16V', 48.0, 77.0, 90, {'1': '+5V_LED', '2': 'GND'},
