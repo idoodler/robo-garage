@@ -9,7 +9,7 @@ rep("going down it simply follows by its own weight (≈5 N), so it can never pi
 
 # ---------------- parts info
 rep(" esp:['ESP32 + BTS7960 + buck','In the fixed space above the station: door cover, 3 reeds, LED, rear fan PWM, optional VL53L1X / INA219.'],",
-    " esp:['Controller PCB v1.2','Own 100 × 100 mm board (fully assembled by JLCPCB) in a 3D-printed case under the top: ESP32 DevKitC socket, DRV8871 actuator driver + INA219 stall stop, 12 V → 5 V on board, SHT40 temperature/humidity, light-barrier input with self-test, water-leak probe + 12 V valve output, buzzer, fan PWM, LED level shifter, 9 push-button clamps. Files and order steps: \"Controller PCB\" below.'],")
+    " esp:['Controller PCB v1.2','Own 100 × 100 mm board (fully assembled by JLCPCB) in a 3D-printed case under the top: ESP32 DevKitC socket, DRV8871 actuator driver + INA219 stall stop, 12 V → 5 V on board, SHT40 temperature/humidity, light-barrier input with self-test, water-leak probe + 12 V valve output, buzzer, fan PWM, LED level shifter, 9 push-button clamps, USB-C socket on the case (flash without opening it). Files and order steps: \"Controller PCB\" below.'],")
 rep(" fan:['Rear fan · ARCTIC P12 Slim','On the inside of the back panel, blows into the 4 cm wall gap – invisible from the front. Runs while washing/drying, stops when the drawer is open.'],",
     " fan:['Rear fan · ARCTIC P12 Slim','On the inside of the back panel, blows into the 4 cm wall gap – invisible from the front. Auto vent on the ESP32: above 65 % humidity or 30 °C (SHT40) it runs at 30–100 %, off again 5 %RH / 1 °C below. Stops while the drawer is open.'],")
 rep(" led:['Status LED','Dot/Ring in the fascia, Line in the fascia gap, Underglow under the ramp edge · WS2812B · GPIO16 · 330 Ω + 1000 µF.'],",
@@ -135,9 +135,16 @@ rep("if(S.block){S.block=false;setP(E('bBlock'),false);}if(S.err){S.err=false;}"
 rep("""add(B(.5,2.8,5.5),M.pcb,-27.7,75.4,-12,carcass,'esp');
 add(B(1.8,5,5),M.pcbRed,-27.1,70,-10.5,carcass,'esp');
 add(B(.5,1.7,2.2),M.pcbBlue,-27.7,71.2,-17,carcass,'esp');""",
-    """add(RB(2.8,10.5,11.2,.4),M.plug,-26.8,73,-12.5,carcass,'esp');
-add(B(2.85,.35,11.25),M.pcb,-26.8,71.6,-12.5,carcass,'esp',{cast:false});
-add(B(2.6,2.4,.12),M.black,-26.9,69.6,-6.85,carcass,'th',{cast:false});""")
+    """/* controller: the printed case (case/robo-garage-case.scad -> files/case-v<V>.glb, cm, y up) hangs under the top at the
+   left, lid down, USB-C socket towards the front. A plain box stands in until the model has loaded. */
+const caseG=new THREE.Group();caseG.position.set(-26.1,80,-14);carcass.add(caseG);
+const caseBox=add(B(11.15,2.71,10.5),M.plug,4.675,-1.355,5,caseG,'esp');
+M.caseLid=std(0x9fb8d6,.35,0,{transparent:true,opacity:.5,depthWrite:false});
+new GLTFLoader().load('files/case-v1.2.glb',g=>{const mats={base:M.plug,lid:M.caseLid,pcb:M.pcb};
+ g.scene.traverse(o=>{if(o.isMesh){if(!o.geometry.attributes.normal)o.geometry.computeVertexNormals();o.material=mats[o.name]||M.plug;o.castShadow=o.name!=='lid';o.receiveShadow=true;o.userData.part='esp';pick.push(o);}});
+ caseG.remove(caseBox);caseG.add(g.scene);},undefined,()=>{});""")
+rep("import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometry.js';",
+    "import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometry.js';\nimport {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';")
 rep("const toy=add(B(9,7.5,7),M.toy,10,5.25,-.6,drawer,'obstacle');toy.visible=false;",
     """const toy=add(B(9,7.5,7),M.toy,10,3.8,11,carcass,'obstacle');toy.visible=false;
 /* light barrier: sender + receiver on brackets at the front corners, beam 12 cm in front, 2.2 cm high */
@@ -188,7 +195,7 @@ rep('<script type="module">', """<script>
 <script type="module">""")
 
 # ---------------- totals (PCB replaces BTS7960 + buck + loose parts; INA219 now on the PCB)
-rep("const BASE=[273.13,326.13],", "const BASE=[418.13,512.13],")   # PCB order 140-180 replaces BTS7960, buck, loose parts, WAGO, headers
+rep("const BASE=[273.13,326.13],", "const BASE=[422.13,527.13],")   # PCB order 140-180 replaces BTS7960, buck, loose parts, WAGO, headers; + USB-C socket 4-15
 rep("DP={lift:[8.09,17.89],flap:[12.79,18.79],upover:[14.09,29.89],parallel:[10.15,26.05]}", "DP={lift:[8.09,17.89],flap:[11.79,15.79],upover:[13.09,26.89],parallel:[9.15,23.05]}")
 # ---------------- phase messages (fan now runs from the SHT40, not from the phase)
 rep("msg:'Hot mop wash (1150 W) → rear fan on'}", "msg:'Hot mop wash (1150 W) → humidity rises'}")

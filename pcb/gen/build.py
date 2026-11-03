@@ -64,8 +64,16 @@ def pin1_dots(board, refs=r'^(U|Q|D|LED)\d', r=0.2, gap=0.5):
         dx, dy = px - cx, py - cy
         d = math.hypot(dx, dy) or 1.0
         half = max(pcbnew.ToMM(p1.GetSize().x), pcbnew.ToMM(p1.GetSize().y)) / 2
-        x, y = px + dx / d * (half + gap + r), py + dy / d * (half + gap + r)
-        if any(math.hypot(x - qx, y - qy) < qr + r + 0.25 for qx, qy, qr in pads):
+        # preferred spot: 'gap' beyond pad 1, away from the centre; else the nearest free spot on the pad-1 side
+        a0 = math.atan2(dy, dx)
+        cands = [(gap, a0)] + [(g, a0 + k * math.pi / 8) for g in (0.35, 0.25) for k in (0, 1, -1, 2, -2, 3, -3)]
+        for g, a in cands:
+            x, y = px + math.cos(a) * (half + g + r), py + math.sin(a) * (half + g + r)
+            clr = 0.25 if g == gap else 0.15
+            if all(math.hypot(x - qx, y - qy) >= qr + r + clr for qx, qy, qr in pads):
+                break
+        else:
+            print('pin1_dots: no room for a dot at', f.GetReference())
             continue
         dot = pcbnew.PCB_SHAPE(board)
         dot.SetShape(pcbnew.SHAPE_T_CIRCLE)

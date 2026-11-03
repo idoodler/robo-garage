@@ -89,7 +89,7 @@ add('D1', ('Diode_SMD', 'D_SOD-123'), 'BZT52C12', 67.5, 7.0, 0, {'1': '+12V', '2
 R('R1', '100k', 72.8, 6.6, 0, 'GND', 'Q1_G')
 add('D2', ('Diode_SMD', 'D_SMA'), 'SMAJ15A', 66.5, 13.0, 0, {'1': '+12V', '2': 'GND'},
     lcsc='C148216', mpn='SMAJ15A')
-add('C1', ('Capacitor_SMD', 'CP_Elec_6.3x7.7'), '100uF 25V', 75.5, 17.5, 0, {'1': '+12V', '2': 'GND'},
+add('C1', ('Capacitor_SMD', 'CP_Elec_6.3x7.7'), '100uF 25V', 58.0, 8.5, 0, {'1': '+12V', '2': 'GND'},   # v1.2: moved left, frees the back wall for the USB-C panel socket
     lcsc='C3338', mpn='RVT1E101M0607')
 C('C2', '10uF 50V', 75.5, 22.8, 0, '+12V', 'GND', fp=C1206)
 
@@ -226,8 +226,8 @@ add('D4', SOT23, 'BAT54S', 19.5, 77.0, 0, {'1': 'GND', '2': '+3V3', '3': 'IO35'}
 # PTC F4. Pole 1 = +12V (fused), pole 2 = switched return. IO2 is a strapping pin: R43 keeps it low at boot.
 VX, VY = 7.2, 80.0
 clamp('J14', 2, 'VALVE', VX, VY, 270, {'1': '+12V_VLV', '2': 'VALVE_K'})
-add('F4', ('Fuse', 'Fuse_1206_3216Metric'), 'PTC 1.5A', 19.0, 80.0, 0, {'1': '+12V', '2': '+12V_VLV'},
-    lcsc='C135341', mpn='ASMD1206-150', noref=True)
+add('F4', ('Fuse', 'Fuse_1206_3216Metric'), 'PTC 1.5A 16V', 19.0, 80.0, 0, {'1': '+12V', '2': '+12V_VLV'},
+    lcsc='C883133', mpn='BSMD1206-150-16V', noref=True)          # 16 V part: the ASMD1206-150 (F2) is rated 6 V
 add('D5', ('Diode_SMD', 'D_SMA'), 'SS34', 19.5, 84.0, 0, {'1': '+12V_VLV', '2': 'VALVE_K'},
     lcsc='C8678', mpn='SS34')
 add('Q6', SOT23, 'AO3400A', 23.6, 80.5, 0, {'1': 'Q6_G', '2': 'GND', '3': 'VALVE_K'}, lcsc='C20917', mpn='AO3400A', noref=True)

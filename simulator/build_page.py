@@ -89,6 +89,7 @@ rep('''      <tr class="grp"><td colspan="4">Hardware store (cut to size)</td></
       <tr class="opt"><td>Leak probe: 2 stainless screws on the cabinet floor or a water-leak sensor cable <span class="tag">optional</span> – LEAK clamp</td><td>1</td><td class="num">0–4</td><td><a href="https://www.aliexpress.com/w/wholesale-water-leak-sensor-cable.html">AliExpress</a></td></tr>
       <tr class="opt"><td>Water valve 12 V DC ≤ 1.5 A that closes when powered (NO solenoid / motorised ball valve) <span class="tag">optional</span> – VALVE clamp, for the water kit</td><td>1</td><td class="num">10–30</td><td><a href="https://www.aliexpress.com/w/wholesale-12v-normally-open-solenoid-valve.html">AliExpress</a></td></tr>
       <tr><td>Case: PETG ≈ 70 g + 4× M3×25 screws (STL in the download)</td><td>–</td><td class="num">2–4</td><td>–</td></tr>
+      <tr><td>USB-C panel-mount extension, flange with 2× M3 holes 18 mm apart, 15–30 cm (e.g. SparkFun CAB-15455 or generic) – USB-C on the case</td><td>1</td><td class="num">4–15</td><td><a href="https://www.sparkfun.com/panel-mount-usb-c-extension-cable-6.html">SparkFun</a> · <a href="https://www.aliexpress.com/w/wholesale-usb-c-panel-mount-extension-cable.html">AliExpress</a></td></tr>
       <tr class="grp"><td colspan="4">Hardware store (cut to size)</td></tr>''')
 rep('''      <tr><td>Wire, Wago, 3 A fuse, screws, wood glue, 4 steel angles 30 mm, 330 Ω, 1000 µF/10 V, BC547 + 1 kΩ (button ring)</td><td>–</td><td class="num">12–22</td><td>–</td></tr>''',
     '''      <tr><td>Wire 0.5 mm², screws, wood glue, 4 steel angles 30 mm, zip ties</td><td>–</td><td class="num">8–15</td><td>–</td></tr>''')
@@ -117,7 +118,7 @@ pcb_section = '''<section class="card" style="margin-top:14px" id="pcb">
     <div>
       <h3>On the board</h3>
       <table class="kv"><tbody>
-        <tr><td>ESP32</td><td>DevKitC V4 plugs into a socket · USB for the first flash, then OTA</td></tr>
+        <tr><td>ESP32</td><td>DevKitC V4 plugs into a socket · USB-C socket on the case back wall (flash without opening), then OTA</td></tr>
         <tr><td>Power</td><td>12 V in → PTC, reverse protection, TVS → 5.1 V buck on board (no 5 V adapter)</td></tr>
         <tr><td>Door</td><td>DRV8871 driver (1.9 A limit) + INA219 current sense → stall stop</td></tr>
         <tr><td>Sensors</td><td>SHT40 temperature + humidity on a slotted island · light-barrier input (12 V safe, self-test) · water-leak probe (pulsed, no corrosion) · 12 V rail monitor</td></tr>
@@ -146,7 +147,7 @@ pcb_section = '''<section class="card" style="margin-top:14px" id="pcb">
       <h3>Order at JLCPCB</h3>
       <ol class="steps">
         <li>PCB: upload <code>robo-garage_gerbers_JLCPCB.zip</code> → 2 layers, 1.6 mm, HASL.</li>
-        <li>Assembly: Economic, top side, 2 boards, tooling holes "added by customer" → upload BOM + CPL (all 44 lines match by LCSC number).</li>
+        <li>Assembly: Economic, top side, 2 boards, tooling holes "added by customer" → upload BOM + CPL (all 45 lines match by LCSC number).</li>
         <li>Compare the placement preview with <code>pin1-check.png</code> from the download (ICs, transistors, diodes, clamps).</li>
         <li>Plug in the ESP32 DevKitC (both row pitches fit). Nothing to solder.</li>
       </ol>
@@ -157,7 +158,7 @@ pcb_section = '''<section class="card" style="margin-top:14px" id="pcb">
         <tr><td>Material</td><td>PETG</td></tr>
         <tr><td>Layer · walls · infill</td><td>0.2 mm · 3 · 20 %</td></tr>
         <tr><td>Supports</td><td>none (the lid prints top face down)</td></tr>
-        <tr><td>Hardware</td><td>4× M3×25, 4 wood screws, zip ties</td></tr>
+        <tr><td>Hardware</td><td>4× M3×25, 4 wood screws, zip ties, USB-C panel socket + 2× M3×8</td></tr>
       </tbody></table>
     </div>
   </div>

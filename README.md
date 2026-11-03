@@ -10,9 +10,9 @@ ESP32 + ESPHome + Home Assistant: motorised door, light barrier, reed contacts, 
 | Part | Version | Status |
 |---|---|---|
 | Controller PCB | v1.2 | DRC 0 errors / 0 warnings (KiCad 7). JLCPCB assembles all parts (SMD + clamps), only the DevKitC is plugged in |
-| Case | v1.2 | fits PCB v1.2 |
+| Case | v1.2 | fits PCB v1.2, USB-C socket opening in the back wall |
 | ESPHome config | – | checked with ESPHome 2026.10.1 |
-| Simulator | v5.1 | |
+| Simulator | v5.2 | case as a 3D model in the scene |
 
 ## Folders
 
@@ -38,7 +38,7 @@ Locally: run from the repo root. Tested with KiCad 7.0.11 (Python `pcbnew`), Pyt
 | PCB: copy to `pcb/out` + zip | `pcb/gen/package.sh` |
 | PCB: re-route (optional) | `pcb/gen/pipeline.sh` |
 | Case: PCB data, STL, zip | `case/build.sh` |
-| Simulator page | `python3 simulator/build_page.py` |
+| Simulator page | `python3 simulator/build_files.py` (downloads, pictures, case GLB) then `python3 simulator/build_page.py` |
 | Flash ESP32 | `esphome run esphome/robo-garage-pcb.yaml` |
 
 | Tool | Needed for |
@@ -46,7 +46,8 @@ Locally: run from the repo root. Tested with KiCad 7.0.11 (Python `pcbnew`), Pyt
 | Python package `shapely` 2.2 | `finish.py` |
 | `kicad-cli`, `rsvg-convert`, Python package `Pillow` | `fab.py` |
 | `zip` | `package.sh`, `case/build.sh` |
-| `openscad`, font DejaVu Sans | `case/build.sh` |
+| `openscad`, font DejaVu Sans | `case/build.sh`, `simulator/build_files.py` |
+| Python packages `Pillow`, `trimesh`, `numpy` | `simulator/build_files.py` |
 | Java, `xvfb-run`, `pcb/tools/freerouting-1.9.0.jar` ([Freerouting releases](https://github.com/freerouting/freerouting/releases)) | `pipeline.sh` only |
 
 Moved a part in `parts.py`? Then the old tracks no longer fit: run `pcb/gen/pipeline.sh` and commit the new `pcb/robo-garage/robo-garage.ses`.

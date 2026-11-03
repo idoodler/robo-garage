@@ -4,6 +4,7 @@
 // The front-right corner is a separate vented chamber for the SHT40 (measures cabinet air, not box air).
 // part = "base" | "lid" | "lid_print" (lid flipped for printing) | "assembly" | "check_base" | "check_lid"
 part = "assembly";
+labels = true;     // false: no engraved text (small 3D model for the simulator page)
 version = "1.2";   // case version: release zip name (case/build.sh)
 
 include <pcb_data.scad>
@@ -41,6 +42,13 @@ win_z0 = floor_t + 2.0;                            // 2 mm curb, wires drop to t
 cx0 = chamber[0]; cy1 = chamber[3];                // sensor chamber: x > cx0 and y < cy1
 
 screw_d = 3.4; pilot_d = 2.8; post_d = 7.0;
+
+// v1.2: USB-C panel socket in the back wall (flange type with 2 M3 holes, e.g. SparkFun CAB-15455 or a generic
+// "USB-C panel mount extension"; its 15-30 cm pigtail plugs into the DevKit). Measure your socket, then adjust:
+usb_x = 80.5;  usb_z = 17.0;      // centre on the back wall (right of the DevKit, left of the 12V IN clamp)
+usb_cut = [11.0, 7.0];            // cut-out for the socket nose (w x h), corners r 1
+usb_pitch = 18.0;                 // flange hole spacing; holes are M3 pilots (2.6) into 4 mm bosses behind the wall
+usb_body = [13.0, 18.0, 8.0];     // socket body behind the panel (w x depth x h): only for the fit check
 
 module rbox(p0, p1) { translate(p0) cube([p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]]); }
 
@@ -86,6 +94,8 @@ module base() {
             rbox([0.4, left_y0 + 1, 0], [3.4, left_y1 - 1, z_pcb_bot]);
             // posts under the DevKit (pressing it in)
             for (x = [14, 38]) translate([x, 82, 0]) cylinder(d = 5, h = z_pcb_bot);
+            // v1.2: bosses for the USB-C socket screws (inside the back wall)
+            for (dx = [-usb_pitch / 2, usb_pitch / 2]) translate([usb_x + dx, iy1 - 4, usb_z]) rotate([-90, 0, 0]) cylinder(d = 5, h = 4.01);
             // sensor chamber: partitions floor -> PCB bottom, and closing the PCB-edge gap up to the PCB top
             partitions(0, z_pcb_bot);
             rbox([cx0 - part_t / 2, iy0, z_pcb_bot - 0.01], [cx0 + part_t / 2, 0, z_pcb_top]);
@@ -93,6 +103,10 @@ module base() {
         }
         // pilot holes for M3 x 25 (self-tapping into the post, 1 mm floor left)
         for (h = holes) translate([h[0], h[1], 1.0]) cylinder(d = pilot_d, h = 20);
+        // v1.2: USB-C socket: nose cut-out through the back wall + 2 pilot holes through wall and bosses
+        hull() for (dx = [-1, 1], dz = [-1, 1])
+            translate([usb_x + dx * (usb_cut[0] / 2 - 1), iy1 - 1, usb_z + dz * (usb_cut[1] / 2 - 1)]) rotate([-90, 0, 0]) cylinder(r = 1, h = wall + 2);
+        for (dx = [-usb_pitch / 2, usb_pitch / 2]) translate([usb_x + dx, iy1 - 4.5, usb_z]) rotate([-90, 0, 0]) cylinder(d = 2.6, h = wall + 6);
         // zip-tie slots: right shelf, front shelf, left shelf
         for (y = [2 : 7 : 98]) if (abs(y - 50) > 6) translate([ox1 + 4.5, y, -1]) rbox([-2.25, -1.1, 0], [2.25, 1.1, 5]);
         for (x = [2 : 7 : 98]) if (abs(x - 50) > 6) translate([x, oy0 - 4.5, -1]) rbox([-1.1, -2.25, 0], [1.1, 2.25, 5]);
@@ -140,6 +154,7 @@ module lid() {
         for (dx = [-2.5, 0, 2.5], dy = [-2.5, 0, 2.5]) translate([bz_pos[0] + dx, bz_pos[1] + dy, z_lid - 1]) cylinder(d = 1.6, h = 9);
         for (x = [cx0 + 3 : 3.5 : 90]) rbox([x, 2, z_lid - 1], [x + 2, 13.5, 99]);
         // engraved labels
+        if (labels) {
         label("12V", 82.5, (J2[1] + J2[3]) / 2, ha = "right");
         label("BTN", 82.5, (wago[4][1] + wago[4][3]) / 2, ha = "right");
         label("REEDS", 82.5, (J9[1] + J9[3]) / 2, ha = "right");
@@ -152,7 +167,9 @@ module lid() {
         label("VALVE", 17.5, 22.8, s = 2.6, ha = "left");   // above the FAN label, left of the vents
         label("T/H", (cx0 + 92) / 2, cy1, s = 2.6);
         label("ROBO-GARAGE", 50, 52, s = 5);
-        label("USB inside: lid off to flash", 58, 45, s = 2.2);   // starts right of the BEAM label
+        label("USB-C on the back wall", 58, 45, s = 2.2);   // starts right of the BEAM label
+        label("USB-C", usb_x, 97.3, s = 2.6);
+        }
     }
 }
 
@@ -185,6 +202,9 @@ module pcb_model() {
     color("gray") translate([l1_pos[0] - 3.5, l1_pos[1] - 3.3, z_pcb_top]) cube([7, 6.6, 3.1]);
     color("gold") translate([u5_pos[0] - 0.75, u5_pos[1] - 0.75, z_pcb_top]) cube([1.5, 1.5, 0.6]);
     color("black") translate([bz_pos[0] - 4.25, bz_pos[1] - 4.25, z_pcb_top]) cube([8.5, 8.5, 3.3]);   // v1.2 buzzer
+    // v1.2: USB-C plug in the DevKit port (straight plug + overmold, 22 mm) and the panel socket body behind the back wall
+    color("red") rbox([51.4, 77.8, z_pcb_top + 8.5], [73.0, 86.8, z_pcb_top + 15.0]);
+    color("red") rbox([usb_x - usb_body[0] / 2, iy1 - usb_body[1], usb_z - usb_body[2] / 2], [usb_x + usb_body[0] / 2, iy1, usb_z + usb_body[2] / 2]);
     // solder pins under the board (2.2 mm): WAGO rows, DevKit header rows, fan header
     color("orange") {
         rbox([91.6, J9[1], z_pcb_bot - 2.2], [94.0, J2[3], z_pcb_bot]);   // right clamp pins (x = 92.8)
@@ -201,4 +221,5 @@ else if (part == "lid") lid();
 else if (part == "lid_print") translate([0, 0, z_lid + lid_t]) mirror([0, 0, 1]) lid();
 else if (part == "check_base") intersection() { base(); pcb_model(); }
 else if (part == "check_lid") intersection() { lid(); pcb_model(); }
+else if (part == "pcb_model") pcb_model();
 else { color("lightgray") base(); pcb_model(); color("lightblue", 0.55) lid(); }

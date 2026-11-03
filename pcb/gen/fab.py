@@ -56,8 +56,9 @@ for fp in b.GetFootprints():
     key = (p['lcsc'], p['fp']) if p.get('lcsc') else (p['val'], p['fp'], p.get('mpn') or '')
     bom.setdefault(key, []).append(ref)
     if p.get('tht'):
-        xs = [pcbnew.ToMM(pad.GetPosition().x) for pad in fp.Pads()]
-        ys = [pcbnew.ToMM(pad.GetPosition().y) for pad in fp.Pads()]
+        pins = [pad for pad in fp.Pads() if pad.GetAttribute() != pcbnew.PAD_ATTRIB_NPTH]   # not the J6 latch hole
+        xs = [pcbnew.ToMM(pad.GetPosition().x) for pad in pins]
+        ys = [pcbnew.ToMM(pad.GetPosition().y) for pad in pins]
         x, y = (min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2
     else:
         x, y = pcbnew.ToMM(fp.GetPosition().x), pcbnew.ToMM(fp.GetPosition().y)

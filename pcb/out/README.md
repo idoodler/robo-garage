@@ -18,7 +18,7 @@
 | File | Use |
 |---|---|
 | `robo-garage_gerbers_JLCPCB.zip` | Upload at JLCPCB (PCB) |
-| `robo-garage_BOM_JLCPCB.csv`, `robo-garage_CPL_JLCPCB.csv` | PCB Assembly: BOM + pick & place (44 lines, 108 parts) |
+| `robo-garage_BOM_JLCPCB.csv`, `robo-garage_CPL_JLCPCB.csv` | PCB Assembly: BOM + pick & place (45 lines, 108 parts) |
 | `pin1-check.png` | Intended orientation of every polarised part: compare with JLC's placement preview |
 | `robo-garage-pcb.yaml` | ESPHome config for this board |
 | `kicad/` | KiCad project to edit later |
@@ -29,21 +29,22 @@
 |---|---|
 | 1 PCB | Upload the gerbers zip → 2 layers, 1.6 mm, LeadFree HASL, 1 oz, via covering *Tented*, "Mark on PCB": default (no order number since May 2026). The C-shaped slot around the SHT40 (bottom right) is intended (heat isolation): confirm if JLC asks |
 | 2 Assembly | **Economic**, top side, 2 boards, **Tooling holes: Added by Customer** (TH1–TH3 are on the board), *Confirm Parts Placement* = yes |
-| 3 Files | Upload BOM + CPL. Parts list: all 44 lines must match by LCSC number (0 "no part selected") |
+| 3 Files | Upload BOM + CPL. Parts list: all 45 lines must match by LCSC number (0 "no part selected") |
 | 4 THT | The clamps, the 3 sockets and the fan header are THT: keep them ticked → JLC solders them (wave / hand soldering fee ≈ $3.5 + $0.02 per joint, ≈ 92 joints per board) |
 | 5 Preview | Compare the placement preview with **`pin1-check.png`**: U1–U5, Q1–Q7, D1–D7, LED1, C1, C3, C13 and the clamps (wire entry towards the board edge, J3/J4/J15 pin 1 at the top). Rotate in the preview if one differs |
 | 6 Price | ≈ 30 "extended" part types (≈ $3 loading fee each, once per order) — normal for a board like this |
 
-Out of stock? SHT40 → SHT40-AD1B-R3 (C2848306) / SHT41-AD1B-R2 (C7461861). F3 → any 1206 PTC 200 mA ≥ 24 V (e.g. C2892415). KF250 clamp → same footprint family DG250-3.5 / WJ250-3.5 (check the drawing: Ø1.2 holes, 3.5 mm pitch, single row), or leave that line out and hand-solder.
+Out of stock? SHT40 → SHT40-AD1B-R3 (C2848306) / SHT41-AD1B-R2 (C7461861). F3 → any 1206 PTC 200 mA ≥ 24 V (e.g. C2892415). F4 → any 1206 PTC 1–1.5 A ≥ 16 V (e.g. C883131); **not** the 6 V ASMD1206-150 of F2. KF250 clamp → same footprint family DG250-3.5 / WJ250-3.5 (check the drawing: Ø1.2 holes, 3.5 mm pitch, single row), or leave that line out and hand-solder.
 
 ## Parts to buy separately
 | Part | Qty | Where it goes |
 |---|---|---|
-| ESP32 DevKitC V4, **WROOM** (not WROVER: GPIO16/17 are used) | 1 | Plugs into J3 + J4 (25.4 mm rows) or J3 + J15 (22.86 mm) |
+| ESP32 DevKitC V4, **WROOM** (not WROVER: GPIO16/17 are used), board 1.1 in (28 mm) or 1.0 in (25.4 mm) wide – not the narrow 0.9 in clone | 1 | Plugs into J3 + J4 (25.4 mm rows) or J3 + J15 (22.86 mm) |
 | Light barrier pair, 12–24 V DC, through-beam, **NPN**, **Light-ON** (often sold as "NC"), e.g. Omron E3Z-T61 set to L-ON. Dark-ON ("NO", e.g. E3F-5DN1) works too → `beam_inverted: "false"` | 1 | BEAM clamp |
 | Leak probe: 2 stainless screws / bare wire ends 5–10 mm apart on the cabinet floor, or a "water leak sensor cable" (2 wires) | 1 | LEAK clamp |
 | Water valve 12 V DC, ≤ 1.5 A, that **closes when powered** (normally-open solenoid or motorised ball valve "NO") | 1 | VALVE clamp (optional) |
 | VL53L1X module | 1 | I2C clamp (optional) |
+| USB-C panel-mount extension (flange, 2× M3 18 mm apart, 15–30 cm) | 1 | Case back wall → DevKit USB-C: flash with the lid on |
 
 ## Wiring
 | Clamp | Pins (from the board edge) | Connect |
@@ -82,8 +83,8 @@ Out of stock? SHT40 → SHT40-AD1B-R3 (C2848306) / SHT41-AD1B-R2 (C7461861). F3 
 ## Sensors, safety, alarms
 | Item | How it works |
 |---|---|
-| Leak | Every 10 s IO4 drives 3.3 V through 100 k for 70 ms, IO35 reads the probe. 3 wet readings in a row (25 s) → "Water leak" on, valve powered, red strobe, beep. Water gone → LED off after 60 s; **the valve stays powered until you switch it off in HA**. |
-| Valve | Use a valve that closes when powered: a cut wire or a dead PSU cannot shut the water, but a leak does. F4 (1.5 A PTC) protects the output. |
+| Leak | Every 10 s IO4 drives 3.3 V through 100 k for 70 ms, IO35 reads the probe (dry ≈ 3.1 V). 3 wet readings in a row (25 s) → "Water leak" on, valve powered, red strobe, beep. Water gone → LED off after 60 s; **the valve stays powered until you switch it off in HA**. Tap water between two screws 5–10 mm apart reads well below 1 V; only very clean water (< 200 kΩ needed) could stay above the 2.2 V threshold → raise `leak_threshold` to 2.8 then. |
+| Valve | Use a valve that closes when powered: a cut wire or a dead PSU cannot shut the water, but a leak does. F4 (1.5 A / 16 V PTC) protects the output. |
 | Buzzer | Alerts in ESPHome via `rtttl.play`. "Buzzer" switch off → everything except the leak alarm is silent. |
 | 12 V rail | "12 V rail" sensor (±0.3 V) and "Supply voltage low" when it sags below `supply_low` (weak PSU, stalled actuator). |
 | SHT40 | Own island + vented case chamber → cabinet air. Set `offset` in the YAML after a check. Humidity can read low for 1–2 days after soldering. |

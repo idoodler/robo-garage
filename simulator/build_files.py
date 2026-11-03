@@ -5,8 +5,12 @@ import glob
 import json
 import os
 import re
+import subprocess
+import tempfile
 import zipfile
 
+import numpy as np
+import trimesh
 from PIL import Image
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -70,6 +74,25 @@ case = [
     dict(path='view_lid_top.png', **png(os.path.join(CASE, 'view_lid_top.png'), 'case-view_lid_top.png')),
 ]
 manifest('case-v%s.json' % CASE_V, 'robo-garage-case_v%s.zip' % CASE_V, case)
+
+# ---------------- case as a 3D model for the three.js scene (GLB, cm, y up, hanging under the cabinet top)
+# SCAD (x, y, z up, mm) -> scene (0.1 x, -0.1 z, 0.1 y): the base plate (z = 0) lies at y = 0 and the case hangs
+# below it, the SCAD +y side (back wall with the USB-C socket) points to +z = towards the cabinet front.
+T = np.array([[0.1, 0, 0, 0], [0, 0, -0.1, 0], [0, 0.1, 0, 0], [0, 0, 0, 1]])
+scene = trimesh.Scene()
+with tempfile.TemporaryDirectory() as tmp:
+    for part in ('base', 'lid', 'pcb_model'):
+        stl = os.path.join(tmp, part + '.stl')
+        subprocess.run(['openscad', '-q', '-D', 'part="%s"' % part, '-D', 'labels=false', '-D', '$fn=24', '-o', stl,
+                        os.path.join(CASE, 'robo-garage-case.scad')], check=True)
+        m = trimesh.load(stl, force='mesh')
+        m.apply_transform(T)                       # vertices stay per face: flat shading in the page
+        name = {'pcb_model': 'pcb'}.get(part, part)
+        scene.add_geometry(m, node_name=name, geom_name=name)
+        print('%s: %d triangles' % (name, len(m.faces)))
+glb = os.path.join(FILES, 'case-v%s.glb' % CASE_V)
+scene.export(glb)
+print(os.path.basename(glb), os.path.getsize(glb) // 1024, 'kB')
 
 # ---------------- pictures for the page (webp)
 im = Image.open(os.path.join(PCB_OUT, 'render_top.png')).convert('RGB')
