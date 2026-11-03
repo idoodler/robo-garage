@@ -14,7 +14,9 @@ import ses
 base = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'robo-garage', 'robo-garage'))
 b = pcbnew.LoadBoard(base + '.kicad_pcb')   # has the locked pre-routes; SES adds the rest
 print('imported wires/vias', ses.import_ses(b, base + '.ses'))
+post.remove_duplicate_tracks(b)              # the SES re-imports the locked pre-routes
 post.remove_dangling(b)                      # redundant router stubs (KiCad: track_dangling)
+post.trim_locked_stubs(b)                    # hand stubs the router joined mid-way
 post.remove_redundant(b, parts.CHAMBER)      # duplicate router jogs at the SHT40 (no pour there)
 post.set_solid(b, getattr(parts, 'SOLID_PADS', []))
 route.add_zones(b)                           # GND both layers + NOPOUR areas, filled

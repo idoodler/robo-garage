@@ -9,8 +9,8 @@ ESP32 + ESPHome + Home Assistant: motorised door, light barrier, reed contacts, 
 
 | Part | Version | Status |
 |---|---|---|
-| Controller PCB | v1.2 | DRC 0 errors / 0 warnings (KiCad 7). JLCPCB assembles all parts (SMD + clamps), only the DevKitC is plugged in |
-| Case | v1.2 | fits PCB v1.2, USB-C socket opening in the back wall |
+| Controller PCB | v1.2 | DRC 0 errors / 0 warnings (KiCad 7). JLCPCB assembles all parts (SMD + clamps), only the DevKitC is plugged in (USB-C reachable from outside) |
+| Case | v1.2 | fits PCB v1.2, DevKit USB-C through the left wall |
 | ESPHome config | – | checked with ESPHome 2026.10.1 |
 | Simulator | v5.2 | case as a 3D model in the scene |
 

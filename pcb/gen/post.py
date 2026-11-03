@@ -86,7 +86,7 @@ def set_solid(board, labels):
 # ---------------------------------------------------------------- dangling stubs
 def remove_dangling(board, log=print):
     """Remove unlocked tracks with an unconnected end (same test the KiCad DRC uses).
-    Aborts (restores) if a removal would create an unconnected item."""
+    Aborts (restores) if a removal would create an unconnected item. Locked hand stubs: see trim_locked_stubs."""
     removed = []
     for _ in range(20):
         board.BuildConnectivity()
@@ -107,6 +107,92 @@ def remove_dangling(board, log=print):
     for r in removed:
         log('removed dangling %s (%.3f,%.3f)-(%.3f,%.3f)' % (r[0], r[1][0], r[1][1], r[2][0], r[2][1]))
     return removed
+
+
+def remove_duplicate_tracks(board, log=print):
+    """Drop tracks / vias with identical geometry (the SES brings the locked pre-routes back a second time).
+    Keeps the locked copy."""
+    seen, dup = {}, []
+    for t in list(board.GetTracks()):
+        if t.Type() == pcbnew.PCB_TRACE_T:
+            key = ('t', t.GetNetCode(), t.GetLayer(), t.GetWidth(), (t.GetStart().x, t.GetStart().y), (t.GetEnd().x, t.GetEnd().y))
+            key2 = ('t', t.GetNetCode(), t.GetLayer(), t.GetWidth(), key[5], key[4])
+        elif t.Type() == pcbnew.PCB_VIA_T:
+            key = key2 = ('v', t.GetNetCode(), (t.GetPosition().x, t.GetPosition().y), t.GetWidth())
+        else:
+            continue
+        other = seen.get(key) or seen.get(key2)
+        if other is None:
+            seen[key] = t
+            continue
+        victim = t if other.IsLocked() or not t.IsLocked() else other
+        if victim is other:
+            seen[key] = t
+        dup.append(victim)
+    for t in dup:
+        board.Remove(t)
+    if dup:
+        log('removed %d duplicate tracks / vias' % len(dup))
+    return len(dup)
+
+
+def trim_locked_stubs(board, log=print):
+    """v1.2: a locked hand-placed stub whose far end the router did not use (it joined somewhere along the stub)
+    ends up with a dangling end. Shorten it to the last junction (track end, via or pad on the stub); remove it
+    when nothing touches it at all. Aborts if that would create an unconnected item."""
+    changed = []
+    for _ in range(10):
+        board.BuildConnectivity()
+        conn = board.GetConnectivity()
+        before = conn.GetUnconnectedCount(False)
+        bad = [t for t in board.GetTracks()
+               if t.Type() == pcbnew.PCB_TRACE_T and t.IsLocked() and conn.TestTrackEndpointDangling(t, True)]
+        if not bad:
+            break
+        for t in bad:
+            s, e = t.GetStart(), t.GetEnd()
+            lay, net, half = t.GetLayer(), t.GetNetCode(), t.GetWidth() / 2.0
+            seg = LineString([(s.x, s.y), (e.x, e.y)])
+            s_dang = conn.TestTrackEndpointDangling(t, False) if hasattr(conn, 'TestTrackEndpointDangling') else False
+            # junction candidates on the same net and layer: ends of other tracks, vias, pads
+            pts = []
+            for o in board.GetTracks():
+                if o.m_Uuid == t.m_Uuid or o.GetNetCode() != net:   # SWIG wrappers differ, compare the UUID
+                    continue
+                if o.Type() == pcbnew.PCB_TRACE_T and o.GetLayer() == lay:
+                    pts += [o.GetStart(), o.GetEnd()]
+                elif o.Type() == pcbnew.PCB_VIA_T:
+                    pts.append(o.GetPosition())
+            for f in board.GetFootprints():
+                for pd in f.Pads():
+                    if pd.GetNetCode() == net and pd.IsOnLayer(lay):
+                        pts.append(pd.GetPosition())
+            on = [p for p in pts if seg.distance(Point(p.x, p.y)) <= half + 10]
+            # which end is dangling? the one no junction point sits on
+            def near(p, q):
+                return math.hypot(p.x - q.x, p.y - q.y) <= half + 10
+            s_ok = any(near(p, s) for p in on)
+            e_ok = any(near(p, e) for p in on)
+            if not on or (not s_ok and not e_ok):
+                changed.append(('removed', net, _geo(t)))
+                board.Remove(t)
+                continue
+            anchor, free = (s, e) if s_ok else (e, s)
+            # last junction measured from the anchored end
+            far = max(on, key=lambda p: math.hypot(p.x - anchor.x, p.y - anchor.y))
+            if near(far, free):
+                continue                       # both ends used: KiCad calls it dangling for another reason
+            if anchor is s:
+                t.SetEnd(far)
+            else:
+                t.SetStart(far)
+            changed.append(('trimmed', net, _geo(t)))
+        board.BuildConnectivity()
+        if board.GetConnectivity().GetUnconnectedCount(False) > before:
+            raise SystemExit('stub trim broke connectivity: %s' % changed)
+    for c in changed:
+        log('%s locked stub %s' % (c[0], c[1]))
+    return changed
 
 
 def _geo(t):

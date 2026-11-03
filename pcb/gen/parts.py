@@ -6,7 +6,9 @@ VERSION = '1.2'   # PCB version: silkscreen title + release zip name (pcb/gen/pa
 
 W, H = 100.0, 100.0
 
-# ---- ESP32 DevKitC V4: top row = DevKit J3 side, bottom row = J2 side (dual column 22.86 / 25.4 mm) ----
+# ---- ESP32 DevKitC V4, v1.2: USB-C at the LEFT board edge (plug in through the case wall), antenna end inboard
+# over a copper keep-out. Rotated 180 deg vs. v1.1: top row = DevKit J2 side (5V .. 3V3), bottom rows = J3 side
+# (CLK .. GND), pin 19 of the DevKit (USB end) sits in socket pin 1 at x = 1.7, dual column 22.86 / 25.4 mm.
 J3_PINS = ['GND', 'IO23', 'IO22', 'TXD', 'RXD', 'IO21', 'GND', 'IO19', 'IO18', 'IO5', 'IO17', 'IO16', 'IO4',
            'IO0', 'IO2', 'IO15', 'SD1', 'SD0', 'CLK']
 J2_PINS = ['+3V3', 'EN', 'VP', 'VN', 'IO34', 'IO35', 'IO32', 'IO33', 'IO25', 'IO26', 'IO27', 'IO14', 'IO12',
@@ -15,16 +17,18 @@ J2_PINS = ['+3V3', 'EN', 'VP', 'VN', 'IO34', 'IO35', 'IO32', 'IO33', 'IO25', 'IO
 # IO35 (leak probe, ADC1), VN + IO5 (EXP header spares).
 USED = {'GND', 'IO23', 'IO22', 'IO21', 'IO19', 'IO18', 'IO17', 'IO16', 'IO4', '+3V3', 'IO32', 'IO33', 'IO25',
         'IO26', 'IO27', 'IO14', 'IO13', '+5V_DEV', 'IO34', 'IO35', 'IO2', 'IO15', 'VP', 'VN', 'IO5'}
-DK_X0, DK_Y0 = 3.0, 5.0
+DK_X0, DK_Y0 = 1.7, 5.0         # socket pin 1 (DevKit USB end); the USB-C face ends up 1.0 mm outside the board edge
+ANT_KEEPOUT = [(50.3, 0.5, 60.0, 36.5)]   # no copper / tracks under the module antenna (x 49..55); a 2 mm corridor
+                                           # stays open between the socket ends (48.7) and the zone for the power tracks
 ROW_NARROW, ROW_WIDE = 22.86, 25.4
 
 
-def j3_nets():
-    return {str(k + 1): (n if n in USED else None) for k, n in enumerate(J3_PINS)}
+def j_top_nets():      # DevKit J2 side, reversed: socket pin 1 = 5V (USB end) ... pin 19 = 3V3 (antenna end)
+    return {str(k + 1): (n if n in USED else None) for k, n in enumerate(reversed(J2_PINS))}
 
 
-def j4_nets():
-    return {str(k + 1): (n if n in USED else None) for k, n in enumerate(J2_PINS)}
+def j_bot_nets():      # DevKit J3 side, reversed: socket pin 1 = CLK (USB end) ... pin 19 = GND (antenna end)
+    return {str(k + 1): (n if n in USED else None) for k, n in enumerate(reversed(J3_PINS))}
 
 
 R0603 = ('Resistor_SMD', 'R_0603_1608Metric')
@@ -72,11 +76,11 @@ def clamp(ref, n, val, x, y, rot, nets):
 # Three 1x19 sockets: J3 (top row) + J4 (outer bottom row, 25.4 mm) + J15 (inner bottom row, 22.86 mm).
 # Both bottom rows are fitted and wired in parallel, so either DevKit width plugs in.
 SOCKET = ('robo', 'PinSocket_1x19_P2.54mm_Vertical_Tight')   # courtyard = body, so J4 + J15 may touch
-add('J3', SOCKET, 'DevKitC socket (GND..CLK)', DK_X0, DK_Y0, 90, j3_nets(),
+add('J3', SOCKET, 'DevKitC socket (5V..3V3)', DK_X0, DK_Y0, 90, j_top_nets(),
     lcsc='C2932678', mpn='KH-2.54FH-1X19P-H8.5', tht=True)
-add('J4', SOCKET, 'DevKitC socket (3V3..5V) outer 25.4', DK_X0, DK_Y0 + ROW_WIDE, 90, j4_nets(),
+add('J4', SOCKET, 'DevKitC socket (CLK..GND) outer 25.4', DK_X0, DK_Y0 + ROW_WIDE, 90, j_bot_nets(),
     lcsc='C2932678', mpn='KH-2.54FH-1X19P-H8.5', tht=True)
-add('J15', SOCKET, 'DevKitC socket (3V3..5V) inner 22.86', DK_X0, DK_Y0 + ROW_NARROW, 90, j4_nets(),
+add('J15', SOCKET, 'DevKitC socket (CLK..GND) inner 22.86', DK_X0, DK_Y0 + ROW_NARROW, 90, j_bot_nets(),
     lcsc='C2932678', mpn='KH-2.54FH-1X19P-H8.5', tht=True)
 
 # ================= 12 V input + protection (top right) =================
@@ -89,12 +93,12 @@ add('D1', ('Diode_SMD', 'D_SOD-123'), 'BZT52C12', 67.5, 7.0, 0, {'1': '+12V', '2
 R('R1', '100k', 72.8, 6.6, 0, 'GND', 'Q1_G')
 add('D2', ('Diode_SMD', 'D_SMA'), 'SMAJ15A', 66.5, 13.0, 0, {'1': '+12V', '2': 'GND'},
     lcsc='C148216', mpn='SMAJ15A')
-add('C1', ('Capacitor_SMD', 'CP_Elec_6.3x7.7'), '100uF 25V', 58.0, 8.5, 0, {'1': '+12V', '2': 'GND'},   # v1.2: moved left, frees the back wall for the USB-C panel socket
+add('C1', ('Capacitor_SMD', 'CP_Elec_6.3x7.7'), '100uF 25V', 75.5, 17.5, 0, {'1': '+12V', '2': 'GND'},
     lcsc='C3338', mpn='RVT1E101M0607')
 C('C2', '10uF 50V', 75.5, 22.8, 0, '+12V', 'GND', fp=C1206)
 
 # ================= 12 V -> 5.1 V buck (LMR51430, TI SLUSEF4 sec. 9.2) =================
-UX, UY = 69.0, 31.0
+UX, UY = 72.0, 40.0            # v1.2: moved out of the DevKit antenna area
 add('U4', ('Package_TO_SOT_SMD', 'TSOT-23-6'), 'LMR51430XFDDCR', UX, UY, 0,
     {'1': 'GND', '2': 'SW', '3': '+12V', '4': 'FB', '5': 'EN', '6': 'CB'}, lcsc='C5219260', mpn='LMR51430XFDDCR')
 add('L1', ('Inductor_SMD', 'L_Chilisin_BMRx00060630'), '6.8uH 6A', UX - 6.8, UY, 0, {'1': '+5V', '2': 'SW'},
@@ -112,8 +116,8 @@ C('C26', '22uF 25V', UX - 13.4, UY + 4.0, 0, 'GND', '+5V', fp=C0805)  # COUT (3r
 R('R4', '2.2k', UX - 13.4, UY + 6.8, 0, '+5V', 'LED_PWR')
 add('LED1', ('LED_SMD', 'LED_0805_2012Metric'), 'green', UX - 13.4, UY + 9.0, 180, {'1': 'GND', '2': 'LED_PWR'},
     lcsc='C2297', mpn='KT-0805G')
-add('D3', ('Diode_SMD', 'D_SOD-123'), 'B5819W', 49.2, 35.5, 180, {'1': '+5V_DEV', '2': '+5V'},
-    lcsc='C8598', mpn='B5819W')
+add('D3', ('Diode_SMD', 'D_SOD-123'), 'B5819W', 7.5, 2.3, 0, {'1': '+5V_DEV', '2': '+5V'},     # next to the 5V pin
+    lcsc='C8598', mpn='B5819W', noref=True)
 
 # ================= v1.2: 12 V supply monitor -> GPIO36 (VP, ADC1_CH0) =================
 # 100k / 22k divider: 12 V -> 2.16 V, 24 V -> 4.3 V, clamped by D7 (BAT54S) to 3V3 through the 10k.
@@ -209,30 +213,38 @@ add('Q4', SOT23, 'AO3400A', 21.6, 69.0, 0, {'1': 'Q4_G', '2': 'GND', '3': 'BEAM_
 R('R33', '100', 26.2, 64.5, 90, 'IO13', 'Q4_G')
 R('R34', '100k', 24.6, 69.0, 90, 'Q4_G', 'GND')                     # emitter off while the ESP32 boots
 
-# ================= v1.2: water leak probe (left edge, below BEAM) =================
-# Two bare electrodes on the cabinet floor between SENSE and GND. IO4 drives the probe through R40 only while
-# measuring (50 ms every 10 s, no DC across the electrodes -> no corrosion); IO35 (ADC1) reads the divider
-# R40 / water. Dry: 3.3 V. Tap water (< 200 kOhm): below 2.2 V. R41 + C31 filter, D4 clamps to 3V3 / GND.
+# ================= v1.2: water leak input (left edge, below BEAM) =================
+# 4 poles: 12V (PTC F5) and 3V3 (PTC F6) to power a sensor, SENSE, GND. Works with
+#  a) two bare electrodes between SENSE and GND: IO4 drives SENSE through R40 only while measuring (70 ms every
+#     10 s, no DC across the electrodes -> no corrosion), IO35 (ADC1) reads the divider R40 / water:
+#     dry 3.3 V, tap water (< 200 kOhm) below 2.2 V;
+#  b) a sensor with a digital output: NPN / open collector (sinks SENSE to GND when wet, powered from 12 V or 3V3)
+#     or 3.3-5 V push-pull logic. SENSE reads 0 V or 3.3 V during the same measurement window.
+# R41 + C31 filter, D4 clamps IO35 to 3V3 / GND (a 5 V logic high is fine).
 LX, LY = 7.2, 70.5
-clamp('J13', 2, 'LEAK', LX, LY, 270, {'1': 'LEAK_S', '2': 'GND'})
+clamp('J13', 4, 'LEAK', LX, LY, 270, {'1': '+12V_LK', '2': '+3V3_LK', '3': 'LEAK_S', '4': 'GND'})
+add('F5', ('Fuse', 'Fuse_1206_3216Metric'), 'PTC 200mA 30V', 19.0, 80.0, 0, {'1': '+12V', '2': '+12V_LK'},
+    lcsc='C883118', mpn='BSMD1206-020-30V', noref=True)
+add('F6', ('Fuse', 'Fuse_1206_3216Metric'), 'PTC 200mA 30V', 19.0, 83.0, 0, {'1': '+3V3', '2': '+3V3_LK'},
+    lcsc='C883118', mpn='BSMD1206-020-30V', noref=True)
 R('R40', '100k', 19.5, 71.8, 0, 'IO4', 'LEAK_S')
 C('C30', '1nF', 19.5, 74.3, 0, 'LEAK_S', 'GND')
 R('R41', '10k', 22.5, 71.8, 0, 'LEAK_S', 'IO35')
 C('C31', '100nF', 22.5, 74.3, 0, 'IO35', 'GND')
 add('D4', SOT23, 'BAT54S', 19.5, 77.0, 0, {'1': 'GND', '2': '+3V3', '3': 'IO35'}, lcsc='C408389', mpn='BAT54S', noref=True)
 
-# ================= v1.2: 12 V valve output (left edge, below LEAK) =================
+# ================= v1.2: 12 V valve output (right edge, between BUTTON and 12 V IN) =================
 # Low-side switch for a 12 V solenoid or motorised valve (<= 1.5 A): IO2 -> R42 -> Q6 (AO3400A), SS34 flyback,
 # PTC F4. Pole 1 = +12V (fused), pole 2 = switched return. IO2 is a strapping pin: R43 keeps it low at boot.
-VX, VY = 7.2, 80.0
-clamp('J14', 2, 'VALVE', VX, VY, 270, {'1': '+12V_VLV', '2': 'VALVE_K'})
-add('F4', ('Fuse', 'Fuse_1206_3216Metric'), 'PTC 1.5A 16V', 19.0, 80.0, 0, {'1': '+12V', '2': '+12V_VLV'},
+VX, VY = 92.8, 25.0            # pin 1 (+12V) at y 25, pin 2 at 21.5: body between BUTTON and 12 V IN
+clamp('J14', 2, 'VALVE', VX, VY, 90, {'1': '+12V_VLV', '2': 'VALVE_K'})
+add('F4', ('Fuse', 'Fuse_1206_3216Metric'), 'PTC 1.5A 16V', 81.6, 19.8, 0, {'1': '+12V', '2': '+12V_VLV'},
     lcsc='C883133', mpn='BSMD1206-150-16V', noref=True)          # 16 V part: the ASMD1206-150 (F2) is rated 6 V
-add('D5', ('Diode_SMD', 'D_SMA'), 'SS34', 19.5, 84.0, 0, {'1': '+12V_VLV', '2': 'VALVE_K'},
-    lcsc='C8678', mpn='SS34')
-add('Q6', SOT23, 'AO3400A', 23.6, 80.5, 0, {'1': 'Q6_G', '2': 'GND', '3': 'VALVE_K'}, lcsc='C20917', mpn='AO3400A', noref=True)
-R('R42', '100', 22.8, 77.2, 90, 'IO2', 'Q6_G')
-R('R43', '10k', 24.5, 84.0, 90, 'Q6_G', 'GND')
+add('D5', ('Diode_SMD', 'D_SMA'), 'SS34', 81.5, 23.0, 0, {'1': '+12V_VLV', '2': 'VALVE_K'},
+    lcsc='C8678', mpn='SS34', noref=True)
+add('Q6', SOT23, 'AO3400A', 82.3, 27.0, 0, {'1': 'Q6_G', '2': 'GND', '3': 'VALVE_K'}, lcsc='C20917', mpn='AO3400A', noref=True)
+R('R42', '100', 86.0, 23.2, 90, 'IO2', 'Q6_G')
+R('R43', '10k', 81.8, 30.2, 0, 'Q6_G', 'GND')
 
 # ================= v1.2: buzzer (centre) =================
 # MLT-8530 passive magnetic buzzer (3.6 V, 16 Ohm, 2.7 kHz): +5V -> R44 (10 Ohm) -> BZ1 -> Q7 (AO3400A) -> GND.
@@ -263,7 +275,7 @@ SLOTS = [[(o0, NECK[0]), (o0, p0), (o1, p0), (o1, p1), (o0, p1), (o0, NECK[1]), 
           (x1, y1), (x1, y0), (x0, y0), (x0, NECK[0])]]
 k = 0.4                                   # copper-to-edge clearance
 KEEPOUTS = [(o0 - k, p0 - k, o1 + k, y0 + k), (o0 - k, y1 - k, o1 + k, p1 + k), (x1 - k, p0 - k, o1 + k, p1 + k),
-            (o0 - k, p0 - k, x0 + k, NECK[0] + k), (o0 - k, NECK[1] - k, x0 + k, p1 + k)]
+            (o0 - k, p0 - k, x0 + k, NECK[0] + k), (o0 - k, NECK[1] - k, x0 + k, p1 + k)] + ANT_KEEPOUT
 CHAMBER = (76.0, 84.0, 100.0, 100.0)     # case chamber around the sensor (partitions at x = 76 and y = 84)
 NOPOUR = [(CHAMBER[0] + 0.6, CHAMBER[1] + 0.6, W - 0.3, H - 0.3)]
 
@@ -303,15 +315,10 @@ TR += [('GND', 0.5, 'F', [(UX + 1.48, UY + 5.2), (UX + 2.9, UY + 5.2)]),
 TR += [('+5V', 0.8, 'F', [(UX - 12.45, UY + 1.4), (UX - 12.45, UY + 4.0)]),
        ('GND', 0.5, 'F', [(UX - 14.35, UY + 4.0), (UX - 15.4, UY + 4.0)])]
 VIAS += [('GND', UX - 15.4, UY + 4.0)]
-# IO23 (button ring gate) from the far-left DevKit pin along the top edge, dips under the 12 V input
-TR += [('IO23', 0.25, 'F', [(5.54, 5.0), (5.54, 1.6), (84.0, 1.6), (84.0, 7.0)]),
-       ('IO23', 0.25, 'B', [(84.0, 7.0), (84.0, 33.5)]),
-       ('IO23', 0.25, 'F', [(84.0, 33.5), (78.3, 33.5), (77.5, 33.325)])]
-VIAS += [('IO23', 84.0, 7.0), ('IO23', 84.0, 33.5)]
-# v1.2: GND spokes by hand for the socket pins the router boxes in (J3.1 top-left, J4.14 under the EXP header):
+# v1.2: GND spokes by hand for the socket pins the router boxes in (J3.6 top row, J4.13 under the EXP header):
 # a short locked track on each layer to a GND via counts as a thermal spoke for the KiCad DRC.
-for (px, py), (vx, vy) in (((DK_X0, DK_Y0), (DK_X0, DK_Y0 + 2.6)),
-                           ((DK_X0 + 13 * 2.54, DK_Y0 + ROW_WIDE), (DK_X0 + 13 * 2.54, DK_Y0 + ROW_WIDE + 2.1))):
+for (px, py), (vx, vy) in (((DK_X0 + 5 * 2.54, DK_Y0), (DK_X0 + 5 * 2.54, DK_Y0 + 2.6)),
+                           ((DK_X0 + 12 * 2.54, DK_Y0 + ROW_WIDE), (DK_X0 + 12 * 2.54, DK_Y0 + ROW_WIDE + 2.1))):
     TR += [('GND', 0.4, 'F', [(px, py), (vx, vy)]), ('GND', 0.4, 'B', [(px, py), (vx, vy)])]
     VIAS += [('GND', vx, vy)]
 # DRV8871 VM -> 100 nF
@@ -358,22 +365,22 @@ pin_labels_bottom(37.0, ['5V', 'DAT', 'GND'])
 pin_labels_bottom(55.0, ['3V3', 'SDA', 'SCL', 'GND'])
 pin_labels_right(15.0, ['+12V', 'GND'])
 pin_labels_right(42.0, ['BTN', 'GND', '12V', 'LED-'])
+pin_labels_right(VY, ['12V', 'VLV'], x=87.3)
 pin_labels_right(78.0, ['CL', 'GND', 'OP', 'GND', 'DR', 'GND'])
 pin_labels_left(BY, ['RX+', 'RX-', 'SIG', 'TX+', 'TX-', 'GND'])
-pin_labels_left(LY, ['SENSE', 'GND'])
-pin_labels_left(VY, ['12V', 'VLV'])
+pin_labels_left(LY, ['12V', '3V3', 'SENSE', 'GND'])
 T('BEAM', 12.6, BY - 3.5, 0.8, just='l')
 T('LEAK', 13.0, LY - 2.4, 0.8, just='l')
-T('VALVE', 13.0, VY - 2.4, 0.8, just='l')
 T('ACTUATOR', 18.0, 88.6, 0.8, just='l')
 T('FAN', 26.3, 91.0, 0.9)
 T('LED', 40.5, 84.6, 0.8)
 T('I2C  ToF', 60.25, 84.6, 0.8)
 T('12 V IN', 83.6, 8.0, 0.8, just='r')
-T('BUTTON', 83.6, 26.4, 0.8, just='r')
+T('BUTTON', 87.3, 28.3, 0.8, just='r')
+T('VALVE', 87.5, 18.3, 0.8, just='r')
 T('REEDS', 83.6, 56.8, 0.8, just='r')
 T('EXP: 3V3 GND 5V IO14 IO39 IO5', 37.35, 37.6, 0.8)
 T('BUZZER', BZX, BZY - 6.6, 0.8)
 T('ROBO-GARAGE CTRL v' + VERSION, 42.0, 46.0, 1.4)
-T('ESP32 DevKitC V4  (antenna <-)  USB-C ->', 26.0, 2.4, 0.8)
+T('<- USB-C   ESP32 DevKitC V4   antenna ->', 28.0, 2.4, 0.8)
 T('DevKit: either row fits (25.4 / 22.86)', 3.0, 33.6, 0.8, just='l')

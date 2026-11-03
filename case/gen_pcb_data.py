@@ -54,6 +54,10 @@ for name, ref in [('led1', 'LED1'), ('c1_pos', 'C1'), ('c3_pos', 'C3'), ('c13_po
     lines.append('%s = %s;' % (name, pos(ref)))
 x0, y0, x1, y1 = parts.ISL
 w = parts.SLOT_W
+# v1.2: DevKitC rotated, USB-C at the left board edge. [usb face x, antenna end x, y centre wide board, y centre narrow]
+lines.append('devkit = %s;  // USB-C face x, antenna end x, USB-C centre y (25.4 mm board / 22.86 mm board)' % [
+    round(parts.DK_X0 - 2.68, 2), round(parts.DK_X0 + 18 * 2.54 + 1.27 + 6.16, 2),
+    round(ys(parts.DK_Y0 + parts.ROW_WIDE / 2), 2), round(ys(parts.DK_Y0 + parts.ROW_NARROW / 2), 2)])
 lines.append('slot_outer = %s;  // C-slot around the SHT40 island [x0, y0, x1, y1]' % [x0 - w, ys(y1 + w), x1 + w, ys(y0 - w)])
 cx0, cy0, cx1, cy1 = parts.CHAMBER
 lines.append('chamber = %s;  // sensor chamber: partitions at x0 and y1' % [cx0, ys(cy1), cx1, ys(cy0)])

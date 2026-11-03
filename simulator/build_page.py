@@ -86,10 +86,9 @@ rep('''      <tr><td>BTS7960 "IBT-2" H-bridge</td><td>1</td><td class="num">1–
 rep('''      <tr class="grp"><td colspan="4">Hardware store (cut to size)</td></tr>''', '''      <tr class="grp"><td colspan="4">Controller PCB v1.2 – <a href="#pcb">files below</a></td></tr>
       <tr><td>JLCPCB: 5 PCBs, 2 fully assembled (Economic PCBA: SMD + push-button clamps + DevKit sockets) – Gerber zip, BOM, CPL from the download <span class="tag">≈ 30 extended parts × $3</span></td><td>1 order</td><td class="num">140–180</td><td><a href="https://jlcpcb.com/">JLCPCB</a></td></tr>
       <tr><td>Light barrier pair 12–24 V, through-beam, NPN, Light-ON ("NC") – door safety</td><td>1 pair</td><td class="num">9–15</td><td><a href="https://www.aliexpress.com/w/wholesale-through-beam-photoelectric-sensor.html">AliExpress</a></td></tr>
-      <tr class="opt"><td>Leak probe: 2 stainless screws on the cabinet floor or a water-leak sensor cable <span class="tag">optional</span> – LEAK clamp</td><td>1</td><td class="num">0–4</td><td><a href="https://www.aliexpress.com/w/wholesale-water-leak-sensor-cable.html">AliExpress</a></td></tr>
+      <tr class="opt"><td>Leak detection: 2 stainless screws on the cabinet floor, or any water-leak sensor with a digital output (NPN / 3.3–5 V logic, powered from the clamp) <span class="tag">optional</span> – LEAK clamp</td><td>1</td><td class="num">0–8</td><td><a href="https://www.aliexpress.com/w/wholesale-water-leak-sensor-module.html">AliExpress</a></td></tr>
       <tr class="opt"><td>Water valve 12 V DC ≤ 1.5 A that closes when powered (NO solenoid / motorised ball valve) <span class="tag">optional</span> – VALVE clamp, for the water kit</td><td>1</td><td class="num">10–30</td><td><a href="https://www.aliexpress.com/w/wholesale-12v-normally-open-solenoid-valve.html">AliExpress</a></td></tr>
       <tr><td>Case: PETG ≈ 70 g + 4× M3×25 screws (STL in the download)</td><td>–</td><td class="num">2–4</td><td>–</td></tr>
-      <tr><td>USB-C panel-mount extension, flange with 2× M3 holes 18 mm apart, 15–30 cm (e.g. SparkFun CAB-15455 or generic) – USB-C on the case</td><td>1</td><td class="num">4–15</td><td><a href="https://www.sparkfun.com/panel-mount-usb-c-extension-cable-6.html">SparkFun</a> · <a href="https://www.aliexpress.com/w/wholesale-usb-c-panel-mount-extension-cable.html">AliExpress</a></td></tr>
       <tr class="grp"><td colspan="4">Hardware store (cut to size)</td></tr>''')
 rep('''      <tr><td>Wire, Wago, 3 A fuse, screws, wood glue, 4 steel angles 30 mm, 330 Ω, 1000 µF/10 V, BC547 + 1 kΩ (button ring)</td><td>–</td><td class="num">12–22</td><td>–</td></tr>''',
     '''      <tr><td>Wire 0.5 mm², screws, wood glue, 4 steel angles 30 mm, zip ties</td><td>–</td><td class="num">8–15</td><td>–</td></tr>''')
@@ -118,10 +117,10 @@ pcb_section = '''<section class="card" style="margin-top:14px" id="pcb">
     <div>
       <h3>On the board</h3>
       <table class="kv"><tbody>
-        <tr><td>ESP32</td><td>DevKitC V4 plugs into a socket · USB-C socket on the case back wall (flash without opening), then OTA</td></tr>
+        <tr><td>ESP32</td><td>DevKitC V4 plugs into a socket, its USB-C sits in the case wall: flash with the lid on, then OTA</td></tr>
         <tr><td>Power</td><td>12 V in → PTC, reverse protection, TVS → 5.1 V buck on board (no 5 V adapter)</td></tr>
         <tr><td>Door</td><td>DRV8871 driver (1.9 A limit) + INA219 current sense → stall stop</td></tr>
-        <tr><td>Sensors</td><td>SHT40 temperature + humidity on a slotted island · light-barrier input (12 V safe, self-test) · water-leak probe (pulsed, no corrosion) · 12 V rail monitor</td></tr>
+        <tr><td>Sensors</td><td>SHT40 temperature + humidity on a slotted island · light-barrier input (12 V safe, self-test) · water-leak input: bare electrodes (pulsed, no corrosion) or a digital sensor (12 V / 3.3 V on the clamp) · 12 V rail monitor</td></tr>
         <tr><td>Outputs</td><td>Fan PWM + tach · WS2812 level shifter · 12 V button ring · 12 V valve output (1.5 A, a leak closes the water) · buzzer</td></tr>
         <tr><td>Clamps</td><td>9 push-button spring clamps (KF250, 0.2–0.75 mm²) on 3 edges, soldered by JLCPCB</td></tr>
       </tbody></table>
@@ -158,7 +157,7 @@ pcb_section = '''<section class="card" style="margin-top:14px" id="pcb">
         <tr><td>Material</td><td>PETG</td></tr>
         <tr><td>Layer · walls · infill</td><td>0.2 mm · 3 · 20 %</td></tr>
         <tr><td>Supports</td><td>none (the lid prints top face down)</td></tr>
-        <tr><td>Hardware</td><td>4× M3×25, 4 wood screws, zip ties, USB-C panel socket + 2× M3×8</td></tr>
+        <tr><td>Hardware</td><td>4× M3×25, 4 wood screws, zip ties</td></tr>
       </tbody></table>
     </div>
   </div>
@@ -195,7 +194,7 @@ rep(old_wiring, '''  <details>
         <tr><td>BUTTON</td><td class="m">BTN, GND, 12V, LED−</td><td>Alu button: NO, C, LED+, LED−</td></tr>
         <tr><td>REEDS</td><td class="m">CL/GND, OP/GND, DR/GND</td><td>Door closed, door open, drawer</td></tr>
         <tr><td>BEAM</td><td class="m">RX+, RX−, SIG, TX+, TX−, GND</td><td>Receiver brown, blue, black · sender brown, blue</td></tr>
-        <tr><td>LEAK</td><td class="m">SENSE, GND</td><td>2 electrodes on the cabinet floor (no polarity)</td></tr>
+        <tr><td>LEAK</td><td class="m">12V, 3V3, SENSE, GND</td><td>2 electrodes on SENSE + GND, or a digital leak sensor (power from 12V or 3V3)</td></tr>
         <tr><td>VALVE</td><td class="m">+12V, SW</td><td>12 V valve that closes when powered (optional)</td></tr>
         <tr><td>I2C</td><td class="m">3V3, SDA, SCL, GND</td><td>VL53L1X (optional)</td></tr>
       </tbody>

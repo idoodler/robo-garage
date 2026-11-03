@@ -1,13 +1,17 @@
 # ESPHome config for the Robo-Garage controller PCB v1.2 (ESP32 DevKitC V4 plugged in)
 # v1.1: SHT40 cabinet temperature / humidity (auto vent), door light barrier with self-test.
-# v1.2: water leak probe (LEAK clamp), buzzer, 12 V valve output (VALVE clamp), 12 V rail monitor on the ADC.
+# v1.2: water leak input (LEAK clamp: electrodes or a digital sensor), buzzer, 12 V valve output (VALVE clamp),
+# 12 V rail monitor on the ADC. DevKit USB-C is reachable through the case wall.
 # Pin changes vs. the module build: DRV8871 instead of BTS7960 (no EN pin), INA219 on the board,
 # fan tach on GPIO27, external pull-ups on reeds / button (internal pull-ups stay on, harmless).
 substitutions:
   stall_current: "0.8"   # A: set ~0.3 A above the running current you see in HA ("Door motor current")
   beam_inverted: "true"  # NPN Light-ON receiver (recommended, often sold as "NC") = true; Dark-ON ("NO") = false.
                          # Check: beam clear -> HA "Door beam" must show "Clear". If not, flip this value.
-  leak_threshold: "2.2"  # V at the probe: dry = 3.3 V, tap water between the electrodes < ~2 V (see "Leak probe")
+  leak_threshold: "2.2"  # V at SENSE: electrodes dry = 3.3 V, tap water between them < ~2 V; a digital sensor
+                         # gives 0 V or 3.3 V (see "Leak probe")
+  leak_inverted: "false" # false = wet when SENSE is LOW (electrodes, NPN / open-collector or active-low sensors);
+                         # true = wet when SENSE is HIGH (active-high push-pull sensor)
   supply_low: "10.5"     # V: below this the 12 V supply is sagging (weak PSU, stalled actuator)
 
 esphome:
@@ -100,13 +104,15 @@ number:
     entity_category: config
 
 binary_sensor:
-  - platform: template                                         # v1.2: LEAK clamp (probe on the cabinet floor)
+  - platform: template                                         # v1.2: LEAK clamp: 2 electrodes on the cabinet floor
+                                                               # or a sensor with a digital output (12V / 3V3 on the clamp)
     id: leak
     name: "Water leak"
     device_class: moisture
     lambda: |-
       if (std::isnan(id(leak_v).state)) return {};
-      return id(leak_v).state < ${leak_threshold};
+      bool low = id(leak_v).state < ${leak_threshold};
+      return ${leak_inverted} ? !low : low;
     filters: [delayed_on: 25s, delayed_off: 60s]               # 3 readings in a row (one every 10 s)
     on_press:
       - logger.log: "WATER LEAK -> valve powered, alarm"

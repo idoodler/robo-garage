@@ -7,11 +7,11 @@
 | Change | Detail |
 |---|---|
 | Clamps assembled | WAGO 804 (not at LCSC) → Cixi Kefa **KF250-3.5** spring clamps (push button, 45° wire entry, 0.2–0.75 mm², 5 A), 2P/3P/4P/6P all in stock at LCSC |
-| LEAK clamp (J13) | Water probe on the cabinet floor: pulsed 3.3 V (no corrosion), ADC on IO35, clamp diode. HA: "Water leak", "Leak probe" |
-| VALVE clamp (J14) | 12 V low-side switch (AO3400A, SS34 flyback, PTC 1.5 A) for a water valve. A leak powers it automatically. HA: "Water valve" |
+| LEAK clamp (J13) | 4 poles: 12V + 3V3 (both PTC-fused) to power a sensor, SENSE, GND. Bare electrodes (pulsed 3.3 V, no corrosion) **or** any leak sensor with a digital output. ADC on IO35, clamp diode. HA: "Water leak", "Leak probe" |
+| VALVE clamp (J14) | Right edge, between 12 V IN and BUTTON. 12 V low-side switch (AO3400A, SS34 flyback, PTC 1.5 A / 16 V) for a water valve. A leak powers it automatically. HA: "Water valve" |
 | Buzzer (BZ1) | MLT-8530 on 5 V, driven by IO15 (rtttl). Leak alarm beeps even with the "Buzzer" switch off |
 | 12 V monitor | 100k/22k divider on VP (IO36). HA: "12 V rail", "Supply voltage low" (< 10.5 V) |
-| DevKit sockets | Three 1×19 sockets: J3 + J4 (25.4 mm row spacing) or J3 + J15 (22.86 mm). Both pitches fit, no measuring |
+| DevKit sockets | Three 1×19 sockets: J3 + J4 (25.4 mm row spacing) or J3 + J15 (22.86 mm). Both pitches fit, no measuring. **DevKit USB-C at the left board edge** (through the case wall), antenna inboard over a copper keep-out |
 | JLC requests | 3 tooling holes Ø1.152 mm (TH1–TH3, corners), pin-1 dots on all ICs / transistors / diodes, rotation rule for SOT-23 fixed |
 
 ## Files
@@ -31,7 +31,7 @@
 | 2 Assembly | **Economic**, top side, 2 boards, **Tooling holes: Added by Customer** (TH1–TH3 are on the board), *Confirm Parts Placement* = yes |
 | 3 Files | Upload BOM + CPL. Parts list: all 45 lines must match by LCSC number (0 "no part selected") |
 | 4 THT | The clamps, the 3 sockets and the fan header are THT: keep them ticked → JLC solders them (wave / hand soldering fee ≈ $3.5 + $0.02 per joint, ≈ 92 joints per board) |
-| 5 Preview | Compare the placement preview with **`pin1-check.png`**: U1–U5, Q1–Q7, D1–D7, LED1, C1, C3, C13 and the clamps (wire entry towards the board edge, J3/J4/J15 pin 1 at the top). Rotate in the preview if one differs |
+| 5 Preview | Compare the placement preview with **`pin1-check.png`**: U1–U5, Q1–Q7, D1–D7, LED1, C1, C3, C13 and the clamps (wire entry towards the board edge, J3/J4/J15 pin 1 at the left = DevKit USB end). Rotate in the preview if one differs |
 | 6 Price | ≈ 30 "extended" part types (≈ $3 loading fee each, once per order) — normal for a board like this |
 
 Out of stock? SHT40 → SHT40-AD1B-R3 (C2848306) / SHT41-AD1B-R2 (C7461861). F3 → any 1206 PTC 200 mA ≥ 24 V (e.g. C2892415). F4 → any 1206 PTC 1–1.5 A ≥ 16 V (e.g. C883131); **not** the 6 V ASMD1206-150 of F2. KF250 clamp → same footprint family DG250-3.5 / WJ250-3.5 (check the drawing: Ø1.2 holes, 3.5 mm pitch, single row), or leave that line out and hand-solder.
@@ -39,12 +39,11 @@ Out of stock? SHT40 → SHT40-AD1B-R3 (C2848306) / SHT41-AD1B-R2 (C7461861). F3 
 ## Parts to buy separately
 | Part | Qty | Where it goes |
 |---|---|---|
-| ESP32 DevKitC V4, **WROOM** (not WROVER: GPIO16/17 are used), board 1.1 in (28 mm) or 1.0 in (25.4 mm) wide – not the narrow 0.9 in clone | 1 | Plugs into J3 + J4 (25.4 mm rows) or J3 + J15 (22.86 mm) |
+| ESP32 DevKitC V4, **WROOM** (not WROVER: GPIO16/17 are used), board 1.1 in (28 mm) or 1.0 in (25.4 mm) wide – not the narrow 0.9 in clone | 1 | Plugs into J3 + J4 (25.4 mm rows) or J3 + J15 (22.86 mm), USB-C to the left board edge |
 | Light barrier pair, 12–24 V DC, through-beam, **NPN**, **Light-ON** (often sold as "NC"), e.g. Omron E3Z-T61 set to L-ON. Dark-ON ("NO", e.g. E3F-5DN1) works too → `beam_inverted: "false"` | 1 | BEAM clamp |
-| Leak probe: 2 stainless screws / bare wire ends 5–10 mm apart on the cabinet floor, or a "water leak sensor cable" (2 wires) | 1 | LEAK clamp |
+| Leak detection: 2 stainless screws / bare wire ends 5–10 mm apart on the cabinet floor (nothing else needed), **or** a leak sensor with a digital output: NPN / open-collector (12 V or 3.3 V supply) or 3.3–5 V logic module (LM393 type, 3.3 V supply) | 1 | LEAK clamp |
 | Water valve 12 V DC, ≤ 1.5 A, that **closes when powered** (normally-open solenoid or motorised ball valve "NO") | 1 | VALVE clamp (optional) |
 | VL53L1X module | 1 | I2C clamp (optional) |
-| USB-C panel-mount extension (flange, 2× M3 18 mm apart, 15–30 cm) | 1 | Case back wall → DevKit USB-C: flash with the lid on |
 
 ## Wiring
 | Clamp | Pins (from the board edge) | Connect |
@@ -56,8 +55,8 @@ Out of stock? SHT40 → SHT40-AD1B-R3 (C2848306) / SHT41-AD1B-R2 (C7461861). F3 
 | BUTTON | BTN, GND, 12V, LED− | Alu button: NO, C, LED+, LED− |
 | REEDS | CL/GND, OP/GND, DR/GND | Door closed, door open, drawer reed |
 | BEAM (left) | RX+, RX−, SIG, TX+, TX−, GND | Receiver: brown, blue, black. Emitter: brown, blue. Beam across the cabinet front, ≈ 12 cm in front of the door, ≈ 2 cm above the floor |
-| LEAK (left) | SENSE, GND | 2 electrodes, no polarity. Dry = 3.3 V, water < ≈ 2 V (`leak_threshold`) |
-| VALVE (left) | +12V, SW | Valve + → +12V, valve − → SW (low side, flyback diode on board) |
+| LEAK (left) | 12V, 3V3, SENSE, GND | Electrodes: SENSE + GND (no polarity). Digital sensor: VCC → 12V or 3V3 (200 mA PTC each), OUT → SENSE, GND. Wet = SENSE low (NPN / active-low); active-high sensor → `leak_inverted: "true"` |
+| VALVE (right) | +12V, SW | Valve + → +12V, valve − → SW (low side, flyback diode on board) |
 | I2C ToF | 3V3, SDA, SCL, GND | VL53L1X module (optional) |
 
 **Clamps:** push the button with a 2.5 mm screwdriver, insert the stripped wire (6–7 mm, 0.2–0.75 mm², ferrules OK) at 45° from the board edge, release.
@@ -74,7 +73,7 @@ Out of stock? SHT40 → SHT40-AD1B-R3 (C2848306) / SHT41-AD1B-R2 (C7461861). F3 
 | 21 / 22 | I²C SDA / SCL (INA219 0x40 + SHT40 0x44 on board, VL53L1X on the clamp) |
 | 34 | Light barrier input (via 2N7002, 12 V safe) |
 | 13 | Light barrier emitter on/off (AO3400A) |
-| 4 / 35 | Leak probe drive (pulsed) / leak ADC (BAT54S clamp) |
+| 4 / 35 | Leak drive (pulsed 3.3 V through 100 k) / leak ADC (BAT54S clamp) |
 | 2 | Valve (AO3400A low side, 10 k pull-down: off at boot) |
 | 15 | Buzzer (AO3400A, 10 k pull-down: off at boot) |
 | 36 (VP) | 12 V rail ADC (100k / 22k, BAT54S clamp) |
@@ -83,7 +82,7 @@ Out of stock? SHT40 → SHT40-AD1B-R3 (C2848306) / SHT41-AD1B-R2 (C7461861). F3 
 ## Sensors, safety, alarms
 | Item | How it works |
 |---|---|
-| Leak | Every 10 s IO4 drives 3.3 V through 100 k for 70 ms, IO35 reads the probe (dry ≈ 3.1 V). 3 wet readings in a row (25 s) → "Water leak" on, valve powered, red strobe, beep. Water gone → LED off after 60 s; **the valve stays powered until you switch it off in HA**. Tap water between two screws 5–10 mm apart reads well below 1 V; only very clean water (< 200 kΩ needed) could stay above the 2.2 V threshold → raise `leak_threshold` to 2.8 then. |
+| Leak | Every 10 s IO4 drives 3.3 V through 100 k for 70 ms, IO35 reads SENSE (dry electrodes ≈ 3.1 V, a digital sensor 0 V / 3.3 V). 3 wet readings in a row (25 s) → "Water leak" on, valve powered, red strobe, beep. Water gone → LED off after 60 s; **the valve stays powered until you switch it off in HA**. Tap water between two screws 5–10 mm apart reads well below 1 V; only very clean water (< 200 kΩ needed) could stay above the 2.2 V threshold → raise `leak_threshold` to 2.8 then. |
 | Valve | Use a valve that closes when powered: a cut wire or a dead PSU cannot shut the water, but a leak does. F4 (1.5 A / 16 V PTC) protects the output. |
 | Buzzer | Alerts in ESPHome via `rtttl.play`. "Buzzer" switch off → everything except the leak alarm is silent. |
 | 12 V rail | "12 V rail" sensor (±0.3 V) and "Supply voltage low" when it sags below `supply_low` (weak PSU, stalled actuator). |
@@ -103,3 +102,4 @@ Worst case ≈ 2.5 A from the adapter with the valve on. Keep LED brightness low
 | VALVE clamp | 1.5 A (PTC), 12 V, inductive loads OK (SS34) |
 | Actuator | DRV8871 limits at ≈ 1.9 A (R5 = 33 kΩ) |
 | Clamps | 5 A, 0.2–0.75 mm² |
+| LEAK 12V / 3V3 poles | 200 mA (PTC) each |
