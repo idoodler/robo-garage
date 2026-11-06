@@ -297,7 +297,7 @@ cover:
   - platform: endstop
     id: door
     name: "Robo-Garage Door"
-    device_class: garage
+    device_class: damper
     open_action:
       - output.turn_off: door_close_out
       - script.execute: beep_move
