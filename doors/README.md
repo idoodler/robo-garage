@@ -52,7 +52,19 @@ Printed filament, 4 perimeters (estimate from the slices, old versions at their 
 **Actuator: rated 50–100 N, with the stall stop set up** (`stall_current` in the ESPHome config, about 0.3 A above the running current).
 Calculated pin capacity is about 410–560 N, and a 100 N actuator jammed at one side's door corner puts up to about 400 N on the worst pin, so the stall stop is
 what protects the joints (`max_duration` backs it up if the sensor fails). A stronger actuator is not a gain here. The weakest spot in misuse is the door screws:
-hanging on or yanking a corner of the open door can pull them out. All of this is calculated, not yet broken on the bench.
+a 150 N yank on a corner of the open door can pull them out if they work alone (estimated safety factor 0.5–0.75), so **glue the flanges to the door**, see the door steps.
+All of this is calculated, not yet broken on the bench.
+
+## Test before you fit the door
+
+No part of this design has been printed yet. These tests decide whether it is sound; stop at the first failure and report it.
+
+| # | Test | Pass |
+|---|---|---|
+| 1 | `coupon.stl`: one firm twist on each joint | The 0.45 joint and joint `P` turn freely, no cracks |
+| 2 | Spare coupon, 0.45 joint: clamp the base tab in a vice, pull the post sideways with a luggage scale until it breaks | Calculated 410–560 N for the pin. Note where it broke. Under 200 N: do not use the design |
+| 3 | Module: free all joints. Screw the plate to a board, hold the plate and rock the bracket by hand | Moves through the full travel, no binding, no cracks |
+| 4 | Same module on the board: pull the bracket away from the plate with the scale, along the arms, to 200 N for 10 s. That is the worst pin load with a 50 N actuator stalled at one side | No cracks or whitening, still turns freely |
 
 ## Lift door
 
@@ -121,7 +133,7 @@ Open, the door lies flat inside the cabinet, 137 mm above the tray, above the ro
 | 1 | Template on the cheek: front edge against the back of the front leg, bottom edge on the tray. Pre-drill the 5 plate holes and 3 track holes (3 mm). Left cheek: turn it over like a page |
 | 2 | Modules on the cheeks: 5 screws 4 × 20 each, from the robot side |
 | 3 | Tracks over the pegs (slot towards the bay), 3 screws 3 × 16 each. A little grease in the slot |
-| 4 | Door: hold it in place, closed. Brackets: bottom edge 23 mm above the door's bottom edge. 3 screws 3.5 × 16 per bracket at 45° from the bay side (pre-drill 2.5 mm through the bracket holes) |
+| 4 | Door: hold it in place, closed. Brackets: bottom edge 23 mm above the door's bottom edge. Polyurethane or epoxy glue on the flange face (sand the PETG first), 3 screws 3.5 × 16 per bracket at 45° from the bay side (pre-drill 2.5 mm through the bracket holes) |
 | 5 | Top mount: bolt 13 mm behind the cheek front edge, 428 mm above the tray. 3 screws 4 × 25 |
 | 6 | Actuator: rod eye with the printed spacer on the lever (nyloc nut in the hex pocket), top eye on the mount boss |
 | 7 | Retract fully, slide the mount until the door is just shut, tighten |
@@ -158,7 +170,7 @@ the drawer front's bottom edge; from the front you do not see it.
 | 2 | Left module on, 5 screws 4 × 20 from the robot side |
 | 3 | Solid steel square rod 8 × 8 mm into the square hole of the left front arm, 14 mm deep (tight on purpose: file the hole if the rod does not go in). Length = distance between the cheeks − 16 mm (502 → 486 mm) |
 | 4 | Right module onto the other end of the rod, then screw it on |
-| 5 | Door: hold it closed. Bracket bottom = door bottom edge, outer face = door side edge. Pull the door flat against the flange: the flange is wedged on purpose (see "How the hinges work"), so do not shim it. 3 screws 3.5 × 16 per bracket at 45° from the bay side (pre-drill 2.5 mm) |
+| 5 | Door: hold it closed. Bracket bottom = door bottom edge, outer face = door side edge. Pull the door flat against the flange: the flange is wedged on purpose (see "How the hinges work"), so do not shim it. Polyurethane or epoxy glue on the whole flange face (sand the PETG first), 3 screws 3.5 × 16 per bracket at 45° from the bay side (pre-drill 2.5 mm) |
 | 6 | Top mount: bolt 59 mm behind the cheek front edge, 455 mm above the tray. Actuator with the spacer on the lever, as above |
 | 7 | Retract fully, slide the mount until the door is flush, tighten |
 
