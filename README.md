@@ -12,7 +12,8 @@ ESP32 + ESPHome + Home Assistant: motorised door, light barrier, reed contacts, 
 | Controller PCB | v1.3.1 | DRC 0 errors / 0 warnings (KiCad 7). JLCPCB assembles all parts (SMD + clamps), only the DevKitC is plugged in (USB-C reachable from outside). Power headroom: 12 V in 6 A, actuator 4.9 A limit, valve 3 A, every power path checked against IPC-2221. v1.3.1: clamp pins in 2 rows like the real part, pick & place rotations computed from JLC's own footprints |
 | Case | v1.3.1 | fits PCB v1.3.1 (0 mm³ overlap with the part stand-in), DevKit USB-C through the left wall |
 | ESPHome config | – | checked with ESPHome 2026.10.1 |
-| Simulator | v5.3 | case as a 3D model in the scene, PCB v1.3.1 texts + downloads |
+| Simulator | v5.4 | door open slider for all 4 door types, printed door parts in 3D + side view, door downloads |
+| Doors | v2.0 | Printed parts for all 4 door types (lift door, flap out, up & over, parallel lift), no supports. Up & over + parallel lift: print-in-place modules, checked over the whole travel (joint gap 0.45 mm, other gaps ≥ 1 mm). Parallel lift parks 23 mm out (40 mm max) |
 
 ## Folders
 
@@ -23,6 +24,7 @@ ESP32 + ESPHome + Home Assistant: motorised door, light barrier, reed contacts, 
 | `pcb/robo-garage/` | Work folder. Only `robo-garage.ses` (Freerouting result) is in git |
 | `pcb/out/` | Order files: gerbers zip, BOM + CPL for JLCPCB, KiCad project, renders, `pin1-check.png`. **Order guide: `pcb/out/README.md`** |
 | `case/` | 3D-printed case: OpenSCAD source, STL files, pictures, print guide |
+| `doors/` | Printed door parts for all 4 door types: OpenSCAD source, STL files, check scripts, print + assembly guide (`doors/README.md`) |
 | `simulator/` | Simulator web page: `robo-garage.html` (source) → `build_page.py` → `index.html` |
 
 ## Build
@@ -38,16 +40,19 @@ Locally: run from the repo root. Tested with KiCad 7.0.11 (Python `pcbnew`), Pyt
 | PCB: copy to `pcb/out` + zip | `pcb/gen/package.sh` |
 | PCB: re-route (optional) | `pcb/gen/pipeline.sh` (Freerouting is not deterministic: run it again if `finish.py` reports unconnected items) |
 | Case: PCB data, STL, zip | `case/build.sh` |
-| Simulator page | `python3 simulator/build_files.py` (downloads, pictures, case GLB) then `python3 simulator/build_page.py` |
+| Doors: STL, zip | `doors/build.sh` (other joint gap: `doors/build.sh -D cj=0.35`) |
+| Doors: motion, gap and overhang checks | `python3 doors/check_parallel.py`, `python3 doors/check_upover.py`, `python3 doors/check_simple.py` |
+| Simulator page | `python3 simulator/build_files.py` (downloads, pictures, case + door GLB) then `python3 simulator/build_page.py` |
 | Flash ESP32 | `esphome run esphome/robo-garage-pcb.yaml` |
 
 | Tool | Needed for |
 |---|---|
 | Python packages `shapely` 2.2, `segno` 1.6 (QR code on the silkscreen) | `build.py`, `finish.py` |
 | `kicad-cli`, `rsvg-convert`, Python package `Pillow` | `fab.py` |
-| `zip` | `package.sh`, `case/build.sh` |
-| `openscad`, font DejaVu Sans | `case/build.sh`, `simulator/build_files.py` |
-| Python packages `Pillow`, `trimesh`, `numpy` | `simulator/build_files.py` |
+| `zip` | `package.sh`, `case/build.sh`, `doors/build.sh` |
+| `openscad`, font DejaVu Sans | `case/build.sh`, `doors/build.sh`, `simulator/build_files.py` |
+| Python packages `trimesh`, `rtree`, `shapely`, `numpy`; `xvfb-run` for `render.py` | `doors/check_*.py`, `doors/render.py` |
+| Python packages `Pillow`, `trimesh`, `numpy`, `shapely`, `fast-simplification` | `simulator/build_files.py` |
 | Java, `xvfb-run`, `pcb/tools/freerouting-1.9.0.jar` ([Freerouting releases](https://github.com/freerouting/freerouting/releases)) | `pipeline.sh` only |
 
 Moved a part in `parts.py`? Then the old tracks no longer fit: run `pcb/gen/pipeline.sh` and commit the new `pcb/robo-garage/robo-garage.ses`.
