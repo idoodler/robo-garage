@@ -30,8 +30,11 @@ def scad_echo(scad, defs=()):
 
 def render(scad, part, defs=()):
     fn = os.path.join(TMP, f'{os.path.basename(scad)}.{part}.stl')
-    subprocess.run(['openscad', '-q', '--export-format', 'binstl', '-D', f'part="{part}"',
-                    *sum((['-D', d] for d in defs), []), '-o', fn, scad], check=True)
+    r = subprocess.run(['openscad', '--export-format', 'binstl', '-D', f'part="{part}"',
+                        *sum((['-D', d] for d in defs), []), '-o', fn, scad], check=True, capture_output=True, text=True)
+    bad = [l for l in r.stderr.splitlines() if l.startswith('ERROR') or 'undefined' in l.lower()]
+    if bad:                                     # OpenSCAD keeps going and silently drops the broken geometry
+        sys.exit(f'{os.path.basename(scad)} part {part}: ' + '; '.join(bad[:3]))
     return trimesh.load(fn)
 
 

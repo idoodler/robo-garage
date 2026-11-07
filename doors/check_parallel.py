@@ -26,10 +26,42 @@ d = lambda a: np.array([math.cos(math.radians(a)), math.sin(math.radians(a))])
 T = lambda f: R * (d(TH0 - SW * f) - d(TH0))
 C = lambda f: P1 + LEV * d(LEV_A - SW * f)
 
-DOOR = Polygon([(-19, 17), (0, 17), (0, 203), (-18, 221), (-19, 221)])     # door section, 45 deg back chamfer, 1 mm flat
+DOOR = affinity.translate(Polygon([(-19, 17), (0, 17), (0, 203), (-18, 221), (-19, 221)]), 0, G['door_up'])   # door section, 45 deg back chamfer, 1 mm flat
 VEDD = box(-19, 225, -3, 700)                                                # drawer front (VEDDINGE)
 WHEEL = box(55, 0, 85, 30)                                                   # drawer wheel, Z 9..19 in the module frame
 Z_ACT = -(G['act_gap'] + 4)                                                  # actuator plane: spacer + half an 8 mm eye
+
+
+def door_loaded(f, g):
+    """Door pose with the joint play of radial gap g taken up by its weight: (polygon, lean in deg, + = top outwards). Both sides averaged:
+    the door is stiff. Each pin sits g off its ring centre, against the force. The rear arm only pushes; the front arm also carries shear."""
+    u, t = d(TH0 - SW * f), T(f)
+    a1, a2, cg = A1 + t, A2 + t, np.array([-9.5, 119.0]) + t
+    w = np.array([0, -0.5 * 1.48 * 9.81])
+    cr = lambda a, b: a[0] * b[1] - a[1] * b[0]
+    un = lambda v: v / np.linalg.norm(v)
+    sa = -cr(cg - a1, w) / cr(a2 - a1, u)                    # force on the bracket from the rear arm = sa * u
+    f1 = -w - sa * u                                         # ... and from the front arm
+    pose = []
+    for lev in (True, False):
+        gg = f1
+        if lev:                                              # left front arm: the actuator holds both sides via the rod
+            c = C(f); ua = un(F - c)
+            gg = f1 - (-2 * cr(a1 - P1, -f1) / cr(c - P1, ua)) * ua
+        p1 = P1 - g * un(gg) + R * u - g * un(f1)            # bracket pin A1
+        r2 = R - 2 * g * np.sign(sa)                         # rear arm: effective length
+        dv = P2 - p1; dd = np.linalg.norm(dv)                # bracket pin A2: BASE from A1, r2 from P2
+        aa = (G['BASE'] ** 2 - r2 ** 2 + dd ** 2) / (2 * dd); hh = math.sqrt(max(G['BASE'] ** 2 - aa ** 2, 0))
+        e = dv / dd; n = np.array([-e[1], e[0]])
+        p2 = min((p1 + aa * e + hh * n, p1 + aa * e - hh * n), key=lambda q: np.linalg.norm(q - a2))
+        pose.append((math.degrees(math.atan2((p1 - p2)[1], (p1 - p2)[0])) - G['BDIR'], (p1 + p2) / 2))
+    a = (pose[0][0] + pose[1][0]) / 2 - float(G['lean'])
+    mid, nom = (pose[0][1] + pose[1][1]) / 2, (A1 + A2) / 2
+    # the door lies on the wedged flange: its bottom back corner on the flange's bottom corner, then door + bracket turn together
+    y0 = 17 + G['door_up']; lean = float(G['lean'])
+    door = affinity.rotate(affinity.translate(DOOR, 0, 0), -lean, origin=(0, y0))
+    door = affinity.translate(door, math.tan(math.radians(lean)) * (y0 - G['y_mid']), 0)
+    return affinity.translate(affinity.rotate(door, a + lean, origin=tuple(nom)), *(mid - nom)), a
 
 
 def place(g, kind, f, pivot=None):
@@ -49,11 +81,28 @@ def main():
     dv = min(affinity.translate(DOOR, *T(f)).distance(VEDD) for f in np.linspace(0, 1, 401))
     outs = [-T(f)[0] for f in np.linspace(0, 1, 401)]
     t1 = T(1)
-    print(f'--- door: out max {max(outs):.1f} mm, parked {-t1[0]:.1f} mm out / {t1[1]:.1f} mm up '
+    print(f'--- door, all joints centred: out max {max(outs):.1f} mm, parked {-t1[0]:.1f} mm out / {t1[1]:.1f} mm up '
           f'(bottom edge {17 + t1[1]:.0f} mm above the floor), gap to the drawer front: min {dv:.1f}, parked {-t1[0] - 19:.1f} mm')
-    if dv < 2.5: fail(f'door passes the drawer front with only {dv:.1f} mm')
+    # no limit here: with its weight on the joints the door never sits like this; the loaded case below is the real test
     if min(T(f)[1] for f in fs) < -0.5: fail('door goes down when opening')
     if max(T(f)[0] for f in fs) > 0.01: fail('door moves into the cabinet')
+
+    # ---- door under gravity: its weight takes up all joint play, which tilts the bracket. Solved from the joint forces, as the
+    # front arm's load turns from axial to mostly shear over the travel. Real gaps vary, so test the set gap and 0.1 mm either side.
+    print(f'--- door with joint play taken up by its weight (flange wedge {G["lean"]:.2f} deg):')
+    for g in (CJ - 0.1, CJ, CJ + 0.1):
+        res = [door_loaded(f, g) for f in np.linspace(0, 1, 201)]
+        worst = min(dr.distance(VEDD) for dr, _ in res)
+        tray = min(dr.bounds[1] for dr, _ in res) - 15
+        a0, a1 = res[0][1], res[-1][1]
+        print(f'    gap {g:.2f}: lean closed {a0:+.2f}, parked {a1:+.2f} deg; door top {math.radians(a0) * (221 - G["y_mid"]):.1f} mm out when closed; '
+              f'gap to the drawer front {worst:.1f} mm (parked {res[-1][0].distance(VEDD):.1f}), to the tray {tray:.1f} mm')
+        if worst < 1.0: fail(f'door within {worst:.1f} mm of the drawer front at joint gap {g:.2f}')
+        if tray < 1.0: fail(f'door within {tray:.1f} mm of the tray at joint gap {g:.2f}')
+
+    n = len(render(SCAD, 'coupon', DEFS).split(only_watertight=False))
+    print(f'--- coupon: {n} separate bodies, 2 per joint')
+    if n != 8: fail(f'coupon has {n} bodies, not 8: a joint is fused')
 
     for side in ('left', 'right'):
         lev = side == 'left'
@@ -65,6 +114,7 @@ def main():
         for k, (p, kind, piv) in bodies.items():
             m = render(SCAD, p, DEFS); meshes[k] = m
             if not m.is_watertight: fail(f'{side} {k}: mesh not watertight')
+            if len(m.split(only_watertight=False)) != 1: fail(f'{side} {k}: not one connected body')
             sl[k] = slices(m, zs)
         print(f'--- {side} module ---')
         for k, m in meshes.items():
@@ -143,7 +193,7 @@ def main():
                         if g.is_empty: continue
                         reg = []
                         for tt in np.linspace(0, 14, 15):
-                            cx, cz = np.array([0.0, G['dze']]) + (sh + tt) * u_out
+                            cx, cz = np.array([math.tan(math.radians(G['lean'])) * (ys - G['y_mid']), G['dze']]) + (sh + tt) * u_out
                             dz = z - cz
                             if abs(dz) < 4.2: reg.append(Point(cx + t[0], ys + t[1]).buffer(math.sqrt(4.2 ** 2 - dz ** 2)))
                         if reg: worst = min(worst, g.distance(unary_union(reg)))

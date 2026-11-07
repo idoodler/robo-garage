@@ -17,15 +17,42 @@ Four door types, all for the same robot drawer. Pick one in the simulator; each 
 |---|---|
 | Material | PETG: the cabinet is warm and humid |
 | Layers | 0.2 mm, first layer also 0.2 mm. The joint gaps are multiples of 0.2 mm |
-| Walls / infill | 3 perimeters, 20 % |
-| Supports / brim | None. Longest bridge 9 mm |
+| Walls / infill | 4 perimeters, 20 %. The pins and the lever need the walls: do not go below 4 |
+| Supports / brim | None. Bridges only under the arms, about 14 mm at most on the lever side |
 | Elephant-foot compensation | 0.1–0.2 mm |
 | Orientation | As exported |
 | Bed | 220 × 220 mm |
 
 **Print-in-place joints (up & over, parallel lift):** print `coupon.stl` first. Twist each test joint firmly once and use
-the smallest gap that then turns freely. If that is not 0.45, rebuild with `doors/build.sh -D cj=0.35`.
-After printing, move each module through its full travel a few times until all joints run smoothly.
+the smallest gap that then turns freely. Joint `P` is the big bore at 0.45 mm: if 45 turns but `P` stays stiff, use 0.55.
+If your gap is not 0.45, rebuild with `doors/build.sh -D cj=0.35`: the door wedge (below) follows the gap.
+After printing, move each module through its full travel a few times until all joints run smoothly. The lever-side joint has the longest bridge, so expect its first twist to be the stiffest. A joint that sticks:
+run a 0.4 mm nozzle-cleaning needle around the gap from the bed side, do not force it.
+
+Slicer tips, these matter most for a joint that comes free: random seam (never "rear": pin and ring seams would face each other),
+minimum travel for retraction 0.5 mm so it retracts across the gap, PETG at the low end (about 235 °C), outer wall at most 30 mm/s, fan about 50 %.
+
+## How the hinges work
+
+| Part | Design | Why |
+|---|---|---|
+| Joint | Hourglass pin in a ring with an inner lip, 0.45 mm gap, all flanks 45° | Thickest at the root, where bending peaks. Calculated about 2.2–2.6 × the load of the old diamond pin with the same outside size, and less free tilt (5.5° instead of 7.7°) |
+| Bracket underside | Grows out at 45° from the pins | Replaces a 19 mm bridge over the rings, the print's worst spot |
+| Wall plate | Rings + screw bosses + ribs, all full height | The ribs follow the load paths (FE-checked). Prints as solid walls |
+| Arms | Front arm 18 → 12 mm wide; rear arm 9.5 mm | The front arm carries actuator or rod torque, the rear arm only pull and push |
+| Door flange | Wedged 2.25° | The door's weight takes up all joint play, which would lean its top 8 mm out when closed. The wedge cuts this to about 2 mm and still leaves 2 mm to the drawer front when parked |
+
+Printed filament, 4 perimeters (estimate from the slices, old versions at their 3 perimeters):
+
+| Module pair | Old | New |
+|---|---|---|
+| Parallel lift, left + right | 326 g | 217 g |
+| Up & over, left + right | 270 g | 166 g |
+
+**Actuator: rated 50–100 N, with the stall stop set up** (`stall_current` in the ESPHome config, about 0.3 A above the running current).
+Calculated pin capacity is about 410–560 N, and a 100 N actuator jammed at one side's door corner puts up to about 400 N on the worst pin, so the stall stop is
+what protects the joints (`max_duration` backs it up if the sensor fails). A stronger actuator is not a gain here. The weakest spot in misuse is the door screws:
+hanging on or yanking a corner of the open door can pull them out. All of this is calculated, not yet broken on the bench.
 
 ## Lift door
 
@@ -77,9 +104,9 @@ Open, the door lies flat inside the cabinet, 137 mm above the tray, above the ro
 
 | File | Qty | What |
 |---|---|---|
-| `coupon.stl` | 1 | **Print first.** 3 test joints, 0.35 / 0.45 / 0.55 mm gap |
-| `upover_left.stl` | 1 | Left module, with the actuator lever. Printed half open, 206 × 212 mm |
-| `upover_right.stl` | 1 | Right module, 201 × 140 mm |
+| `coupon.stl` | 1 | **Print first.** 3 test joints, 0.35 / 0.45 / 0.55 mm gap, plus big joint `P` |
+| `upover_left.stl` | 1 | Left module, with the actuator lever. Printed half open, 206 × 206 mm |
+| `upover_right.stl` | 1 | Right module, 197 × 134 mm |
 | `upover_track_left.stl`, `upover_track_right.stl` | 1 + 1 | Tracks for the pegs |
 | `upover_mount.stl` | 1 | Actuator top mount + rod-eye spacer |
 | `upover_template.stl` | 1 | Drill template for plate and track screws |
@@ -93,16 +120,17 @@ Open, the door lies flat inside the cabinet, 137 mm above the tray, above the ro
 |---|---|
 | 1 | Template on the cheek: front edge against the back of the front leg, bottom edge on the tray. Pre-drill the 5 plate holes and 3 track holes (3 mm). Left cheek: turn it over like a page |
 | 2 | Modules on the cheeks: 5 screws 4 × 20 each, from the robot side |
-| 3 | Tracks over the pegs (slot towards the bay), 3 screws 3 × 16 each |
-| 4 | Door: hold it in place, closed. Brackets: bottom edge 23 mm above the door's bottom edge. 3 screws 3.5 × 20 per bracket at 45° from the bay side (pre-drill 2.5 mm through the bracket holes) |
+| 3 | Tracks over the pegs (slot towards the bay), 3 screws 3 × 16 each. A little grease in the slot |
+| 4 | Door: hold it in place, closed. Brackets: bottom edge 23 mm above the door's bottom edge. 3 screws 3.5 × 16 per bracket at 45° from the bay side (pre-drill 2.5 mm through the bracket holes) |
 | 5 | Top mount: bolt 13 mm behind the cheek front edge, 428 mm above the tray. 3 screws 4 × 25 |
 | 6 | Actuator: rod eye with the printed spacer on the lever (nyloc nut in the hex pocket), top eye on the mount boss |
 | 7 | Retract fully, slide the mount until the door is just shut, tighten |
 
 No sync rod: the arms sit at 98 mm height, right over the robot. The door itself keeps both sides in step.
 
-Check (`check_upover.py`): joint gap 0.45 mm, other moving gaps ≥ 1.0 mm. Door ≥ 2.5 mm from the drawer front and from
+Check (`check_upover.py`): joint gap 0.45 mm, other moving gaps ≥ 1.0 mm, each body one piece. Door ≥ 2.5 mm from the drawer front and from
 the docked robot, 2 mm above the tray. Actuator 225 → 375 mm, no dead point, holding force max 39 N.
+The peg is now Ø10 mm and its slot runs 3 mm past the open position, so the peg never ends up against the slot's end.
 
 ## Parallel lift
 
@@ -112,9 +140,9 @@ The door stays vertical. It moves out, then up on a circle and parks 116 mm high
 
 | File | Qty | What |
 |---|---|---|
-| `coupon.stl` | 1 | **Print first.** 3 test joints |
-| `parallel_left.stl` | 1 | Left module, with the actuator lever. Printed open, 165 × 216 mm |
-| `parallel_right.stl` | 1 | Right module, 148 × 216 mm |
+| `coupon.stl` | 1 | **Print first.** 3 test joints plus big joint `P` |
+| `parallel_left.stl` | 1 | Left module, with the actuator lever. Printed open, 168 × 212 mm |
+| `parallel_right.stl` | 1 | Right module, 144 × 212 mm |
 | `parallel_mount.stl` | 1 | Actuator top mount + rod-eye spacer |
 | `parallel_template.stl` | 1 | Drill template for the plate screws |
 | `parallel-lift.scad` | | Source |
@@ -128,14 +156,14 @@ the drawer front's bottom edge; from the front you do not see it.
 |---|---|
 | 1 | Template on the cheek (front edge on the back of the front leg, bottom edge on the tray). Pre-drill the 5 holes. Left cheek: turn it over |
 | 2 | Left module on, 5 screws 4 × 20 from the robot side |
-| 3 | Square rod 8 × 8 mm into the square hole of the left front arm. Length = distance between the cheeks − 18 mm (502 → 484 mm) |
+| 3 | Solid steel square rod 8 × 8 mm into the square hole of the left front arm, 14 mm deep (tight on purpose: file the hole if the rod does not go in). Length = distance between the cheeks − 16 mm (502 → 486 mm) |
 | 4 | Right module onto the other end of the rod, then screw it on |
-| 5 | Door: hold it closed. Bracket bottom = door bottom edge, outer face = door side edge. 2 screws 3.5 × 20 per bracket at 45° from the bay side (pre-drill 2.5 mm) |
+| 5 | Door: hold it closed. Bracket bottom = door bottom edge, outer face = door side edge. Pull the door flat against the flange: the flange is wedged on purpose (see "How the hinges work"), so do not shim it. 3 screws 3.5 × 16 per bracket at 45° from the bay side (pre-drill 2.5 mm) |
 | 6 | Top mount: bolt 59 mm behind the cheek front edge, 455 mm above the tray. Actuator with the spacer on the lever, as above |
 | 7 | Retract fully, slide the mount until the door is flush, tighten |
 
-Check (`check_parallel.py`): joint gap 0.45 mm, other gaps ≥ 1.0 mm. Door 3.0 mm from the drawer front at the closest point,
-3.5 mm parked. Actuator 225 → 375 mm, holding force max 14 N.
+Check (`check_parallel.py`): joint gap 0.45 mm, other gaps ≥ 1.0 mm, each body one piece. With the door's weight on the joints: top about 2 mm out when closed, 2 mm from the drawer front parked (1.3 mm if your real gap
+comes out 0.1 mm tighter than set), 2 mm above the tray. Actuator 225 → 375 mm, holding force max 14 N.
 
 ## Reeds (all doors)
 
@@ -150,7 +178,7 @@ ESPHome: no change. Same endstop cover with both reeds.
 
 | Part | Qty |
 |---|---|
-| Linear actuator 12 V, 150 mm stroke, ≥ 50 N, ≈225 mm pin to pin retracted | 1 |
+| Linear actuator 12 V, 150 mm stroke, 50–100 N (see "How the hinges work"), ≈225 mm pin to pin retracted | 1 |
 | M6 bolts (eye thickness + 25 mm), nyloc nuts, washers | 2 |
 | Countersunk wood screws, see the steps | – |
 

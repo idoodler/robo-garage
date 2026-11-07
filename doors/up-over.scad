@@ -5,31 +5,31 @@
 // side (F -> D) tilts the door up. Open, the door lies horizontal inside the cabinet, above the robot, only
 // 13 mm in front of the drawer front; while moving it never comes out more than 35 mm. The door is 202 mm tall
 // (6 mm gap under the drawer front, 2 mm more than the other doors) and needs no chamfer.
-// Each side prints as ONE piece: wall plate + arm + door bracket (with the peg). The track is a separate
+// Each side prints as ONE piece: skeleton wall plate + arm + door bracket (with the peg). The track is a separate
 // print. The left arm carries the actuator lever. The door itself keeps both sides in step.
 //
 // Frame (mm): X = depth behind the door's back face (= cheek front edge), Y = height above the floor
 // (drawer tray top = 15), Z = print height: 0 = print bed = side facing the robot bay, z_top = cheek face.
 //
-// part = "left" | "right" | "track" | "mount" | "template" | "coupon"   the prints (build.sh -> STL)
+// part = "left" | "right" | "track" | "mount" | "template"              the prints (build.sh -> STL)
 //        "assembly" | "scene" | "layout"                                previews; `pose` 0 = closed .. 1 = open
 //        "plate_l" | "plate_r" | "arm_l" | "arm_r" | "bracket"          single bodies (closed pose)
 
-version = "1.0";
+version = "1.1";
 
 /* [Output] */
-part = "assembly";      // [left, right, track, mount, template, coupon, assembly, scene, layout]
+part = "assembly";      // [left, right, track, mount, template, assembly, scene, layout]
 pose = 0;               // [0:0.05:1]
 print_pose = 0.55;      // printed half open: fits a 220 x 220 bed
 
-/* [Print-in-place gaps - print the coupon first] */
+/* [Print-in-place gaps - print coupon.stl first (parallel-lift.scad, part = "coupon")] */
 cj = 0.45;  gz = 0.6;  cs = 1.0;
 
 /* [Hardware] */
 eye_bolt = 6;           // actuator eye bolts M6
 act_gap = 7;            // printed spacer between the lever and the rod eye
 wall_screw = 4;         // wall plate: 4 x 20 countersunk wood screws
-door_screw = 3.5;       // bracket: 3.5 x 20 countersunk, driven at 45 deg from the bay
+door_screw = 3.5;       // bracket: 3.5 x 16 countersunk, driven at 45 deg from the bay
 track_screw = 3;        // track: 3 x 16 countersunk
 
 /* [Hidden] */
@@ -65,19 +65,27 @@ ACT0 = 225;  ACT1 = 375;
 FA = let(d = norm(C1 - C0), a = (ACT0 * ACT0 - ACT1 * ACT1 + d * d) / (2 * d), h = sqrt(ACT0 * ACT0 - a * a), u = (C1 - C0) / d)
      C0 + a * u + h * [-u[1], u[0]];
 
-// ---- layer stack + joints (as the parallel lift) ----
+// ---- layer stack + joints (hourglass pin, as the parallel lift) ----
 z_top = 22;  h1 = 6;  z2 = h1 + gz;  z_mov = z_top - 5;
-bulge = 1;  ef = 0.4;  rP = 9;  rA = 4.5;  wall = 4;
-rRP = rP + bulge + cj + wall;  rRA = rA + bulge + cj + wall;
-wb = 14;  rboss = 12;  tf = 5;
+ridge = 1;  land = 0.8;  ef = 0.4;  fz = 0.2;
+rFl = 10;  rFr = 7;  rA = 5.5;  wall = 3.5;  wallF_l = 9;  wallF_r = 4;  // left arm carries the lever, the right one only follows
+function rF(lev) = lev ? rFl : rFr;
+function rRF(lev) = rF(lev) + cj + (lev ? wallF_l : wallF_r);
+rRA = rA + cj + wall;
+function w0(lev) = lev ? 9 : 6;         // arm half width at F. Keep below rF + cj - cs, or the arm's sweep cuts the bearing wall
+function wA(lev) = lev ? 6 : 5;         // arm half width at D
+rboss = 12;  tf = 5;
 yf = [40, 146];                         // bracket flange on the door's back
 YSC = [48, 95, 125];  dsb = 45;  dze = 5;
-peg_d = 6;  trk = [17.5, z_top];  trk_y = [Q[1] - 9.5, Q[1] + 16];   // track: Z band and Y extent
+peg_d = 10;  trk = [17.5, z_top];  trk_y = [Q[1] - 10, Q[1] + 18];   // track: Z band and Y extent
 ENV_L = [[38, 15.5], [178, 15.5], [178, 95], [140, 95], [100, 108], [38, 108]];   // nothing above the pivot: lever + arm
 ENV_R = [[38, 15.5], [178, 15.5], [178, 120], [38, 120]];                         // below the track
 SCREWS = [[62, 40], [115, 28], [115, 70], [167, 28], [167, 75]];
+// ribs [from, to, width]: routes and widths from a plane-stress FE run (300 N on F, all directions: peak 30 MPa, ring moves <= 0.55 mm)
+function ribs_of(lev) = let(S = SCREWS, w = lev ? 7 : 5) [[F, S[0], w], [F, S[2], w], [S[0], S[1], 3], [S[1], S[2], 3], [S[2], S[4], 3], [S[1], S[3], 3], [S[3], S[4], 3]];
 WHEEL = [[52, 0], [88, 33]];
-function Qof() = D - (rA + cs + wb / 2) * (D - F) / norm(D - F);   // upper-layer arm end, clear of the bracket hub
+rbs = 6.8;                              // screw boss radius (counterbore r 4.3 + 2.5 mm wall)
+function Qof(lev) = D - (rA + cs + wA(lev)) * (D - F) / norm(D - F);   // upper-layer arm end, clear of the bracket hub
 
 // ---------------------------------------------------------------- 2D helpers
 module disk(c, r, fn = 0) translate(c) circle(r = r, $fn = fn > 0 ? fn : $fn);
@@ -85,21 +93,28 @@ module capsule(a, b, ra, rb = -1) hull() { disk(a, ra); disk(b, rb < 0 ? ra : rb
 module rot_about(c, a) translate(c) rotate(a) translate(-c) children();
 module sweep_rot(c) for (i = [0 : N - 1]) hull() { rot_about(c, arm_rot(i / N)) children(); rot_about(c, arm_rot((i + 1) / N)) children(); }
 module sweep_rel(c) for (i = [0 : N - 1]) hull() { rot_about(c, rel_rot(i / N)) children(); rot_about(c, rel_rot((i + 1) / N)) children(); }
+lh = 0.2;
+module grow(n) {  // self-supporting underside: children(0) = seed, children(1) = target; grows 45 deg until the full outline is reached
+  for (i = [0 : n - 1]) translate([0, 0, z2 + i * lh]) linear_extrude(lh + 0.001) intersection() { children(1); offset(r = i * lh) children(0); }
+  translate([0, 0, z2 + n * lh]) linear_extrude(z_mov - z2 - n * lh) children(1);
+}
 module sweep_door() for (i = [0 : N - 1]) hull() { door_tf(i / N) children(); door_tf((i + 1) / N) children(); }
 
 // ---------------------------------------------------------------- joints
-module pin_prof(r, h) polygon([[0, 0], [r - ef, 0], [r + bulge, bulge + ef], [r + bulge, h - bulge],
-                               [r, h], [r, z2], [r - 0.5, z2], [r - 0.5, z2 + 0.5], [0, z2 + 0.5]]);
-module hole_prof(r, h, top, g = cj) polygon([[0, -1], [r + g + ef + 1, -1], [r + g + ef, 0], [r + g, ef],
-                               [r + bulge + g, bulge + ef], [r + bulge + g, h - bulge], [r + g, h], [r + g, top], [0, top]]);
+module pin_prof(r, h) polygon([[0, 0], [r - ef, 0], [r, ef], [r - ridge, ef + ridge], [r - ridge, ef + ridge + land], [r, ef + 2 * ridge + land],
+                               [r, z2], [r - 0.5, z2], [r - 0.5, z2 + 0.5], [0, z2 + 0.5]]);
+module hole_prof(r, h, top, g = cj) polygon([[0, -1], [r + g + ef + 1, -1], [r + g + ef, 0], [r + g, ef + fz],
+                               [r - ridge + g, ef + ridge + fz], [r - ridge + g, ef + ridge + land - fz], [r + g, ef + 2 * ridge + land - fz],
+                               [r + g, top], [0, top]]);
 module pin3d(c, r) translate(c) rotate_extrude($fn = FNJ) pin_prof(r, h1);
 module hole3d(c, r, top = h1 + 1) translate(c) rotate_extrude($fn = FNJ) hole_prof(r, h1, top);
 
 // ---------------------------------------------------------------- arm (+ lever on the left), closed pose
-module arm_b1() { difference() { capsule(F, D, wb / 2); disk(F, rRP + cs); } disk(D, rRA); }
-module arm_b2() { disk(F, rP, FNJ); capsule(F, Qof(), wb / 2); }
-module lever_hull() hull() { disk(F, wb / 2); disk(C0, rboss); }
-module lever_b1() difference() { lever_hull(); disk(F, rRP + cs); }
+module arm_shape(lev, E) capsule(F, E, w0(lev), wA(lev));
+module arm_b1(lev) { difference() { arm_shape(lev, D); disk(F, rRF(lev) + cs); } disk(D, rRA); }
+module arm_b2(lev) { disk(F, rF(lev), FNJ); arm_shape(lev, Qof(lev)); }
+module lever_hull() hull() { disk(F, w0(true)); disk(C0, rboss); }
+module lever_b1() difference() { lever_hull(); disk(F, rRF(true) + cs); }
 function nut_af(d) = d >= 6 ? 10 : d >= 5 ? 8 : 7;
 module eye_hole(c, h) {
   translate([c[0], c[1], -1]) cylinder(d = eye_bolt + 0.4, h = h + 2, $fn = 32);
@@ -107,10 +122,10 @@ module eye_hole(c, h) {
 }
 module arm3d(lev = false) difference() {
   union() {
-    linear_extrude(h1) { arm_b1(); if (lev) lever_b1(); }
-    translate([0, 0, h1]) linear_extrude(gz) { intersection() { arm_b1(); arm_b2(); } if (lev) lever_b1(); }
-    translate([0, 0, z2]) linear_extrude(z_mov - z2) { arm_b2(); if (lev) lever_hull(); }
-    pin3d(F, rP);
+    linear_extrude(h1) { arm_b1(lev); if (lev) lever_b1(); }
+    translate([0, 0, h1]) linear_extrude(gz) { intersection() { arm_b1(lev); arm_b2(lev); } if (lev) lever_b1(); }
+    translate([0, 0, z2]) linear_extrude(z_mov - z2) { arm_b2(lev); if (lev) lever_hull(); }
+    pin3d(F, rF(lev));
   }
   hole3d(D, rA);
   if (lev) eye_hole(C0, z_mov);
@@ -118,15 +133,16 @@ module arm3d(lev = false) difference() {
 
 // ---------------------------------------------------------------- door bracket (closed pose) with the track peg
 module brk_desired() hull() { translate([0, yf[0]]) square([tf, yf[1] - yf[0]]); disk(D, rA + 5); disk(Q, 8); }
-module arm_bf_b1() { sweep_rel(D) capsule(F, D, wb / 2); disk(D, rRA); }
-module arm_bf_b2() sweep_rel(D) capsule(F, Qof(), wb / 2);
+// same bracket left and right: it clears the wider (left) arm
+module arm_bf_b1() { sweep_rel(D) arm_shape(true, D); disk(D, rRA); }
+module arm_bf_b2() sweep_rel(D) arm_shape(true, Qof(true));
 module brk_b1() difference() { brk_desired(); offset(delta = cs) arm_bf_b1(); }
 module brk_b2() { difference() { brk_desired(); offset(delta = cs) arm_bf_b2(); } disk(D, rA, FNJ); }
 module bracket3d() difference() {
   union() {
     linear_extrude(h1) brk_b1();
     translate([0, 0, h1]) linear_extrude(gz) intersection() { brk_b1(); brk_b2(); }
-    translate([0, 0, z2]) linear_extrude(z_mov - z2) brk_b2();
+    grow(25) { union() { intersection() { brk_b1(); brk_b2(); } disk(D, rA, FNJ); disk(Q, 8); } brk_b2(); }   // no bridges over the ring
     pin3d(D, rA);
     translate([Q[0], Q[1], z_mov - 0.01]) cylinder(d = peg_d, h = trk[0] + 3.5 - z_mov, $fn = 32);       // peg into the track
     translate([Q[0], Q[1], z_mov - 0.01]) cylinder(d1 = peg_d + 3, d2 = peg_d, h = 0.51, $fn = 32);
@@ -152,19 +168,27 @@ module plate_desired(lev) difference() {
   intersection() { polygon(lev ? ENV_L : ENV_R); polygon([for (y = [0 : 10 : 520]) [x_cheek(y) - 3, y], [0, 520], [0, 0]]); }
   translate(WHEEL[0]) square(WHEEL[1] - WHEEL[0]);
 }
-module arm_sw_b1() { difference() { sweep_rot(F) capsule(F, D, wb / 2); disk(F, rRP + cs); } sweep_rot(F) disk(D, rRA); }
-module arm_sw_b2() sweep_rot(F) capsule(F, Qof(), wb / 2);
-module lever_sw_b1() difference() { sweep_rot(F) lever_hull(); disk(F, rRP + cs); }
+module arm_sw_b1(lev) { difference() { sweep_rot(F) arm_shape(lev, D); disk(F, rRF(lev) + cs); } sweep_rot(F) disk(D, rRA); }
+module arm_sw_b2(lev) sweep_rot(F) arm_shape(lev, Qof(lev));
+module lever_sw_b1() difference() { sweep_rot(F) lever_hull(); disk(F, rRF(true) + cs); }
 module lever_sw_b2() sweep_rot(F) lever_hull();
 module moving_sw(lev) { sweep_door() brk_desired(); sweep_door() polygon(DOOR2D); if (lev) act_sw(); }
-module plate_b1(lev) {
-  difference() { plate_desired(lev); offset(delta = cs) { arm_sw_b1(); if (lev) lever_sw_b1(); moving_sw(lev); } }
-  disk(F, rRP, FNJ);
+module plate_b1_full(lev) {
+  difference() { plate_desired(lev); offset(delta = cs) { arm_sw_b1(lev); if (lev) lever_sw_b1(); moving_sw(lev); } }
+  disk(F, rRF(lev), FNJ);
 }
-module plate_b2(lev) intersection() {
-  difference() { plate_desired(lev); offset(delta = cs) { arm_sw_b2(); if (lev) lever_sw_b2(); moving_sw(lev); } }
-  offset(r = 0.8) plate_b1(lev);
+module plate_b2_full(lev) intersection() {
+  difference() { plate_desired(lev); offset(delta = cs) { arm_sw_b2(lev); if (lev) lever_sw_b2(); moving_sw(lev); } }
+  offset(r = 0.8) plate_b1_full(lev);
 }
+// ---- skeleton plate: ring + screw bosses + ribs, all full height, so the ribs print as solid in-layer walls
+module skel2d(lev) {
+  for (r = ribs_of(lev)) capsule(r[0], r[1], r[2] / 2);
+  for (s = SCREWS) disk(s, rbs);
+  disk(F, rRF(lev), FNJ);
+}
+module plate_b1(lev) intersection() { plate_b1_full(lev); skel2d(lev); }
+module plate_b2(lev) offset(r = 0.6) offset(r = -0.6) intersection() { plate_b2_full(lev); skel2d(lev); }   // sliver tips rounded off
 module wall_screw_hole(s, h) translate([s[0], s[1], 0]) {
   d = wall_screw + 0.5;  dc = 2 * wall_screw + 0.6;  zs = h - 5 - (dc - d) / 2;
   translate([0, 0, -1]) cylinder(d = d, h = h + 2, $fn = 24);
@@ -173,9 +197,9 @@ module wall_screw_hole(s, h) translate([s[0], s[1], 0]) {
 }
 module plate3d(lev) difference() {
   union() { linear_extrude(h1) plate_b1(lev); translate([0, 0, h1]) linear_extrude(z_top - h1) plate_b2(lev); }
-  hole3d(F, rP, z_top + 1);
+  hole3d(F, rF(lev), z_top + 1);
   for (s = SCREWS) wall_screw_hole(s, z_top);
-  translate([F[0] + 30, F[1] - 40, z_top - 0.6]) linear_extrude(1) text(lev ? "L" : "R", size = 6, halign = "center", valign = "center");
+  translate([F[0], F[1] - rF(lev) - cj - 2, z_top - 0.6]) linear_extrude(1) text(lev ? "L" : "R", size = 3, halign = "center", valign = "center");
 }
 
 // ---------------------------------------------------------------- module (print-in-place)
@@ -187,11 +211,12 @@ module uo_module(lev, f = 0) {
 
 // ---------------------------------------------------------------- track (separate print, cheek face down)
 // Module frame: Z trk[0]..z_top, slot for the peg along the travel. Printed with the cheek face (Z 22) on the bed.
-TRK_X = [3, Q[0] + TRAVEL + peg_d / 2 + 4];
-TRK_SCREWS = [for (x = [TRK_X[0] + 9 : 30 : TRK_X[1] - 6]) [x, Q[1] + 10]];
+slot_over = 3;                          // the slot runs on past the open position: the peg never ends up against the slot's end
+TRK_X = [3, Q[0] + TRAVEL + slot_over + peg_d / 2 + 4.5];
+TRK_SCREWS = [for (x = [TRK_X[0] + 9 : 30 : TRK_X[1] - 6]) [x, Q[1] + 12]];
 module track_world() difference() {
   translate([TRK_X[0], trk_y[0], trk[0]]) cube([TRK_X[1] - TRK_X[0], trk_y[1] - trk_y[0], trk[1] - trk[0]]);
-  hull() for (x = [Q[0], Q[0] + TRAVEL]) translate([x, Q[1], trk[0] - 1]) cylinder(d = peg_d + 0.8, h = 4 + 1, $fn = 32);
+  hull() for (x = [Q[0], Q[0] + TRAVEL + slot_over]) translate([x, Q[1], trk[0] - 1]) cylinder(d = peg_d + 0.8, h = 4 + 1, $fn = 32);
   for (s = TRK_SCREWS) translate([s[0], s[1], trk[0] - 0.01]) {
     cylinder(d = track_screw + 0.4, h = 10, $fn = 24);
     cylinder(d1 = 2 * track_screw + 0.6, d2 = track_screw + 0.4, h = (track_screw + 0.2) / 2, $fn = 32);
@@ -222,29 +247,15 @@ module mount_placed() translate([0, 0, z_top]) mirror([0, 0, 1]) mount_block();
 
 // ---------------------------------------------------------------- drill template: plate + track screws
 module template() difference() {
-  linear_extrude(2) union() {
+  linear_extrude(1.2) union() {
     translate([0, 15]) square([6, trk_y[1] + 4 - 15]);
     translate([0, 15]) square([205, 7.5]);
     for (s = concat(SCREWS, TRK_SCREWS, [F])) { translate(s - [7, 7]) square(14); translate([0, s[1] - 3]) square([s[0], 6]); translate([s[0] - 3, 15]) square([6, s[1] - 15]); }
   }
   for (s = concat(SCREWS, TRK_SCREWS)) translate([s[0], s[1], -1]) cylinder(d = 3.2, h = 4, $fn = 24);
   translate([F[0], F[1], -1]) cylinder(d = 2, h = 4, $fn = 16);
-  translate([35, 18.75, 1.4]) linear_extrude(1) text("< FRONT", size = 4, halign = "center", valign = "center");
-  translate([155, 18.75, 1.4]) linear_extrude(1) text("TRAY", size = 4, halign = "center", valign = "center");
-}
-
-// ---------------------------------------------------------------- coupon (same joints as the parallel lift)
-CJ_TEST = [0.35, 0.45, 0.55];
-module coupon() for (i = [0 : 2]) {
-  c = [i * 42, 0];  g = CJ_TEST[i];
-  difference() {
-    linear_extrude(h1) { disk(c, rRA); translate(c + [-5, -rRA - 12]) square([10, 12 + rRA]); }
-    translate(c) rotate_extrude($fn = FNJ) hole_prof(rA, h1, h1 + 1, g);
-  }
-  pin3d(c, rA);
-  translate([0, 0, z2]) linear_extrude(3) capsule(c, c + [0, rRA + cs + 4], rA);
-  linear_extrude(z2 + 3) disk(c + [0, rRA + cs + 4], rA);
-  translate([c[0], c[1] + rRA + cs + 4, z2 + 3 - 0.5]) linear_extrude(1) text(str(round(g * 100)), size = 4, halign = "center", valign = "center");
+  translate([35, 18.75, 0.8]) linear_extrude(1) text("< FRONT", size = 4, halign = "center", valign = "center");
+  translate([155, 18.75, 0.8]) linear_extrude(1) text("TRAY", size = 4, halign = "center", valign = "center");
 }
 
 // ---------------------------------------------------------------- output
@@ -254,7 +265,6 @@ else if (part == "track") track();
 else if (part == "track_l") mirror([1, 0, 0]) track();
 else if (part == "mount") mount();
 else if (part == "template") template();
-else if (part == "coupon") coupon();
 else if (part == "plate_l") plate3d(true);
 else if (part == "plate_r") plate3d(false);
 else if (part == "arm_l") arm3d(true);
@@ -265,7 +275,7 @@ else if (part == "track_w") track_world();
 else if (part == "assembly") uo_module(true, pose);
 else if (part == "echo") echo(str("GEO Q=", Q, ";D=", D, ";F=", F, ";L=", L, ";PSI=", PSI, ";TRAVEL=", TRAVEL, ";LEV=", LEV, ";LEV_A=", LEV_A,
                                   ";FA=", FA, ";C0=", C0, ";C1=", C1, ";act_gap=", act_gap, ";SCREWS=", SCREWS, ";TRK_SCREWS=", TRK_SCREWS,
-                                  ";print_pose=", print_pose, ";DOOR_TOP=", DOOR_TOP, ";rRP=", rRP, ";rRA=", rRA, ";cj=", cj, ";cs=", cs, ";gz=", gz,
+                                  ";print_pose=", print_pose, ";DOOR_TOP=", DOOR_TOP, ";rRP=", rRF(true), ";rRA=", rRA, ";cj=", cj, ";cs=", cs, ";gz=", gz,
                                   ";z_top=", z_top, ";z_mov=", z_mov, ";h1=", h1, ";YSC=", YSC, ";dsb=", dsb, ";dze=", dze,
                                   ";wall_screw=", wall_screw, ";act_r_tube=", act_r_tube, ";act_r_body=", act_r_body,
                                   ";act_tube_from=", act_tube_from, ";act_body_len=", act_body_len, ";trk=", trk, ";trk_y=", trk_y,

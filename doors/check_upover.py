@@ -89,6 +89,7 @@ def main():
         for k, (p, kind) in bodies.items():
             m = render(SCAD, p, DEFS); meshes[k] = m
             if not m.is_watertight: fail(f'{side} {k}: mesh not watertight')
+            if len(m.split(only_watertight=False)) != 1: fail(f'{side} {k}: not one connected body')
             sl[k] = slices(m, zs)
         trk = render(SCAD, 'track', DEFS)
         trk.apply_scale([1, 1, -1]); trk.apply_translation([0, 0, Z_TOP])        # printed cheek face down -> module frame

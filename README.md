@@ -13,7 +13,7 @@ ESP32 + ESPHome + Home Assistant: motorised door, light barrier, reed contacts, 
 | Case | v1.3.1 | fits PCB v1.3.1 (0 mm³ overlap with the part stand-in), DevKit USB-C through the left wall |
 | ESPHome config | – | checked with ESPHome 2026.10.1 |
 | Simulator | v5.4 | door open slider for all 4 door types, printed door parts in 3D + side view, door downloads |
-| Doors | v2.0 | Printed parts for all 4 door types (lift door, flap out, up & over, parallel lift), no supports. Up & over + parallel lift: print-in-place modules, checked over the whole travel (joint gap 0.45 mm, other gaps ≥ 1 mm). Parallel lift parks 23 mm out (40 mm max) |
+| Doors | v2.1 | Printed parts for all 4 door types (lift door, flap out, up & over, parallel lift), no supports. Up & over + parallel lift: print-in-place modules with hourglass joints and FE-checked skeleton plates, about a third less filament, checked over the whole travel (joint gap 0.45 mm, other gaps ≥ 1 mm). Parallel lift parks 23 mm out (40 mm max) |
 
 ## Folders
 

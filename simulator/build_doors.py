@@ -38,12 +38,12 @@ PL_C0 = [PLd['P1'][0] + PLd['LEV'] * dirv(PLd['LEV_A'])[0], PLd['P1'][1] + PLd['
 UO_C0 = UOd['C0']
 
 
-def grams(names):          # rough filament mass: 3 perimeters (≈1.35 mm shell) + 20 % infill, PETG 1.27 g/cm³
+def grams(names):          # rough filament mass: 4 perimeters + 20 % infill, shell factor fitted to a slice-by-slice estimate of the modules, PETG 1.27 g/cm³
     g = 0
     for n in names:
         m = trimesh.load(os.path.join(DOORS_DIR, n), force='mesh')
         v, a = m.volume / 1000, m.area / 100
-        sv = min(v, a * 0.135)
+        sv = min(v, a * 0.12)
         g += (sv + 0.2 * max(0, v - sv)) * 1.27
     return int(round(g / 10) * 10) if g < 200 else int(round(g / 50) * 50)
 
@@ -189,7 +189,7 @@ card = '''<section class="card" style="margin-top:14px" id="doorparts">
     <div>
       <div class="tablewrap"><table id="dpTab"><thead><tr><th>Door</th><th>Printed</th><th class="num">PETG</th><th>Out open / moving</th></tr></thead><tbody>
 @@ROWS@@      </tbody></table></div>
-      <p class="note">PETG, 0.2 mm layers, 3 perimeters, 20 % infill, no supports, 220 × 220 mm bed. Up &amp; over and parallel lift print in place:
+      <p class="note">PETG, 0.2 mm layers, 4 perimeters, 20 % infill, no supports, 220 × 220 mm bed. Up &amp; over and parallel lift print in place:
       plate, arms, lever and door bracket come off the bed already joined. Print <code>coupon.stl</code> first and pick the joint gap that turns
       freely (0.45 mm default). Each zip has the STL, the OpenSCAD source, the check scripts and a README with the mounting steps.
       Drag the <b>Door open</b> slider above the 3D model to see every part move.</p>
@@ -221,7 +221,7 @@ rep(old_rows, '\n'.join([
     '      <tr data-door="upover"><td>3D-printed PETG ≈ %d g: 2 print-in-place modules, 2 tracks, top mount, drill template (STL in "Door parts" below)</td><td>–</td><td class="num">8–10</td><td>–</td></tr>' % G['upover'],
     '      <tr data-door="upover"><td>Door 49.2×20.2 + 2 front legs 4.9×20.8 from the 18 mm MDF, 2 M6 bolts + nyloc nuts, screws</td><td>–</td><td class="num">4–6</td><td>store</td></tr>',
     '      <tr data-door="parallel"><td>3D-printed PETG ≈ %d g: 2 print-in-place modules, top mount, drill template (STL in "Door parts" below)</td><td>–</td><td class="num">9–12</td><td>–</td></tr>' % G['parallel'],
-    '      <tr data-door="parallel"><td>Square rod 8×8 mm, 1 m (steel or alu), cut to 48.4 cm – couples the two sides</td><td>1</td><td class="num">4–7</td><td>store</td></tr>',
+    '      <tr data-door="parallel"><td>Solid steel square rod 8×8 mm, 1 m, cut to 48.6 cm – couples the two sides</td><td>1</td><td class="num">4–7</td><td>store</td></tr>',
     '      <tr data-door="parallel"><td>Door 49.2×20.4 with a 45° chamfer on the top back edge + 2 front legs 4.9×20.8 from the 18 mm MDF, 2 M6 bolts + nyloc nuts, screws</td><td>–</td><td class="num">4–6</td><td>store</td></tr>']))
 rep("DP={lift:[8.09,17.89],flap:[11.79,15.79],upover:[13.09,26.89],parallel:[9.15,23.05]}",
     "DP={lift:[6,10],flap:[9.79,12.79],upover:[12,16],parallel:[17,25]}")
@@ -393,7 +393,7 @@ const PL=SIM.PL;
 const parG=new THREE.Group();drawer.add(parG);
 const parDoor=new THREE.Group();parG.add(parDoor);
 add(wedge(PL.door.map(p=>[-p[0],p[1]]),49.2),M.front,0,0,0,parDoor,'par');
-const parSq=add(B(48.4,.8,.8),M.steel,0,PL.P1[1],-PL.P1[0],parG,'par');
+const parSq=add(B(48.6,.8,.8),M.steel,0,PL.P1[1],-PL.P1[0],parG,'par');
 const parBody=add(CY(1.3,1.3,1,16),M.alu,0,0,0,parG,'actuator');
 const parRod=add(CY(.6,.6,1,12),M.steel,0,0,0,parG,'actuator');
 
