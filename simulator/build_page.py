@@ -1,4 +1,4 @@
-# Build Robo-Garage simulator v5.3 (PCB + case version from parts.py / the SCAD file) from v4.9: light barrier + auto vent +
+# Build Robo-Garage simulator v5.4 (PCB + case version from parts.py / the SCAD file) from v4.9: light barrier + auto vent +
 # PCB/case section with downloads, leak probe + valve + buzzer (v1.2), power headroom (v1.3).
 # Run simulator/build_files.py first (download manifests + pictures).
 import html
@@ -212,6 +212,7 @@ rep(old_wiring, '''  <details>
 print('html replacements ok:', n_ok)
 exec(open(os.path.join(HERE, 'build_js.py'), encoding='utf-8').read())
 s = s.replace('@@PCB_V@@', PCB_V).replace('@@CASE_V@@', CASE_V)   # file names inside the JS (v1.3)
+exec(open(os.path.join(HERE, 'build_doors.py'), encoding='utf-8').read())   # door mechanisms v2 + open slider + door parts card
 assert '@@' not in s
 open(OUT, 'w', encoding='utf-8').write(s)
 print('written', OUT, len(s), 'bytes, replacements', n_ok)

@@ -110,3 +110,9 @@ im = im.crop((max(min(xs) - 20, 0), max(min(ys) - 20, 0), min(max(xs) + 21, im.w
 im.resize((1000, round(1000 * im.height / im.width)), Image.LANCZOS).save(os.path.join(IMG, 'case-v%s.webp' % CASE_V), quality=82)
 for f in sorted(glob.glob(os.path.join(IMG, '*.webp'))):
     print(os.path.basename(f), Image.open(f).size, os.path.getsize(f) // 1024, 'kB')
+
+# ---------------- printed door parts: 3D models for the scene + download manifests (doors/)
+import sys
+sys.path.insert(0, HERE)
+import build_door_files
+build_door_files.build()

@@ -134,6 +134,15 @@ h3{font-size:.86rem;margin:0 0 6px}
 .shot figcaption{font-size:.78rem;color:var(--muted);padding:6px 10px;background:var(--surface)}
 .dl{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center;margin-top:12px}
 .kv td:first-child{color:var(--muted);white-space:nowrap}
+.dpos{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-bottom:8px}
+.dpos input[type=range]{flex:1 1 150px;min-width:120px;margin:0;accent-color:var(--accent)}
+.dpos output{font-family:var(--mono);font-size:.78rem;min-width:3.2em;text-align:right}
+.dpos .dposI{font-family:var(--mono);font-size:.74rem}
+.btn.sm{padding:4px 10px;font-size:.8rem}
+#dpTab td:last-child{white-space:nowrap}
+.pp,.pm{fill-rule:evenodd;stroke-linejoin:round}
+.pp{fill:#a7c8ee;fill-opacity:.65;stroke:#4f7fb8;stroke-width:.1}
+.pm{fill:#3f86d8;fill-opacity:.92;stroke:#1f4f8c;stroke-width:.1}
 </style>
 </head>
 <body>
@@ -152,7 +161,7 @@ h3{font-size:.86rem;margin:0 0 6px}
     <div class="vhead"><h2>3D model</h2><span class="lbl">drag = rotate · pinch / scroll = zoom · two fingers / right-drag = pan</span></div>
     <div class="tools">
       <div class="seg" id="cam" role="group" aria-label="Camera views">
-        <button data-v="iso">3D</button><button data-v="front">Front</button><button data-v="side">Side</button><button data-v="back">Back</button><button data-v="top">Top</button>
+        <button data-v="iso">3D</button><button data-v="front">Front</button><button data-v="side">Side</button><button data-v="back">Back</button><button data-v="top">Top</button><button data-v="door" title="Close-up of the door mechanism on the left cheek">Door</button>
       </div>
       <div class="seg" id="vmode" role="group" aria-label="Render mode">
         <button data-v="solid" aria-pressed="false">Solid</button><button data-v="xray" aria-pressed="false">X-ray</button><button data-v="cut" aria-pressed="true">Cut</button>
@@ -174,12 +183,14 @@ h3{font-size:.86rem;margin:0 0 6px}
         <button class="sw" data-c="#3a3e44" style="background:#3a3e44" aria-label="Anthracite" aria-pressed="false"></button>
       </div>
     </div>
+    <div class="dpos"><span class="lbl">Door open</span><input type="range" class="dposR" min="0" max="100" step="1" value="0" aria-label="Door open state in percent"><output class="dposV">0 %</output><button class="btn sm dposA" aria-pressed="true" title="On: the cleaning simulation moves the door. Drag the slider to hold the door yourself.">Auto</button><span class="lbl dposI"></span></div>
     <div class="three" id="three"><div class="fallback" id="fb">Loading 3D…</div><span class="badge" id="badge3d">Docked</span><div class="cap" id="cap3d"></div></div>
     <div class="info" id="info"><b>Tap any part</b>door, ramp, actuator, drawer, wheels, tanks, LED, rear fan, light barrier, controller, sensors – to see what it is and what to buy.</div>
   </div>
 
   <div class="card">
     <div class="vhead"><h2>How it works · side cut-away</h2></div>
+    <div class="dpos"><span class="lbl">Door open</span><input type="range" class="dposR" min="0" max="100" step="1" value="0" aria-label="Door open state in percent"><output class="dposV">0 %</output><button class="btn sm dposA" aria-pressed="true" title="On: the cleaning simulation moves the door. Drag the slider to hold the door yourself.">Auto</button><span class="lbl dposI"></span></div>
     <svg class="view" id="side" viewBox="-36 -110 112 118" aria-label="Side cut-away of the cabinet">
       <defs>
         <filter id="gS" x="-300%" y="-300%" width="700%" height="700%"><feGaussianBlur stdDeviation="1.2"/></filter>
@@ -289,65 +300,53 @@ h3{font-size:.86rem;margin:0 0 6px}
         <g id="lidS" class="part" data-part="tanks"><rect x="24" y="-60.7" width="32.5" height="1.2" rx=".5" fill="var(--dockc)" stroke="var(--dockline)" stroke-width=".2"/></g>
         <path id="emptyFx" d="M22,-8 C30,-12 36,-17 40,-22" fill="none" stroke="#a855f7" stroke-width=".7" stroke-dasharray="1.2 1" marker-end="url(#arP)" opacity="0"/>
         <g id="washFx" opacity="0"></g>
-        <!-- door type: lift -->
+        <!-- door type: lift – 6 mm panel in 4 printed channels, rod pushes a printed saddle -->
         <g id="dLift" style="display:none">
-          <g class="part" data-part="channels" tabindex="0" role="button" aria-label="Door channels"><rect x=".2" y="-39.5" width="1" height="38" fill="#c8cdd4" opacity=".9"/></g>
-          <g class="part" data-part="actuator" tabindex="0" role="button" aria-label="Linear actuator">
-            <line id="rodS" x1="3.2" y1="-21.2" x2="3.2" y2="-23.9" stroke="#9aa3ae" stroke-width=".9" stroke-linecap="round"/>
-            <rect x="1.6" y="-8.9" width="3.2" height="6.7" rx=".6" fill="#3d4450"/>
-            <rect x="2" y="-21.2" width="2.4" height="12.3" rx=".5" fill="#5b6370"/>
-            <circle cx="3.2" cy="-2.2" r=".7" fill="#e5a50a"/>
+          <g class="part" data-part="channels" tabindex="0" role="button" aria-label="Printed door channels">
+            <rect class="pp" x=".2" y="-20.5" width="2" height="19"/><rect class="pp" x=".2" y="-39.5" width="2" height="19"/>
           </g>
           <g class="part" data-part="door" tabindex="0" role="button" aria-label="Lift door">
-            <rect id="doorS" x=".4" y="-23.5" width=".6" height="22" fill="var(--front)" stroke="var(--dockline)" stroke-width=".12"/>
-            <path id="brS" d="" fill="#9ba2ac"/>
+            <g id="ldMove"><rect x=".4" y="-23.5" width=".6" height="22" fill="var(--front)" stroke="var(--dockline)" stroke-width=".12"/><path class="pm" d="M1.42,-25.10 L1.42,-19.80 L1.02,-19.80 L1.02,-23.53 L0.38,-23.53 L0.38,-22.60 L0.20,-22.60 L0.20,-24.03 L1.02,-24.03 L1.02,-27.60 L4.50,-27.60 L4.50,-26.50 L2.82,-26.50Z"/></g>
+          </g>
+          <g class="part" data-part="actuator" tabindex="0" role="button" aria-label="Linear actuator">
+            <path class="pp" d="M4.80,-1.50 L1.60,-1.50 L1.60,-1.90 L2.20,-1.90 L2.44,-3.25 L2.55,-3.47 L2.73,-3.65 L2.95,-3.76 L3.20,-3.80 L3.45,-3.76 L3.67,-3.65 L3.85,-3.47 L3.96,-3.25 L4.20,-1.90 L4.80,-1.90Z M3.20,-2.68 L3.43,-2.77 L3.52,-3.00 L3.43,-3.23 L3.20,-3.32 L2.97,-3.23 L2.88,-3.00 L2.97,-2.77Z"/><path class="pp" d="M5.70,-16.00 L1.90,-16.00 L1.90,-18.20 L5.70,-18.20Z M5.20,-16.88 L5.36,-16.94 L5.42,-17.10 L5.36,-17.26 L5.20,-17.32 L5.04,-17.26 L4.98,-17.10 L5.04,-16.94Z"/>
+            <line x1="3.2" y1="-3" x2="3.2" y2="-22.5" stroke="#5b6370" stroke-width="2.8"/>
+            <line id="ldRod" x1="3.2" y1="-22.5" x2="3.2" y2="-25.5" stroke="#9aa3ae" stroke-width="1.4"/>
+            <circle id="ldEye" cx="3.2" cy="-25.5" r=".9" fill="#9aa3ae" stroke="#5b6370" stroke-width=".15"/><circle cx="3.20" cy="-3.00" r="0.4" fill="#e5a50a"/>
           </g>
         </g>
-        <!-- door type: flap out -->
+        <!-- door type: flap out – printed lever on the flap, printed top mount -->
         <g id="dFlap">
-          <g class="part" data-part="actuator" tabindex="0" role="button" aria-label="Flap actuator">
-            <line id="flapRod" x1="0" y1="0" x2="0" y2="0" stroke="#9aa3ae" stroke-width=".9" stroke-linecap="round"/>
-            <line id="flapBody" x1="0" y1="0" x2="0" y2="0" stroke="#5b6370" stroke-width="2.4" stroke-linecap="round"/>
-            <rect x="1.2" y="-55.6" width="2.4" height="3.2" fill="#9ba2ac"/><circle cx="2.4" cy="-54" r=".8" fill="#e5a50a"/>
-            <polyline id="flapCrank" points="" fill="none" stroke="#3d4450" stroke-width=".7" stroke-linejoin="round"/>
-          </g>
           <g class="part" data-part="flap" tabindex="0" role="button" aria-label="Outward flap">
             <polygon id="flapP" points="" fill="var(--front)" stroke="var(--dockline)" stroke-width=".15"/>
+            <g id="flapLev"><path class="pm" d="M4.01,-30.60 L3.60,-30.55 L1.40,-28.35 L1.40,-14.40 L0.00,-14.40 L0.00,-32.55 L3.70,-32.55 L4.01,-32.50 L4.29,-32.36 L4.51,-32.14 L4.65,-31.86 L4.70,-31.55 L4.65,-31.24 L4.51,-30.96 L4.29,-30.74Z"/><circle cx="3.70" cy="-31.55" r="0.4" fill="#e5a50a"/></g>
             <circle cx="-1.9" cy="-22.4" r=".6" fill="#e5a50a"/>
           </g>
+          <g class="part" data-part="actuator" tabindex="0" role="button" aria-label="Flap actuator">
+            <path class="pp" d="M0.80,-51.46 L0.59,-51.67 L0.46,-51.94 L0.41,-52.23 L0.41,-56.73 L0.46,-57.02 L0.59,-57.29 L0.80,-57.50 L1.07,-57.63 L1.36,-57.68 L5.16,-57.68 L5.46,-57.63 L5.72,-57.50 L5.93,-57.29 L6.07,-57.02 L6.11,-56.73 L6.07,-56.44 L5.93,-56.17 L5.39,-55.51 L5.38,-56.69 L5.32,-56.79 L5.22,-56.85 L5.10,-56.85 L5.00,-56.79 L4.94,-56.63 L4.95,-54.97 L3.63,-53.36 L1.92,-51.46 L1.66,-51.33 L1.36,-51.28 L1.07,-51.33Z M2.76,-53.71 L2.99,-53.80 L3.08,-54.03 L2.99,-54.26 L2.76,-54.35 L2.54,-54.26 L2.44,-54.03 L2.54,-53.80Z M1.42,-52.21 L1.52,-52.27 L1.59,-52.43 L1.59,-54.03 L1.52,-54.19 L1.36,-54.26 L1.20,-54.19 L1.14,-54.03 L1.14,-52.43 L1.20,-52.27 L1.30,-52.21Z M1.47,-54.84 L1.56,-54.92 L1.59,-55.03 L1.59,-56.63 L1.52,-56.79 L1.36,-56.86 L1.20,-56.79 L1.14,-56.63 L1.14,-55.03 L1.17,-54.92 L1.25,-54.84 L1.36,-54.81Z"/><line id="flapBody" x1="0" y1="0" x2="0" y2="0" stroke="#5b6370" stroke-width="2.4" stroke-linecap="round"/><line id="flapRod" x1="0" y1="0" x2="0" y2="0" stroke="#9aa3ae" stroke-width="1" stroke-linecap="round"/><circle cx="2.76" cy="-54.03" r="0.5" fill="#e5a50a"/>
+          </g>
         </g>
-        <!-- door type: up & over -->
+        <!-- door type: up & over – 2 printed modules (plate, arm + lever, door bracket with peg) + printed tracks -->
         <g id="dUO" style="display:none">
           <g class="part" data-part="uo" tabindex="0" role="button" aria-label="Up and over mechanism">
-            <rect x="-.95" y="-22.7" width="12.5" height="1" fill="#c8cdd4"/>
-            <line x1="33.2" y1="-1.5" x2="33.2" y2="-24.5" stroke="#9ba2ac" stroke-width=".6"/>
-            <line x1="14.2" y1="-24.5" x2="33.2" y2="-24.5" stroke="#5b6370" stroke-width="2.2" stroke-linecap="round"/>
-            <line id="uoRod" x1="14.2" y1="-24.5" x2="10" y2="-24.5" stroke="#9aa3ae" stroke-width=".9" stroke-linecap="round"/>
-            <line id="uoLink" x1="0" y1="0" x2="0" y2="0" stroke="#9aa3ae" stroke-width=".5"/>
-            <line id="uoArm" x1="5.54" y1="-15.83" x2="0" y2="0" stroke="#3d4450" stroke-width=".8" stroke-linecap="round"/>
-            <circle cx="5.54" cy="-15.83" r=".6" fill="#e5a50a"/>
+            <path class="pp" d="M5.20,-3.30 L5.20,-1.55 L3.80,-1.55 L3.80,-7.06 L6.91,-8.57 L6.54,-8.92 L6.37,-9.19 L6.26,-9.50 L6.22,-9.82 L6.30,-10.27 L6.50,-10.67 L6.77,-10.95 L7.04,-11.12 L7.35,-11.23 L7.67,-11.27 L7.99,-11.23 L8.30,-11.12 L8.57,-10.95 L8.84,-10.67 L8.97,-10.45 L9.08,-10.14 L9.12,-9.82 L9.03,-9.27 L12.56,-9.97 L14.00,-9.50 L17.80,-9.50 L17.80,-1.55 L8.80,-1.55 L8.80,-3.30Z"/><path class="pp" d="M0.30,-15.01 L9.24,-15.01 L9.24,-12.46 L0.30,-12.46Z M7.28,-14.26 L7.36,-14.36 L7.35,-14.49 L7.24,-14.57 L7.12,-14.55 L7.04,-14.45 L7.05,-14.32 L7.16,-14.24Z M4.32,-14.28 L4.37,-14.41 L4.32,-14.53 L4.20,-14.57 L4.08,-14.53 L4.03,-14.41 L4.08,-14.28 L4.20,-14.23Z M1.24,-14.24 L1.35,-14.32 L1.36,-14.45 L1.28,-14.55 L1.16,-14.57 L1.05,-14.49 L1.04,-14.36 L1.11,-14.26Z"/>
+            <g id="uoMove"><polygon points="-3.70,11.71 -1.80,11.71 -1.80,-8.49 -3.70,-8.49" fill="var(--front)" stroke="var(--dockline)" stroke-width=".15"/><path class="pm" d="M0.53,3.68 L-0.66,5.39 L-0.73,5.63 L-0.72,5.89 L-0.63,6.12 L-0.48,6.32 L-0.30,6.46 L-0.17,6.68 L0.00,6.86 L0.26,6.98 L0.25,7.05 L0.12,7.31 L-1.30,9.41 L-1.80,9.41 L-1.80,-1.19 L-1.30,-1.19 L0.25,-0.76 L0.47,-0.65 L0.65,-0.47 L0.76,-0.25 L0.80,-0.00Z"/><circle cx="0.00" cy="-0.00" r="0.3" fill="#e5a50a"/><circle cx="-0.65" cy="6.76" r="0.35" fill="#e5a50a"/></g>
+            <g id="uoArm"><path class="pm" d="M1.46,-5.70 L1.15,-5.65 L0.84,-5.70 L0.57,-5.85 L0.35,-6.07 L0.20,-6.34 L0.15,-6.65 L0.20,-6.96 L0.35,-7.23 L0.57,-7.45 L0.84,-7.60 L1.15,-7.65 L1.48,-7.58 L6.85,-10.19 L6.97,-10.38 L7.12,-10.53 L10.48,-24.66 L10.65,-25.00 L10.92,-25.26 L11.25,-25.43 L11.62,-25.49 L11.99,-25.43 L12.33,-25.26 L12.59,-25.00 L12.76,-24.66 L12.82,-24.29 L12.76,-23.92 L8.50,-10.15 L8.57,-9.82 L8.48,-9.43 L8.23,-9.12 L8.06,-9.01 L7.67,-8.92 L7.46,-8.95 L2.09,-6.34 L1.95,-6.07 L1.73,-5.85Z"/><circle cx="11.62" cy="-24.29" r="0.4" fill="#e5a50a"/></g><circle cx="7.67" cy="-9.82" r="0.45" fill="#e5a50a"/>
           </g>
-          <g class="part" data-part="uo" tabindex="0" role="button" aria-label="Up and over flap">
-            <polygon id="uoDoor" points="" fill="var(--front)" stroke="var(--dockline)" stroke-width=".15"/>
+          <g class="part" data-part="actuator" tabindex="0" role="button" aria-label="Up and over actuator">
+            <path class="pp" d="M0.71,-43.50 L0.50,-43.71 L0.36,-43.97 L0.31,-44.27 L0.31,-48.67 L0.36,-48.96 L0.50,-49.22 L0.71,-49.43 L0.97,-49.57 L1.26,-49.62 L4.26,-49.67 L4.57,-49.62 L4.85,-49.47 L5.07,-49.25 L5.22,-48.97 L5.26,-48.67 L5.26,-43.92 L5.22,-43.61 L5.07,-43.33 L4.85,-43.11 L4.57,-42.96 L4.26,-42.92 L0.97,-43.36Z M4.38,-43.87 L4.46,-43.95 L4.49,-44.07 L4.49,-45.67 L4.42,-45.82 L4.26,-45.89 L4.11,-45.82 L4.04,-45.67 L4.04,-44.07 L4.07,-43.95 L4.15,-43.87 L4.26,-43.84Z M4.42,-46.71 L4.49,-46.87 L4.49,-48.47 L4.42,-48.62 L4.26,-48.69 L4.11,-48.62 L4.04,-48.47 L4.04,-46.87 L4.11,-46.71 L4.21,-46.65 L4.32,-46.65Z M1.72,-46.65 L1.82,-46.71 L1.89,-46.87 L1.89,-48.47 L1.82,-48.62 L1.66,-48.69 L1.51,-48.62 L1.44,-48.47 L1.44,-46.87 L1.51,-46.71 L1.61,-46.65Z M1.26,-43.95 L1.49,-44.04 L1.58,-44.27 L1.49,-44.49 L1.26,-44.59 L1.04,-44.49 L0.94,-44.27 L1.04,-44.04Z"/><line id="uoBody" x1="0" y1="0" x2="0" y2="0" stroke="#5b6370" stroke-width="2.4" stroke-linecap="round"/><line id="uoRod" x1="0" y1="0" x2="0" y2="0" stroke="#9aa3ae" stroke-width="1" stroke-linecap="round"/><circle cx="1.26" cy="-44.27" r="0.5" fill="#e5a50a"/>
           </g>
         </g>
-        <!-- door type: parallel lift -->
+        <!-- door type: parallel lift – 2 print-in-place modules (plate, 2 arms, lever, door bracket) -->
         <g id="dPar" style="display:none">
-          <g class="part" data-part="par" tabindex="0" role="button" aria-label="Parallel lift door">
-            <g id="parDoorS">
-              <polygon points="0,-9.5 2.4,-9.5 5.4,-5.3 5,-3.6 3.6,-3.4 0,-3.4" fill="#9ba2ac"/>
-              <rect x="-1.9" y="-22.1" width="1.9" height="20.4" fill="var(--front)" stroke="var(--dockline)" stroke-width=".15"/>
-            </g>
-            <line id="parArm1" x1="1.4" y1="-18.4" x2="1.4" y2="-8.4" stroke="#5b6370" stroke-width="1.1" stroke-linecap="round"/>
-            <line id="parArm2" x1="4.44" y1="-14.43" x2="4.44" y2="-4.43" stroke="#3d4450" stroke-width="1.1" stroke-linecap="round"/>
-            <line id="parLever" x1="4.44" y1="-14.43" x2="10.2" y2="-21.93" stroke="#3d4450" stroke-width=".9" stroke-linecap="round"/>
-            <circle cx="1.4" cy="-18.4" r=".55" fill="#e5a50a"/><circle cx="4.44" cy="-14.43" r=".55" fill="#e5a50a"/>
-            <circle id="parA1" cx="1.4" cy="-8.4" r=".4" fill="#e5a50a"/><circle id="parA2" cx="4.44" cy="-4.43" r=".4" fill="#e5a50a"/>
+          <g class="part" data-part="par" tabindex="0" role="button" aria-label="Parallel lift mechanism">
+            <path class="pp" d="M4.00,-1.55 L4.00,-4.00 L3.70,-4.64 L3.65,-5.02 L3.71,-5.13 L3.91,-5.31 L6.49,-9.97 L5.94,-10.05 L5.49,-10.30 L5.22,-10.58 L5.09,-10.80 L4.98,-11.10 L4.94,-11.43 L4.98,-11.75 L5.09,-12.05 L5.26,-12.33 L5.49,-12.56 L5.95,-12.81 L4.87,-13.68 L5.38,-14.60 L4.89,-14.68 L4.68,-14.76 L4.35,-14.97 L4.02,-15.31 L3.86,-15.58 L3.73,-15.95 L3.69,-16.33 L3.73,-16.72 L3.86,-17.09 L4.07,-17.42 L4.35,-17.70 L4.74,-17.93 L0.99,-20.96 L0.50,-21.25 L0.45,-21.51 L0.30,-21.80 L0.20,-21.90 L0.20,-23.20 L7.91,-23.20 L5.40,-18.08 L5.97,-17.99 L6.19,-17.91 L6.52,-17.70 L6.84,-17.36 L7.01,-17.09 L7.13,-16.72 L7.18,-16.33 L7.13,-15.95 L7.01,-15.58 L6.80,-15.25 L6.52,-14.97 L6.04,-14.71 L12.11,-9.26 L12.50,-9.00 L12.50,-1.55 L8.80,-1.55 L8.80,-3.30 L5.20,-3.30 L5.20,-1.55Z"/>
+            <g id="parMove"><polygon points="-1.9,-1.7 0,-1.7 0,-20.3 -1.8,-22.1 -1.9,-22.1" fill="var(--front)" stroke="var(--dockline)" stroke-width=".15"/><path class="pm" d="M2.88,-3.65 L0.50,-1.70 L0.00,-1.70 L0.00,-10.60 L1.53,-10.56 L1.66,-10.22 L2.03,-9.91 L2.14,-9.69 L2.13,-9.45 L1.96,-9.19 L1.88,-8.95 L1.88,-8.70 L1.95,-8.46 L2.09,-8.26 L3.08,-7.46 L3.13,-7.19 L2.50,-6.03 L2.46,-5.79 L2.50,-5.54 L2.61,-5.31 L2.98,-5.00 L3.10,-4.74 L3.08,-4.54 L2.92,-4.28 L2.84,-4.04 L2.83,-3.79Z"/><circle cx="1.70" cy="-9.60" r="0.35" fill="#e5a50a"/><circle cx="2.65" cy="-4.69" r="0.35" fill="#e5a50a"/></g>
+            <g id="parArm2"><path class="pm" d="M2.96,-3.75 L2.65,-3.70 L2.35,-3.75 L2.07,-3.89 L1.85,-4.11 L1.71,-4.38 L1.66,-4.69 L1.71,-5.00 L1.85,-5.28 L2.07,-5.50 L2.39,-5.64 L5.50,-11.27 L5.51,-11.63 L5.68,-11.99 L6.00,-12.24 L6.19,-12.30 L6.39,-12.33 L6.78,-12.24 L7.09,-11.99 L7.26,-11.63 L7.29,-11.43 L7.20,-11.04 L6.95,-10.72 L6.72,-10.60 L3.60,-4.97 L3.65,-4.69 L3.60,-4.38 L3.46,-4.11 L3.24,-3.89Z"/></g>
+            <g id="parArm1"><path class="pm" d="M2.01,-8.65 L1.70,-8.61 L1.39,-8.65 L1.12,-8.80 L0.90,-9.02 L0.75,-9.29 L0.70,-9.60 L0.75,-9.91 L0.90,-10.18 L1.12,-10.40 L1.43,-10.55 L4.55,-16.18 L4.56,-16.53 L4.62,-16.73 L4.87,-17.04 L5.06,-17.15 L9.21,-25.60 L9.47,-25.87 L9.81,-26.04 L10.18,-26.10 L10.55,-26.04 L10.88,-25.87 L11.15,-25.60 L11.32,-25.27 L11.38,-24.90 L11.32,-24.53 L11.15,-24.19 L6.32,-16.44 L6.31,-16.13 L6.24,-15.94 L5.99,-15.63 L5.77,-15.50 L2.65,-9.88 L2.69,-9.60 L2.65,-9.29 L2.50,-9.02 L2.28,-8.80Z"/><rect x="5.03" y="-16.73" width=".8" height=".8" fill="#9ba2ac" stroke="#5b6370" stroke-width=".08"/><circle cx="10.18" cy="-24.90" r="0.4" fill="#e5a50a"/></g><circle cx="5.43" cy="-16.33" r="0.45" fill="#e5a50a"/><circle cx="6.39" cy="-11.43" r="0.45" fill="#e5a50a"/>
           </g>
           <g class="part" data-part="actuator" tabindex="0" role="button" aria-label="Parallel lift actuator">
-            <line id="parRod" x1="0" y1="0" x2="0" y2="0" stroke="#9aa3ae" stroke-width=".9" stroke-linecap="round"/>
-            <line id="parBody" x1="0" y1="0" x2="0" y2="0" stroke="#5b6370" stroke-width="2.4" stroke-linecap="round"/>
-            <circle cx="9" cy="-44.4" r=".8" fill="#e5a50a"/>
+            <path class="pp" d="M1.28,-46.05 L1.14,-46.33 L1.09,-46.63 L1.09,-51.38 L1.14,-51.69 L1.28,-51.97 L1.50,-52.19 L1.78,-52.34 L2.09,-52.38 L5.89,-52.33 L6.18,-52.29 L6.44,-52.15 L6.65,-51.94 L6.79,-51.68 L6.84,-51.38 L6.84,-46.98 L6.79,-46.69 L6.65,-46.43 L6.44,-46.22 L6.18,-46.08 L2.09,-45.63 L1.78,-45.68 L1.50,-45.83Z M5.89,-46.66 L6.11,-46.76 L6.21,-46.98 L6.11,-47.21 L5.89,-47.30 L5.66,-47.21 L5.57,-46.98 L5.66,-46.76Z M4.74,-49.37 L4.85,-49.43 L4.91,-49.58 L4.91,-51.18 L4.85,-51.34 L4.69,-51.41 L4.53,-51.34 L4.46,-51.18 L4.46,-49.58 L4.49,-49.47 L4.57,-49.39Z M2.14,-46.57 L2.25,-46.63 L2.31,-46.78 L2.31,-48.38 L2.25,-48.54 L2.09,-48.61 L1.93,-48.54 L1.86,-48.38 L1.86,-46.78 L1.93,-46.63 L2.03,-46.57Z M2.20,-49.39 L2.28,-49.47 L2.31,-49.58 L2.31,-51.18 L2.25,-51.34 L2.09,-51.41 L1.93,-51.34 L1.86,-51.18 L1.86,-49.58 L1.89,-49.47 L1.97,-49.39 L2.09,-49.36Z"/><line id="parBody" x1="0" y1="0" x2="0" y2="0" stroke="#5b6370" stroke-width="2.4" stroke-linecap="round"/><line id="parRod" x1="0" y1="0" x2="0" y2="0" stroke="#9aa3ae" stroke-width="1" stroke-linecap="round"/><circle cx="5.89" cy="-46.98" r="0.5" fill="#e5a50a"/>
           </g>
         </g>
         <g class="part" data-part="reed" tabindex="0" role="button" aria-label="Reed switches">
@@ -515,18 +514,46 @@ h3{font-size:.86rem;margin:0 0 6px}
       <tr><td>Ramp wedge 50×10 cm, 15 mm → 0 (hardwood) – screwed to the tray front</td><td>1</td><td class="num">2–5</td><td>–</td></tr>
       <tr><td>Wire 0.5 mm², screws, wood glue, 4 steel angles 30 mm, zip ties</td><td>–</td><td class="num">8–15</td><td>–</td></tr>
       <tr class="grp"><td colspan="4">Door parts – <span id="doorGrpName">Flap out</span></td></tr>
-      <tr data-door="lift"><td>Alu U-profile 10×10×1 mm, 1 m – 2 door channels (38 cm)</td><td>1</td><td class="num">3.09 + ship.</td><td><a href="https://www.amazon.de/Aluminiumprofil-Aluprofil-silber-eloxiert-10mmx10mmx10mmx1mmx1000mm/dp/B0044678QK">Amazon</a></td></tr>
-      <tr data-door="lift"><td>MDF 6 mm door 49.6×22, small L-bracket, PTFE tape, 2 front legs 4.9×20.8 from the 18 mm MDF</td><td>–</td><td class="num">5–10</td><td>store</td></tr>
+      <tr data-door="lift"><td>3D-printed PETG ≈ 100 g: 4 door channels, saddle, foot, clamp (STL in "Door parts" below) – or alu U-profile 10×10×1 mm for the channels</td><td>–</td><td class="num">2–3</td><td>–</td></tr>
+      <tr data-door="lift"><td>MDF 6 mm door 49.6×22, PTFE tape, M3×16 bolt + nut, 2 front legs 4.9×20.8 from the 18 mm MDF</td><td>–</td><td class="num">4–7</td><td>store</td></tr>
       <tr data-door="flap"><td>Piano hinge, stainless, 2× 30 cm</td><td>1</td><td class="num">6.79</td><td><a href="https://www.amazon.de/Klavierband-Klavierscharnier-Stangenscharnier-Schrankt%C3%BCren-Aufbewahrungs/dp/B0CT5HX4K7">Amazon</a></td></tr>
-      <tr data-door="flap"><td>Flap 59.6×20.7 from the 18 mm MDF, L-bracket bent from flat steel 25×4 (17.5 + 4.4 cm), clevis bracket on the left cheek, 2 clevis pins</td><td>–</td><td class="num">5–9</td><td>store</td></tr>
-      <tr data-door="upover"><td>Alu U-profile 10×10×1 mm, 1 m – 2 tracks (15 cm)</td><td>1</td><td class="num">3.09 + ship.</td><td><a href="https://www.amazon.de/Aluminiumprofil-Aluprofil-silber-eloxiert-10mmx10mmx10mmx1mmx1000mm/dp/B0044678QK">Amazon</a></td></tr>
-      <tr data-door="upover"><td>Flap 49.6×20.5 + 2 front legs 4.9×20.8 from the 18 mm MDF, 2 flat-bar arms, 608 bearings as rollers, actuator post</td><td>–</td><td class="num">10–19</td><td>store</td></tr>
-      <tr data-door="parallel"><td>Alu flat bar 20×3 mm, 1 m – 4 arms (12 cm), lever, 2 door brackets</td><td>1</td><td class="num">3.15 + ship.</td><td><a href="https://www.amazon.de/Aluminium-Flachmaterial-Flach-Flachstange-1000mm/dp/B01N0QNIOG">Amazon</a></td></tr>
-      <tr data-door="parallel"><td>Door 49.2×20.4 + 2 front legs 4.9×20.8 from the 18 mm MDF, 8 M6 shoulder bolts + nylon washers, actuator bracket</td><td>–</td><td class="num">6–12</td><td>store</td></tr>
+      <tr data-door="flap"><td>3D-printed PETG ≈ 50 g: lever + actuator top mount (STL in "Door parts" below)</td><td>–</td><td class="num">1–2</td><td>–</td></tr>
+      <tr data-door="flap"><td>Flap 59.6×20.7 from the 18 mm MDF, 2 M6 bolts + nyloc nuts, screws</td><td>–</td><td class="num">2–4</td><td>store</td></tr>
+      <tr data-door="upover"><td>3D-printed PETG ≈ 400 g: 2 print-in-place modules, 2 tracks, top mount, drill template (STL in "Door parts" below)</td><td>–</td><td class="num">8–10</td><td>–</td></tr>
+      <tr data-door="upover"><td>Door 49.2×20.2 + 2 front legs 4.9×20.8 from the 18 mm MDF, 2 M6 bolts + nyloc nuts, screws</td><td>–</td><td class="num">4–6</td><td>store</td></tr>
+      <tr data-door="parallel"><td>3D-printed PETG ≈ 450 g: 2 print-in-place modules, top mount, drill template (STL in "Door parts" below)</td><td>–</td><td class="num">9–12</td><td>–</td></tr>
+      <tr data-door="parallel"><td>Square rod 8×8 mm, 1 m (steel or alu), cut to 48.4 cm – couples the two sides</td><td>1</td><td class="num">4–7</td><td>store</td></tr>
+      <tr data-door="parallel"><td>Door 49.2×20.4 with a 45° chamfer on the top back edge + 2 front legs 4.9×20.8 from the 18 mm MDF, 2 M6 bolts + nyloc nuts, screws</td><td>–</td><td class="num">4–6</td><td>store</td></tr>
     </tbody>
   </table>
   </div>
   <p class="note">IKEA/Amazon prices from current listings; AliExpress changes daily; the PCB price is an estimate (get the exact quote at JLCPCB). Core = all rows without a tag, plus the LED and door parts you picked above the 3D model.</p>
+</section>
+
+<section class="card" style="margin-top:14px" id="doorparts">
+  <div class="vhead"><h2>Door parts v2.0 · 3D print</h2><span class="lbl">OpenSCAD · PETG · no supports · all files open</span></div>
+  <div class="cols2">
+    <figure class="shot light"><img id="dpImg" src="img/doors-flap-v2.0.webp" width="1200" height="436" loading="lazy" alt="Flap out: side view closed, half and open, with the printed lever and top mount"><figcaption id="dpCap">Flap out · closed, half, open · lever + top mount</figcaption></figure>
+    <div>
+      <div class="tablewrap"><table id="dpTab"><thead><tr><th>Door</th><th>Printed</th><th class="num">PETG</th><th>Out open / moving</th></tr></thead><tbody>
+        <tr data-d="lift"><td>Lift door</td><td>4 channels, saddle, foot, clamp</td><td class="num">≈ 100 g</td><td data-o="lift"></td></tr>
+        <tr data-d="flap"><td>Flap out</td><td>lever, actuator top mount</td><td class="num">≈ 50 g</td><td data-o="flap"></td></tr>
+        <tr data-d="upover"><td>Up &amp; over</td><td>2 print-in-place modules, 2 tracks, top mount, drill template</td><td class="num">≈ 400 g</td><td data-o="upover"></td></tr>
+        <tr data-d="parallel"><td>Parallel lift</td><td>2 print-in-place modules, top mount, drill template</td><td class="num">≈ 450 g</td><td data-o="parallel"></td></tr>
+      </tbody></table></div>
+      <p class="note">PETG, 0.2 mm layers, 3 perimeters, 20 % infill, no supports, 220 × 220 mm bed. Up &amp; over and parallel lift print in place:
+      plate, arms, lever and door bracket come off the bed already joined. Print <code>coupon.stl</code> first and pick the joint gap that turns
+      freely (0.45 mm default). Each zip has the STL, the OpenSCAD source, the check scripts and a README with the mounting steps.
+      Drag the <b>Door open</b> slider above the 3D model to see every part move.</p>
+    </div>
+  </div>
+  <div class="dl">
+    <button class="btn primary" data-dl="dlift" disabled>⬇ Lift door · STL + OpenSCAD (zip, 90 kB)</button>
+    <button class="btn primary" data-dl="dflap" disabled>⬇ Flap out · STL + OpenSCAD (zip, 70 kB)</button>
+    <button class="btn primary" data-dl="dupover" disabled>⬇ Up &amp; over · STL + OpenSCAD (zip, 540 kB)</button>
+    <button class="btn primary" data-dl="dparallel" disabled>⬇ Parallel lift · STL + OpenSCAD (zip, 630 kB)</button>
+    <span class="note dlnote" role="status">Checking downloads…</span>
+  </div>
 </section>
 
 <section class="card" style="margin-top:14px" id="pcb">
@@ -538,7 +565,7 @@ h3{font-size:.86rem;margin:0 0 6px}
   <div class="dl">
     <button class="btn primary" data-dl="pcb" disabled>⬇ PCB v1.3.1 · JLCPCB files, KiCad, YAML (zip, 1.2 MB)</button>
     <button class="btn primary" data-dl="case" disabled>⬇ Case v1.3.1 · STL + OpenSCAD (zip, 0.4 MB)</button>
-    <span class="note" id="dlNote" role="status">Checking downloads…</span>
+    <span class="note dlnote" id="dlNote" role="status">Checking downloads…</span>
   </div>
   <div class="cols2" style="margin-top:14px">
     <div>
@@ -890,7 +917,7 @@ cover:
   - platform: endstop
     id: door
     name: "Robo-Garage Door"
-    device_class: garage
+    device_class: damper
     open_action:
       - output.turn_off: door_close_out
       - script.execute: beep_move
@@ -945,8 +972,8 @@ light:
       <li>No METOD bottom panel – the slides sit at the very bottom and the tray rides 3 mm above the floor. Robot path: floor → wedge (1.5 cm, ≈9°) → tray → the station's own ramp plate (+1.2 cm).</li>
       <li><b>Floor-safe pull-out:</b> the loaded drawer weighs ≈30 kg. At full extension the slides sag a few mm – more than the 3 mm gap, so tray and wedge would scrape. Fix: 2 soft PU wheels (Ø30 mm) in the front corners, just inside the cheeks. They touch the floor and roll; the slides carry the back and keep it straight. Nothing else touches the floor. Keep the floor in front clean (grit under a wheel can still mark soft parquet).</li>
       <li>Everything on the drawer stays below 62 cm, so it slides out under the fixed fascia. Electronics, adapter, strip and fan live in the fixed space above the station.</li>
-      <li>Lift door: PTFE tape in the channels; if it ever tilts, add a second actuator on the right, wired in parallel. Every door: the light barrier keeps it from closing on anything in front; the INA219 stall stop on the PCB is the backup.</li>
-      <li>Parallel lift: 4 arms, 10 cm hole to hole (12 cm pieces), all pivots on M6 shoulder bolts.</li>
+      <li>Lift door: PTFE tape in the printed channels; if it ever tilts, add a second actuator on the right, wired in parallel. Every door: the light barrier keeps it from closing on anything in front; the INA219 stall stop on the PCB is the backup.</li>
+      <li><b>Printed door parts:</b> every door type has its own STL set ("Door parts" above). Up &amp; over and parallel lift print in place – print <code>coupon.stl</code> first, then move each module through its full travel a few times before mounting. The parallel lift needs a 45° chamfer on the door's top back edge; the up &amp; over door is 20.2 cm tall (2 mm less than the others).</li>
       <li><b>Stable pull-out:</b> a 100 N pull on the handle (57 cm high) levers ≈56 N·m onto the tray joint. With 10 cm cheeks that is ≈350 N on the rear screws of each cheek – MDF end grain loosens. Now: 18 mm birch plywood cheeks with a 25 cm foot (≈120 N per cheek), glued + 5 screws from below; side rails glued + screwed every 8 cm; top rail ties the cheek tops and takes 3 screws into VEDDINGE; 2 small steel angles per side hold VEDDINGE at the bottom.</li>
       <li><b>Clean button:</b> Ø19 mm hole in the fascia, right side; from behind a Ø30 mm recess 8 mm deep so the nut grips (thread is shorter than 18 mm). Wire it to the BUTTON clamp (BTN, GND, 12V, LED−): GPIO19 reads the switch, a MOSFET on the PCB switches the ring (GPIO23). The fascia is fixed, so no wires through the drag chain.</li>
       <li><b>Light barrier:</b> sender + receiver on 2 small L-brackets at the front corners of the cabinet sides. Beam ≈12 cm in front of the door, ≈2 cm above the floor – past the ramp wedge and under the door's swing, so the door never breaks it itself. Both cables go to the BEAM clamp.</li>
@@ -994,25 +1021,45 @@ const BF={lift:.5,flap:.52,upover:.53,parallel:.64};
 
 /* ---------- door types ---------- */
 const DOORS={
- lift:{name:'Lift door',out:'0 cm',move:'0 cm',look:'recessed panel',drive:'actuator in the left corner pushes it straight up',safety:'drops by its own weight · light barrier',extra:'2 alu channels',total:'≈ €203–272',
-  note:'Lift door: a 6 mm panel rides in two alu channels behind the drawer front. The actuator in the left corner pushes it up from below; going down it simply follows by its own weight (≈5 N), so it can never pinch. The light barrier in front keeps it open while something is in the way.'},
- flap:{name:'Flap out',out:'≈ 21 cm',move:'≈ 21 cm',look:'flush flap, full width',drive:'actuator on the left cheek pushes down and back on an L-bracket – the flap swings up and out to 90°',safety:'light barrier + stall stop (INA219)',extra:'piano hinge, L-bracket',total:'≈ €209–275',
-  note:'Flap out: a flush 18 mm flap on a piano hinge at the outer face. A steel L-bracket on its back reaches 9 cm above the hinge; the actuator stands right behind the drawer front on the left cheek, leans back 3–7° and pushes the bracket down and back – the way its tip wants to move – so the flap swings up and out to 90° (sticks out ≈21 cm). Max ≈25 N of its 50 N, at least 6 cm lever (no dead point), and the bay floor stays free. The light barrier in front stops it before it touches anything; the INA219 stall stop is the backup.'},
- upover:{name:'Up & over',out:'≈ 8 cm',move:'≈ 11 cm',look:'flush flap, slim side strips',drive:'actuator pulls the top edge in along 2 short tracks; 2 arms tilt it up',safety:'light barrier + stall stop (INA219)',extra:'2 tracks, 2 arms, rollers',total:'≈ €209–284',
-  note:'Up & over: like a small garage door. The flap\'s top edge runs inward in two short tracks while two arms tilt it up – open, it forms a ≈8 cm canopy (≈11 cm while moving). The light barrier in front stops it before it touches anything; the INA219 stall stop is the backup.'},
- parallel:{name:'Parallel lift',out:'≈ 10 cm',move:'≈ 10 cm',look:'flush panel, slim side strips',drive:'actuator + lever turn 4 parallel arms – door stays vertical, moves out, then up on a circle',safety:'light barrier + stall stop (INA219)',extra:'4 arms, 2 brackets, lever',total:'≈ €205–280',
-  note:'Parallel lift: 4 arms (2 per side, 10 cm) form a parallelogram, so the door stays vertical. It first moves straight out, then up on a circle and parks 12.6 cm higher in front of the drawer front (≈10 cm out). The actuator turns the rear-left arm via a lever. The light barrier in front stops it before it touches anything; the INA219 stall stop is the backup.'}
+ lift:{name:'Lift door',out:'0 cm',move:'0 cm',look:'recessed panel',drive:'actuator in the left corner pushes it straight up',safety:'drops by its own weight · light barrier',extra:'4 printed channels, saddle, foot, clamp',total:'≈ €203–272',
+  note:'Lift door: a 6 mm panel rides in four printed channels behind the drawer front. The actuator stands in the left corner in a printed foot and clamp and pushes a printed saddle on the panel\'s top corner; going down it simply follows by its own weight (≈5 N), so it can never pinch. The light barrier in front keeps it open while something is in the way.'},
+ flap:{name:'Flap out',out:'≈ 21 cm',move:'≈ 21 cm',look:'flush flap, full width',drive:'actuator on the left cheek pushes a printed lever down and back – the flap swings up and out to 90°',safety:'light barrier + stall stop (INA219)',extra:'piano hinge, printed lever + top mount',total:'≈ €209–275',
+  note:'Flap out: a flush 18 mm flap on a piano hinge at the outer face. A printed lever on its back reaches 9 cm above the hinge; the actuator hangs from a printed mount right behind the drawer front on the left cheek and pushes the lever down and back – the way its tip wants to move – so the flap swings up and out to 90° (sticks out ≈21 cm). Max ≈21 N of its 50 N, at least 6 cm lever (no dead point), and the bay floor stays free. The light barrier in front stops it before it touches anything; the INA219 stall stop is the backup.'},
+ upover:{name:'Up & over',out:'≈ 8 cm',move:'≈ 11 cm',look:'flush flap, slim side strips',drive:'2 printed arms tilt it up while pegs on its brackets slide back in 2 printed tracks',safety:'light barrier + stall stop (INA219)',extra:'2 print-in-place modules, 2 tracks, top mount',total:'≈ €209–284',
+  note:'Up & over: like a small garage door. A peg on each door bracket slides 6.7 cm back in a printed track while a printed arm tilts the door up. Open, it lies flat inside the cabinet 13.7 cm above the tray – only 1.3 cm in front of the drawer front (3.5 cm while moving). Door 49.2 × 20.2 cm. The light barrier in front stops it before it touches anything; the INA219 stall stop is the backup.'},
+ parallel:{name:'Parallel lift',out:'≈ 10 cm',move:'≈ 10 cm',look:'flush panel, slim side strips',drive:'actuator + lever turn 4 printed arms – the door stays vertical, comes out ≤ 4 cm, then lifts on a circle',safety:'light barrier + stall stop (INA219)',extra:'2 print-in-place modules, top mount, 8 mm rod',total:'≈ €205–280',
+  note:'Parallel lift: two print-in-place modules, each with 2 arms (7.7 cm) that turn 100° as a parallelogram, so the door stays vertical. It comes out at most 4 cm, then lifts on a circle and parks 11.6 cm higher, only 2.3 cm in front of the drawer front (3.5 mm gap). A 45° chamfer on the door\'s top back edge lets it pass the drawer front. The actuator turns the left front arm via a lever; an 8 mm square rod couples both sides. The light barrier in front stops it before it touches anything; the INA219 stall stop is the backup.'}
 };
-/* flap out geometry (cm, xs = depth from front, y = up) */
-const FL={px:-1.9,py:22.4,H:20.7,pin:[5.5,9],F:[2.4,54]};   /* pin: L-bracket tip 9 cm above the hinge, 3.6 cm behind the flap; F: actuator pin on the left cheek, right behind the drawer front – it leans back and pushes down-back */
+/* ---------- door mechanisms (printed parts, doors/ v2.0) – cm: x = depth behind the door's back face (front face of the drawer front = -1.9), y = up from the floor ---------- */
+const RAD=Math.PI/180;
+const rcw=(p,a)=>[p[0]*Math.cos(a)+p[1]*Math.sin(a),-p[0]*Math.sin(a)+p[1]*Math.cos(a)];   /* turn clockwise by a */
+/* lift door: the rod pushes a printed saddle on the panel; 0.3 cm air when closed */
+const LD={tip:26.4,air:0.3,stroke:15.0};
+function ldState(f){return{lift:Math.max(0,LD.stroke*f-LD.air),tip:LD.tip+LD.stroke*f};}
+/* flap out: hinge H, printed lever pin behind / above it, actuator top pivot F on the left cheek */
+const FL={px:-1.9,py:22.4,H:20.7,pin:[5.6,9.15],F:[2.76162,54.0304]};
 function rotP(rel,th){const u=-rel[0],y=rel[1];const ur=u*Math.cos(th)-y*Math.sin(th),yr=u*Math.sin(th)+y*Math.cos(th);return[FL.px-ur,FL.py+yr];}
-/* up & over geometry */
-const UO={y:22.2,H:20.5,a:6.4,F:[5.54,15.83],l:6.49};
-function uoState(f){const ph=f*Math.PI/2;const dy=UO.y-UO.a*Math.cos(ph)-UO.F[1];const t=UO.F[0]+UO.a*Math.sin(ph)-Math.sqrt(Math.max(0,UO.l*UO.l-dy*dy));return{ph,t};}
-/* parallel lift: 4 arms R=10, fixed pivots P1/P2 on the cheeks; arm angle -90° (hanging) → +15°. Door stays vertical. Lever on the rear arm, actuator from F. */
-const PL={R:10,P1:[1.4,18.4],P2:[4.44,14.43],a0:-90,a1:15,lev:9.45,beta:52.5,F:[9,44.4]};
-function plState(f){const a=(PL.a0+f*(PL.a1-PL.a0))*Math.PI/180,du=PL.R*Math.cos(a),dy=PL.R*(1+Math.sin(a)),g=(PL.beta-f*(PL.a1-PL.a0))*Math.PI/180;
- return{du,dy,A1:[PL.P1[0]-du,PL.P1[1]-PL.R+dy],A2:[PL.P2[0]-du,PL.P2[1]-PL.R+dy],C:[PL.P2[0]+PL.lev*Math.cos(g),PL.P2[1]+PL.lev*Math.sin(g)]};}
+/* up & over: the peg Q on each door bracket slides back in a printed track while the door turns 90° clockwise; arm F→D, lever on the left arm, actuator from FA */
+const UO={Q:[1.8,13.405],D:[1.15,6.65],F:[7.67,9.82],L:7.24978,lev:15.0,levA:-285.271,FA:[1.26483,44.2654],bot:1.7,top:21.9};
+function uoState(f){const ps=f*Math.PI/2,u=rcw([UO.D[0]-UO.Q[0],UO.D[1]-UO.Q[1]],ps),h=UO.Q[1]+u[1]-UO.F[1],
+ s=UO.F[0]-UO.Q[0]-u[0]-Math.sqrt(Math.max(0,UO.L*UO.L-h*h)),Q=[UO.Q[0]+s,UO.Q[1]],D=[Q[0]+u[0],Q[1]+u[1]],
+ v0=[UO.D[0]-UO.F[0],UO.D[1]-UO.F[1]],v1=[D[0]-UO.F[0],D[1]-UO.F[1]],ar=Math.atan2(v0[0]*v1[1]-v0[1]*v1[0],v0[0]*v1[0]+v0[1]*v1[1]),la=UO.levA*RAD+ar;
+ return{ps,s,Q,D,ar,C:[UO.F[0]+UO.lev*Math.cos(la),UO.F[1]+UO.lev*Math.sin(la)]};}
+function uoPt(st,p){const r=rcw([p[0]-UO.Q[0],p[1]-UO.Q[1]],st.ps);return[st.Q[0]+r[0],st.Q[1]+r[1]];}
+/* parallel lift: 4 printed arms R (2 per side) turn sw° clockwise from th0: the door stays vertical, comes out, then lifts; lever on the left front arm */
+const PL={R:7.7,th0:241,sw:100,P1:[5.43303,16.3346],P2:[6.38708,11.4264],lev:9.79055,levA:61,F:[5.88639,46.9842],
+ door:[[-1.9,1.7],[0,1.7],[0,20.3],[-1.8,22.1],[-1.9,22.1]]};
+function plState(f){const a=(PL.th0-PL.sw*f)*RAD,a0=PL.th0*RAD,b=(PL.levA-PL.sw*f)*RAD;
+ return{ar:-PL.sw*f*RAD,T:[PL.R*(Math.cos(a)-Math.cos(a0)),PL.R*(Math.sin(a)-Math.sin(a0))],C:[PL.P1[0]+PL.lev*Math.cos(b),PL.P1[1]+PL.lev*Math.sin(b)]};}
+/* how far the door comes out in front of the drawer front, and the free height under it (cm) */
+function doorGeo(t,f){let P;
+ if(t==='lift')return{out:0,clear:1.5+ldState(f).lift};
+ if(t==='flap'){const th=f*Math.PI/2;P=[[0,0],[0,-FL.H],[1.9,-FL.H],[1.9,0]].map(p=>rotP(p,th));}
+ else if(t==='upover'){const st=uoState(f);P=[[-1.9,UO.bot],[0,UO.bot],[0,UO.top],[-1.9,UO.top]].map(p=>uoPt(st,p));}
+ else{const T=plState(f).T;P=PL.door.map(p=>[p[0]+T[0],p[1]+T[1]]);}
+ return{out:Math.max(0,-1.9-Math.min(...P.map(p=>p[0]))),clear:Math.min(...P.map(p=>p[1]))};}
+(()=>{const fm=v=>v<.05?'0 cm':'≈ '+(v<9.95?v.toFixed(1):Math.round(v))+' cm';
+ Object.keys(DOORS).forEach(k=>{let m=0;for(let i=0;i<=200;i++)m=Math.max(m,doorGeo(k,i/200).out);DOORS[k].out=fm(doorGeo(k,1).out);DOORS[k].move=fm(m);});})();
 /* ---------- phases ---------- */
 const PH=[
  {id:'idle',name:'Docked',dur:Infinity,real:'—',rate:30,msg:'Robot docked'},
@@ -1054,12 +1101,12 @@ const PARTS={
  wheels:['Front wheels · PU Ø30 mm','2 soft PU wheels with 608 bearings on M8 bolts, in slots in the tray corners just inside the cheeks. They roll on the floor and carry the drawer front, so tray and wedge keep their 3 mm gap even fully pulled out – nothing scrapes.'],
  slides:['Full-extension slides 550 mm','45 kg per pair, soft-close, at the very bottom of the METOD sides. The drawer half screws to the cheek foot + side rail (one straight 56 cm face), so it also locks foot and rail together. They carry the back of the ≈30 kg drawer; the 2 front wheels carry the front, so the slide sag (a few mm at full extension) never reaches the floor.'],
  chain:['Drag chain 10×15 mm','Open type, R18, right side. Carries the station power cable and sensor wires to the drawer.'],
- door:['Lift door','6 mm MDF 49.6×22 cm in two alu channels behind the drawer front. Lifts 15 cm → 15 cm opening. Drops by its own weight – cannot pinch.'],
- channels:['Alu U-profile 10×10×1 mm','Two 38 cm pieces on the drawer cheeks; 8 mm inside, so the 6 mm door slides freely (add PTFE tape).'],
+ door:['Lift door','6 mm MDF 49.6×22 cm in 4 printed channels behind the drawer front. The actuator rod pushes a printed saddle on its top left corner (M3 bolt, hidden behind the drawer front): lifts 14.7 cm. Drops by its own weight – cannot pinch.'],
+ channels:['Door channels · printed','4 PETG channels, 19 cm, 2 per side one above the other – a piece of 1.75 mm filament in the end holes lines them up. 8 mm inside, so the 6 mm panel slides freely. Same size as the alu U-profile 10×10×1 mm, which still works. Download: "Door parts" below.'],
  actuator:['12 V linear actuator, 150 mm','15 mm/s, 50 N, built-in end stops, ≈22 cm long retracted – check yours and set the mount so the door is just shut at full retraction. Same part for every door, only mounted differently.'],
- par:['Parallel lift (4 arms)','Two 10 cm arms per side, pivots on the cheeks below the drawer front. The parallelogram keeps the door vertical: out first, then up on a circle – parks 12.6 cm higher, ≈10 cm out. The actuator (max ≈27 N of its 50 N) turns the rear-left arm via a 9.5 cm lever. INA219 stall stop.'],
- flap:['Flap out (90°)','Flush 18 mm flap on a piano hinge. The actuator stands right behind the drawer front on the left cheek, leans back slightly and pushes down and back on a steel L-bracket that reaches 9 cm above the hinge – the flap swings up and out to 90°, ≈21 cm. Max ≈25 N of its 50 N, at least 6 cm lever all the way (also to pull it shut). The self-locking actuator holds the flap shut while you pull the drawer. INA219 stall stop.'],
- uo:['Up & over flap','Garage-style: top edge rolls inward in two short tracks, two arms tilt the flap up into a ≈8 cm canopy (≈11 cm while moving). Actuator pulls the top edge; INA219 stall stop.'],
+ par:['Parallel lift · printed modules','Two print-in-place modules on the cheeks: plate, 2 arms (7.7 cm), lever and door bracket come off the printer already joined (0.45 mm joint gap). The arms turn 100°: the door stays vertical, comes out at most 4 cm, then lifts and parks 11.6 cm higher, 2.3 cm in front of the drawer front. Needs a 45° chamfer on the door\'s top back edge. Actuator max ≈14 N via a 9.8 cm lever on the left front arm; an 8 mm square rod couples both sides. INA219 stall stop. Download: "Door parts" below.'],
+ flap:['Flap out (90°)','Flush 18 mm flap on a piano hinge. A printed lever on its back reaches 9 cm above the hinge; the actuator hangs from a printed mount right behind the drawer front on the left cheek and pushes the lever down and back – the flap swings up and out to 90°, ≈21 cm. Max ≈21 N of its 50 N, at least 6 cm lever all the way (also to pull it shut). The self-locking actuator holds the flap shut while you pull the drawer. INA219 stall stop. Download: "Door parts" below.'],
+ uo:['Up & over · printed modules','Garage style: a peg on each door bracket slides 6.7 cm back in a printed track while a printed arm tilts the door up. Open, it lies flat 13.7 cm above the tray over the robot, only 1.3 cm in front of the drawer front (3.5 cm while moving). 2 print-in-place modules (arm, lever, bracket), 2 tracks, top mount; door 49.2×20.2 cm. Actuator max ≈39 N via a 15 cm lever. INA219 stall stop. Download: "Door parts" below.'],
  esp:['Controller PCB v1.3.1','Own 100 × 100 mm board (fully assembled by JLCPCB) in a 3D-printed case under the top: ESP32 DevKitC socket, DRV8874 actuator driver (4.9 A limit) + INA219 stall stop, 12 V → 5 V on board, SHT41 temperature/humidity, light-barrier input with self-test, water-leak probe + 12 V valve output, buzzer, fan PWM, LED level shifter, 9 push-button clamps, DevKit USB-C through the case wall (flash without opening it). Files and order steps: "Controller PCB" below.'],
  psu:['Power strip + 12 V adapter','KOPPLA strip and Mean Well GST36E12 on the back panel above the station; cables run down the back-right corner into the drag chain.'],
  fan:['Rear fan · ARCTIC P12 Slim','On the inside of the back panel, blows into the 4 cm wall gap – invisible from the front. Auto vent on the ESP32: above 65 % humidity or 30 °C (SHT41) it runs at 30–100 %, off again 5 %RH / 1 °C below. Stops while the drawer is open.'],
@@ -1079,12 +1126,12 @@ const PARTS={
 };
 
 /* ---------- state ---------- */
-const S={btnT:-9,ph:0,pt:0,rod:0,door:0,rx:2,bat:100,prog:0,clean:80,dirty:10,cleanVis:80,dirtyVis:10,bag:10,
+const S={btnT:-9,ph:0,pt:0,rod:0,door:0,man:null,simDoor:0,simRod:0,rx:2,bat:100,prog:0,clean:80,dirty:10,cleanVis:80,dirtyVis:10,bag:10,
  rf:0,rfPlay:false,rfPaused:false,refilled:false,drawerOpen:false,drawer:0,lidA:0,cOut:0,dOut:0,fill:0,
  doorType:'flap',block:false,err:false,tank:false,night:false,auto:false,speed:1,style:'line',t:0,clock:36000,
  mode:'',modeT:-9,ledPrev:0,fanA:0,wait:false,retK:0,retFrom:null,retHd:0,
  tc:22,rh:50,fanS:0,vent:false,beamBlk:false,tx:true,test:0,fault:false,faultOn:false,errWhy:'',clrT:0,pose:{x:0,z:-19.5,h:2.7,pitch:0,hd:0}};
-const SIM=window.SIM={S,PH,MODES,FL,UO,PL,rotP,uoState,plState,led:null,phaseId:()=>PH[S.ph].id};
+const SIM=window.SIM={S,PH,MODES,FL,UO,PL,LD,rotP,uoState,uoPt,plState,ldState,doorGeo,led:null,phaseId:()=>PH[S.ph].id};
 const svc=()=>S.rf>.001||S.drawerOpen||S.rfPlay||S.rfPaused;
 SIM.svc=svc;
 
@@ -1146,7 +1193,7 @@ function go(id){
 
 /* ---------- door type UI ---------- */
 const BASE=[418.13,512.13],LEDP={dot:[2,4],ring:[2,4],line:[27.99,27.99],under:[27.99,27.99]},
- DP={lift:[8.09,17.89],flap:[11.79,15.79],upover:[13.09,26.89],parallel:[9.15,23.05]},LEDNAME={dot:'Dot',ring:'Ring',line:'Line',under:'Underglow'};
+ DP={lift:[6,10],flap:[9.79,12.79],upover:[12,16],parallel:[17,25]},LEDNAME={dot:'Dot',ring:'Ring',line:'Line',under:'Underglow'};
 function updTotals(){const l=LEDP[S.style];Object.keys(DOORS).forEach(k=>{DOORS[k].total='≈ €'+Math.round(BASE[0]+l[0]+DP[k][0])+'–'+Math.round(BASE[1]+l[1]+DP[k][1]);});
  document.querySelectorAll('#doorCmp td[data-tot]').forEach(c=>c.textContent=DOORS[c.dataset.d].total);
  E('totCore').textContent=DOORS[S.doorType].total;E('totDoor').textContent=DOORS[S.doorType].name+' · '+LEDNAME[S.style]+' LED';
@@ -1162,7 +1209,7 @@ function setDoor(v){
  document.querySelectorAll('.doorseg button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===v));
  document.querySelectorAll('#doorCmp [data-d]').forEach(c=>c.classList.toggle('sel',c.dataset.d===v));
  document.querySelectorAll('tr[data-door]').forEach(tr=>tr.style.display=tr.dataset.door===v?'':'none');
- E('doorGrpName').textContent=DOORS[v].name;updTotals();
+ E('doorGrpName').textContent=DOORS[v].name;updTotals();doorCard(v);
  E('sideNote').textContent='Units cm. Robot + station sit on a drawer (55 cm slides); fascia and top stay fixed. Ramp: wedge floor → tray, station ramp plate → dock. '+DOORS[v].note;
  E('dLift').style.display=v==='lift'?'':'none';E('dFlap').style.display=v==='flap'?'':'none';E('dUO').style.display=v==='upover'?'':'none';E('dPar').style.display=v==='parallel'?'':'none';E('legsS').style.display=v==='flap'?'none':'';
  if(S.block){S.block=false;setP(E('bBlock'),false);}if(S.err){S.err=false;S.errWhy='';}
@@ -1174,6 +1221,7 @@ document.querySelectorAll('.doorseg').forEach(g=>g.addEventListener('click',e=>{
 const setP=(b,v)=>b.setAttribute('aria-pressed',v);
 const pid=()=>PH[S.ph].id;
 function start(){
+ manOff();
  const id=pid();
  if(id!=='idle'){log('Start ignored – not docked');return;}
  if(svc()){log('Start blocked – drawer is open',true);return;}
@@ -1189,6 +1237,21 @@ function btnRing(){const k=S.t-S.btnT;if(k>=0&&k<.6)return Math.floor(k*10)%2?0:
 window.btnRing=btnRing;
 E('bReturn').onclick=()=>{const id=pid();if(id==='cleaning'||id==='closeOut'){log('User: vacuum.return_to_base');go('returning');}};
 E('bAuto').onclick=()=>{S.auto=!S.auto;setP(E('bAuto'),S.auto);log(S.auto?'Auto demo on':'Auto demo off');};
+/* ---------- door open slider (3D card + side view) ---------- */
+const dpR=[...document.querySelectorAll('.dposR')],dpV=[...document.querySelectorAll('.dposV')],dpA=[...document.querySelectorAll('.dposA')],dpI=[...document.querySelectorAll('.dposI')];
+function manSet(v){if(S.man==null){S.simDoor=S.door;S.simRod=S.rod;if(S.auto)E('bAuto').click();log('Door held by the slider – Auto gives it back');}
+ S.man=clamp(v,0,1);S.door=S.rod=S.man;dpA.forEach(b=>setP(b,false));}
+function manOff(){if(S.man==null)return;S.man=null;S.door=S.simDoor;S.rod=S.simRod;dpA.forEach(b=>setP(b,true));}
+dpR.forEach(r=>r.addEventListener('input',()=>manSet(r.value/100)));
+dpA.forEach(b=>b.addEventListener('click',()=>{if(S.man==null)manSet(S.door);else{manOff();log('Door back to the simulation');}}));
+E('bAuto').addEventListener('click',()=>{if(S.auto)manOff();});
+function updDoorPos(){const g=doorGeo(S.doorType,S.door),p=Math.round(S.door*100),info=Math.round(g.out*10)+' mm out · '+Math.round(g.clear*10)+' mm clear';
+ dpR.forEach(r=>{if(+r.value!==p)r.value=p;});el.robot.style.opacity=S.man!=null?'.3':'';dpV.forEach(o=>o.textContent=p+' %');dpI.forEach(o=>o.textContent=info);}
+/* door parts card: picture + highlighted row follow the door switch */
+const DPIC={"lift":["img/doors-lift-v2.0.webp",1200,597,"Lift door: side view closed and open, and the printed channels, saddle, foot and clamp","Lift door · closed, open · all prints on one bed"],"flap":["img/doors-flap-v2.0.webp",1200,436,"Flap out: side view closed, half and open, with the printed lever and top mount","Flap out · closed, half, open · lever + top mount"],"upover":["img/doors-upover-v2.0.webp",1200,560,"Up & over: side view closed, tilting, nearly open and open, with the printed modules and tracks","Up & over · closed, tilting, nearly open, open"],"parallel":["img/doors-parallel-v2.0.webp",1200,635,"Parallel lift: side view closed, half way and open, with the printed modules","Parallel lift · closed, half way, open"]};
+function doorCard(v){const p=DPIC[v],im=E('dpImg');if(!p||!im)return;im.src=p[0];im.width=p[1];im.height=p[2];im.alt=p[3];E('dpCap').textContent=p[4];
+ document.querySelectorAll('#dpTab tr[data-d]').forEach(tr=>tr.classList.toggle('hl',tr.dataset.d===v));}
+document.querySelectorAll('#dpTab [data-o]').forEach(c=>{const d=DOORS[c.dataset.o];c.textContent=d.out+' / '+d.move;});
 E('bDrawer').onclick=()=>{
  const id=pid();if(S.rfPlay||S.rfPaused)return;
  if(!S.drawerOpen&&!(id==='idle'||id==='cleaning')){log('Drawer stays shut while the robot/station is busy');return;}
@@ -1333,7 +1396,12 @@ function updEnts(mode){
 /* ---------- simulation step ---------- */
 const sg=(a,b)=>ease(clamp((S.rf-a)/(b-a),0,1));
 let prevRf=0;
+/* the open slider holds the door; the simulation keeps its own door position underneath (S.simDoor / S.simRod) */
 function step(dt){
+ if(S.man==null){stepSim(dt);return;}
+ S.door=S.simDoor;S.rod=S.simRod;stepSim(dt);S.simDoor=S.door;S.simRod=S.rod;S.door=S.rod=S.man;
+}
+function stepSim(dt){
  S.t+=dt;
  // refill / drawer timeline (real time)
  if(S.rfPlay){S.rf=Math.min(8,S.rf+dt*(RM?4:.55));
@@ -1388,41 +1456,33 @@ function step(dt){
 
 /* ---------- render (2D + HUD) ---------- */
 const pts=a=>a.map(p=>p[0].toFixed(2)+','+(-p[1]).toFixed(2)).join(' ');
-const el={side:E('side'),drawer:E('drawerS'),door:E('doorS'),br:E('brS'),rod:E('rodS'),robot:E('robotS'),out:E('outTxtS'),tof:E('tofBeam'),obst:E('obstS'),chain:E('chainS'),fan:E('fanBlades'),air:E('airflow'),empty:E('emptyFx'),wash:E('washFx'),cleanF:E('cleanFill'),dirtyF:E('dirtyFill'),bagF:E('bagFill'),glow:E('floorGlowS'),lid:E('lidS'),tankC:E('tankC'),tankD:E('tankD'),
- flapP:E('flapP'),flapCrank:E('flapCrank'),flapBody:E('flapBody'),flapRod:E('flapRod'),uoDoor:E('uoDoor'),uoArm:E('uoArm'),uoRod:E('uoRod'),uoLink:E('uoLink'),cap:E('cap3d'),spk:E('wheelSpk'),bDot:E('beamDot'),bGlow:E('beamGlow'),
- parDoor:E('parDoorS'),parArm1:E('parArm1'),parArm2:E('parArm2'),parLever:E('parLever'),parA1:E('parA1'),parA2:E('parA2'),parBody:E('parBody'),parRod:E('parRod')};
+const el={side:E('side'),drawer:E('drawerS'),ldMove:E('ldMove'),ldRod:E('ldRod'),ldEye:E('ldEye'),robot:E('robotS'),out:E('outTxtS'),tof:E('tofBeam'),obst:E('obstS'),chain:E('chainS'),fan:E('fanBlades'),air:E('airflow'),empty:E('emptyFx'),wash:E('washFx'),cleanF:E('cleanFill'),dirtyF:E('dirtyFill'),bagF:E('bagFill'),glow:E('floorGlowS'),lid:E('lidS'),tankC:E('tankC'),tankD:E('tankD'),
+ flapP:E('flapP'),flapLev:E('flapLev'),flapBody:E('flapBody'),flapRod:E('flapRod'),uoMove:E('uoMove'),uoArm:E('uoArm'),uoBody:E('uoBody'),uoRod:E('uoRod'),cap:E('cap3d'),spk:E('wheelSpk'),bDot:E('beamDot'),bGlow:E('beamGlow'),
+ parMove:E('parMove'),parArm1:E('parArm1'),parArm2:E('parArm2'),parBody:E('parBody'),parRod:E('parRod')};
 {for(let i=0;i<5;i++)mk('circle',{cx:30+i*1.4,cy:-2.6-(i%2)*.8,r:.45,fill:'#4aa3ff'},el.wash);}
 function tank2D(o,cx,targetWorld,d){if(o<=0)return'';
  if(o<.45){const e=ease(o/.45);return'translate('+(-2*e).toFixed(2)+','+(-30*e).toFixed(2)+')';}
  const e=ease((o-.45)/.55),dx=lerp(-2,targetWorld+d-cx,e),dy=lerp(-30,40.5,e)-16*Math.sin(Math.PI*e);
  return'translate('+dx.toFixed(2)+','+dy.toFixed(2)+')';}
 function renderDoor2D(){
- const t=S.doorType,ln=(e,p,q)=>{e.setAttribute('x1',p[0].toFixed(2));e.setAttribute('y1',(-p[1]).toFixed(2));e.setAttribute('x2',q[0].toFixed(2));e.setAttribute('y2',(-q[1]).toFixed(2));};
- if(t==='lift'){
-  const L=TRAVEL*S.door,top=23.5+L,tip=23.9+TRAVEL*S.rod,leg=24.2+L;
-  el.door.setAttribute('y',(-top).toFixed(2));
-  el.br.setAttribute('d','M1,'+(-(top-1.6)).toFixed(2)+' L1.4,'+(-(top-1.6)).toFixed(2)+' L1.4,'+(-leg).toFixed(2)+' L4.6,'+(-leg).toFixed(2)+' L4.6,'+(-(leg+.5)).toFixed(2)+' L1,'+(-(leg+.5)).toFixed(2)+' Z');
-  el.rod.setAttribute('y2',(-tip).toFixed(2));
- }else if(t==='flap'){
-  const th=S.door*Math.PI/2;
+ const t=S.doorType,f=S.door,deg=a=>(a*180/Math.PI).toFixed(2),
+  ln=(e,p,q)=>{e.setAttribute('x1',p[0].toFixed(2));e.setAttribute('y1',(-p[1]).toFixed(2));e.setAttribute('x2',q[0].toFixed(2));e.setAttribute('y2',(-q[1]).toFixed(2));},
+  act=(bd,rd,F,P)=>{const dx=P[0]-F[0],dy=P[1]-F[1],L=Math.hypot(dx,dy),be=[F[0]+dx/L*19,F[1]+dy/L*19];ln(bd,F,be);ln(rd,be,P);};
+ if(t==='lift'){const st=ldState(S.rod),e=(-(st.tip-.9)).toFixed(2);
+  el.ldMove.setAttribute('transform','translate(0,'+(-st.lift).toFixed(2)+')');el.ldRod.setAttribute('y2',e);el.ldEye.setAttribute('cy',e);}
+ else if(t==='flap'){const th=f*Math.PI/2;
   el.flapP.setAttribute('points',pts([rotP([0,0],th),rotP([0,-FL.H],th),rotP([1.9,-FL.H],th),rotP([1.9,0],th)]));
-  const P=rotP(FL.pin,th),F=FL.F,dx=P[0]-F[0],dy=P[1]-F[1],L=Math.hypot(dx,dy),be=[F[0]+dx/L*19,F[1]+dy/L*19];
-  el.flapCrank.setAttribute('points',pts([rotP([1.9,-8],th),rotP([1.9,FL.pin[1]],th),rotP([FL.pin[0]+.8,FL.pin[1]],th)]));ln(el.flapBody,F,be);ln(el.flapRod,be,P);
- }else if(t==='upover'){
-  const st=uoState(S.door),s=Math.sin(st.ph),c=Math.cos(st.ph),T=[st.t,UO.y],dv=[-s,-c],pv=[c,-s],H=UO.H;
-  const P=(k,m)=>[T[0]+H*k*dv[0]+.95*m*pv[0],T[1]+H*k*dv[1]+.95*m*pv[1]];
-  el.uoDoor.setAttribute('points',pts([P(0,1),P(0,-1),P(1,-1),P(1,1)]));
-  const D=[T[0]+UO.a*dv[0],T[1]+UO.a*dv[1]];
-  el.uoArm.setAttribute('x2',D[0].toFixed(2));el.uoArm.setAttribute('y2',(-D[1]).toFixed(2));
-  el.uoRod.setAttribute('x2',st.t.toFixed(2));
-  el.uoLink.setAttribute('x1',st.t.toFixed(2));el.uoLink.setAttribute('y1',(-(UO.y+2.3)).toFixed(2));el.uoLink.setAttribute('x2',st.t.toFixed(2));el.uoLink.setAttribute('y2',(-UO.y).toFixed(2));
- }else if(t==='parallel'){
-  const st=plState(S.door),F=PL.F,dx=st.C[0]-F[0],dy=st.C[1]-F[1],L=Math.hypot(dx,dy),be=[F[0]+dx/L*19,F[1]+dy/L*19];
-  el.parDoor.setAttribute('transform','translate('+(-st.du).toFixed(2)+','+(-st.dy).toFixed(2)+')');
-  ln(el.parArm1,PL.P1,st.A1);ln(el.parArm2,PL.P2,st.A2);ln(el.parLever,PL.P2,st.C);
-  el.parA1.setAttribute('cx',st.A1[0].toFixed(2));el.parA1.setAttribute('cy',(-st.A1[1]).toFixed(2));el.parA2.setAttribute('cx',st.A2[0].toFixed(2));el.parA2.setAttribute('cy',(-st.A2[1]).toFixed(2));
-  ln(el.parBody,F,be);ln(el.parRod,be,st.C);
- }
+  el.flapLev.setAttribute('transform','rotate('+(90*f).toFixed(2)+' '+FL.px+' '+(-FL.py)+')');
+  act(el.flapBody,el.flapRod,FL.F,rotP(FL.pin,th));}
+ else if(t==='upover'){const st=uoState(f);
+  el.uoMove.setAttribute('transform','translate('+st.Q[0].toFixed(3)+' '+(-st.Q[1]).toFixed(3)+') rotate('+(90*f).toFixed(2)+')');
+  el.uoArm.setAttribute('transform','rotate('+deg(-st.ar)+' '+UO.F[0]+' '+(-UO.F[1])+')');
+  act(el.uoBody,el.uoRod,UO.FA,st.C);}
+ else if(t==='parallel'){const st=plState(f),r=deg(-st.ar);
+  el.parMove.setAttribute('transform','translate('+st.T[0].toFixed(3)+' '+(-st.T[1]).toFixed(3)+')');
+  el.parArm1.setAttribute('transform','rotate('+r+' '+PL.P1[0]+' '+(-PL.P1[1])+')');
+  el.parArm2.setAttribute('transform','rotate('+r+' '+PL.P2[0]+' '+(-PL.P2[1])+')');
+  act(el.parBody,el.parRod,PL.F,st.C);}
  el.obst.style.display=S.block?'':'none';
 }
 let entT=0;
@@ -1431,7 +1491,7 @@ function render(){
  const w=112+d+extra,h=w*118/112;
  el.side.setAttribute('viewBox',(-36-d-extra).toFixed(2)+' '+(8-h).toFixed(2)+' '+w.toFixed(2)+' '+h.toFixed(2));
  el.drawer.setAttribute('transform','translate('+(-d).toFixed(2)+',0)');
- renderDoor2D();
+ renderDoor2D();updDoorPos();
  el.spk.setAttribute('transform','rotate('+(-d/1.5*180/Math.PI).toFixed(1)+',7,-1.5)');
  // drag chain (carcass coords): fixed end xs 55, moving end at drawer rear
  {const Mv=56-d,U=(56-d)/2,R=3;el.chain.setAttribute('d','M55,-5.6 L'+U.toFixed(2)+',-5.6 A'+R+','+R+' 0 0 1 '+U.toFixed(2)+',-11.6 L'+Mv.toFixed(2)+',-11.6');}
@@ -1483,7 +1543,7 @@ function render(){
  E('sBat').textContent=Math.round(S.bat)+' % · '+Math.round(S.prog)+' %';
  E('phBar').style.width=(isFinite(p.dur)?Math.min(100,S.pt/p.dur*100):0)+'%';
  E('clock').textContent=hhmm(S.clock)+(S.night?' · DND':'');
- E('badge3d').textContent=(svc()?'Service drawer':S.err?errTxt:S.wait?'Waiting – drawer open':p.name)+' · '+DOORS[S.doorType].name+' · LED: '+(MODES[mode].fx==='off'?'off':MODES[mode].label);
+ E('badge3d').textContent=(svc()?'Service drawer':S.err?errTxt:S.wait?'Waiting – drawer open':p.name)+' · '+DOORS[S.doorType].name+(S.man!=null?' held at '+Math.round(S.man*100)+' %':'')+' · LED: '+(MODES[mode].fx==='off'?'off':MODES[mode].label);
  E('bStart').disabled=id!=='idle'||svc();
  E('bReturn').disabled=!(id==='cleaning'||id==='closeOut');
  E('bDrawer').disabled=S.rfPlay||S.rfPaused||(!S.drawerOpen&&!(id==='idle'||id==='cleaning'));
@@ -1507,8 +1567,8 @@ setTimeout(()=>{if(!window.__3dReady){const f=E('fb');if(f)f.textContent='3D vie
 
 <script>
 (()=>{
- const E=id=>document.getElementById(id),note=E('dlNote'),btns=[...document.querySelectorAll('[data-dl]')];
- const PKG={pcb:'files/pcb-v1.3.1.json',case:'files/case-v1.3.1.json'};
+ const E=id=>document.getElementById(id),notes=[...document.querySelectorAll('.dlnote')],btns=[...document.querySelectorAll('[data-dl]')];
+ const PKG={pcb:'files/pcb-v1.3.1.json',case:'files/case-v1.3.1.json',dlift:'files/doors-lift-v2.0.json',dflap:'files/doors-flap-v2.0.json',dupover:'files/doors-upover-v2.0.json',dparallel:'files/doors-parallel-v2.0.json'};
  E('cpYaml').onclick=async()=>{try{await navigator.clipboard.writeText(E('yaml').textContent);E('cpNote').textContent='Copied.';}catch(e){E('cpNote').textContent='Copy is blocked here – select the text and copy it.';}};
  let zipLib=null;
  const loadZip=()=>zipLib||(zipLib=new Promise((res,rej)=>{if(window.JSZip)return res(window.JSZip);
@@ -1522,9 +1582,9 @@ setTimeout(()=>{if(!window.__3dReady){const f=E('fb');if(f)f.textContent='3D vie
  (async()=>{
   let dl=null;
   try{dl=window.claude&&typeof window.claude.use==='function'?await window.claude.use('downloads'):null;}catch(e){dl=null;}
-  if(!dl){note.textContent='Downloads work when the page is opened on claude.ai.';btns.forEach(b=>b.hidden=true);return;}
-  note.textContent='';
-  btns.forEach(b=>{b.disabled=false;b.onclick=async()=>{
+  if(!dl){notes.forEach(n=>n.textContent='Downloads work when the page is opened on claude.ai.');btns.forEach(b=>b.hidden=true);return;}
+  notes.forEach(n=>n.textContent='');
+  btns.forEach(b=>{const note=b.parentNode.querySelector('.dlnote');b.disabled=false;b.onclick=async()=>{
    b.disabled=true;note.textContent='Packing the files …';
    try{const Z=await loadZip(),r=await fetch(PKG[b.dataset.dl]);if(!r.ok)throw{message:'HTTP '+r.status};
     const man=await r.json(),zip=new Z();await addAll(Z,zip,man.files);
@@ -1568,7 +1628,7 @@ const controls=new OrbitControls(camera,cvs);
 controls.enableDamping=true;controls.dampingFactor=.08;controls.minDistance=25;controls.maxDistance=560;
 controls.maxPolarAngle=Math.PI*.495;controls.screenSpacePanning=true;
 const VIEWS={iso:[[160,128,215],[-8,28,8]],front:[[0,46,205],[0,38,0]],side:[[220,58,-20],[0,36,-26]],back:[[-80,125,-250],[0,52,-45]],top:[[0,290,45],[0,25,-15]],
- refill:[[175,150,190],[22,40,28]],led_ring:[[30,84,78],[0,70,0]],led_dot:[[30,84,78],[0,70,0]],led_line:[[34,76,84],[0,60,0]],led_under:[[38,30,92],[0,4,10]]};
+ refill:[[175,150,190],[22,40,28]],led_ring:[[30,84,78],[0,70,0]],led_dot:[[30,84,78],[0,70,0]],led_line:[[34,76,84],[0,60,0]],led_under:[[38,30,92],[0,4,10]],door:[[67,28,-5],[-23,23,-10]]};
 camera.position.set(...VIEWS.iso[0]);controls.target.set(...VIEWS.iso[1]);controls.update();
 let tw=null;controls.addEventListener('start',()=>{tw=null;});
 window.cam3D=v=>{const P=VIEWS[v];if(!P)return;const p1=new THREE.Vector3(...P[0]),t1=new THREE.Vector3(...P[1]);if(RM){camera.position.copy(p1);controls.target.copy(t1);controls.update();return;}tw={p0:camera.position.clone(),t0:controls.target.clone(),p1,t1,k:0};};
@@ -1695,59 +1755,55 @@ const wheels=[-1,1].map(s=>{const g=new THREE.Group();g.position.set(s*24.3,1.5,
  add(CY(1.5,1.5,1,28),M.black,0,0,0,g,'wheels').rotation.z=Math.PI/2;add(B(.12,2.6,.5),M.steel,-s*.52,0,0,g,'wheels');return g;});
 const inner=lineObj(7,0x2b2f36,drawer);setLine(inner,[[24.9,11.6,-56],[24.4,6,-30],[24.4,30,-6],[0,40,-1.5],[-22.5,40,-3],[-22.5,30,-3.2],[-21.5,22,-3.2]]);
 
-/* door: lift */
+/* door: lift – 6 mm panel in printed channels; the rod pushes a printed saddle */
 const liftG=new THREE.Group();drawer.add(liftG);
-add(B(1,38,1),M.alu,-24.6,20.5,-.7,liftG,'channels');
-const chanR=add(B(1,38,1),M.alu,24.6,20.5,-.7,liftG,'channels');
 const door=add(B(49.6,22,.6),M.front,0,12.5,-.7,liftG,'door');
-const brV=add(B(3,3,.4),M.steel,-21.5,22.7,-1.2,liftG,'actuator');
-const brL=add(B(3,.5,4),M.steel,-21.5,24.45,-2.8,liftG,'actuator');
-add(B(2.4,1.4,2.4),M.steel,-21.5,2.2,-3.2,liftG,'actuator');
-add(CY(1.6,1.6,6,20),M.alu,-21.5,5.9,-3.2,liftG,'actuator');
-add(CY(1.2,1.2,12.3,20),M.alu,-21.5,15.05,-3.2,liftG,'actuator');
-const rod=add(CY(.45,.45,1,12),M.steel,-21.5,22,-3.2,liftG,'actuator');
-add(B(1.2,.7,.8),M.reed,-23.4,2.1,-1.7,liftG,'reed');add(B(1.2,.7,.8),M.reed,-23.4,39.2,-1.7,liftG,'reed');
+const ldSad=new THREE.Group();liftG.add(ldSad);
+add(CY(1.4,1.4,19.5,20),M.alu,-21.5,12.75,-3.2,liftG,'actuator');
+const ldRod=add(CY(.7,.7,1,14),M.steel,0,0,0,liftG,'actuator');
+const ldEye=add(CY(.9,.9,.8,16),M.steel,-21.5,25.5,-3.2,liftG,'actuator');ldEye.rotation.z=Math.PI/2;
+add(B(1.2,.7,.8),M.reed,-23.4,2.1,-1.7,liftG,'reed');add(B(1.2,.7,.8),M.reed,-23.4,42.6,-1.7,liftG,'reed');
+function act(bd,rd,A,P,bl=19){const dx=P[0]-A[0],dy=P[1]-A[1],dz=P[2]-A[2],L=Math.hypot(dx,dy,dz),e=[A[0]+dx/L*bl,A[1]+dy/L*bl,A[2]+dz/L*bl];orient(bd,A,e);orient(rd,e,P);}
 
-/* door: flap out */
+/* door: flap out – printed lever on the flap, actuator from a printed mount on the left cheek */
 const FL=SIM.FL;
 const flapG=new THREE.Group();drawer.add(flapG);
 const flapPivot=new THREE.Group();flapPivot.position.set(0,FL.py,-FL.px);flapG.add(flapPivot);
 add(B(59.6,FL.H,1.9),M.front,0,-FL.H/2,-.95,flapPivot,'flap');
 add(CY(.3,.3,59.6,10),M.steel,0,FL.py,-FL.px,flapG,'flap').rotation.z=Math.PI/2;
-add(B(2.5,FL.pin[1]+8.4,.4),M.steel,-22.5,(FL.pin[1]+.4-8)/2,-2.1,flapPivot,'actuator');add(B(2.5,.4,FL.pin[0]+.8-1.9),M.steel,-22.5,FL.pin[1]+.2,-(1.9+FL.pin[0]+.8)/2,flapPivot,'actuator');
 const flapBody=add(CY(1.3,1.3,1,16),M.alu,0,0,0,flapG,'actuator');
-const flapRod=add(CY(.45,.45,1,12),M.steel,0,0,0,flapG,'actuator');
-add(B(3.4,2.4,2.4),M.steel,-23.4,FL.F[1],-FL.F[0],flapG,'actuator');
+const flapRod=add(CY(.5,.5,1,12),M.steel,0,0,0,flapG,'actuator');
 
-/* door: up & over */
+/* door: up & over – the door turns up while its pegs slide back in printed tracks; printed arms, left one with the lever */
 const UO=SIM.UO;
 const uoG=new THREE.Group();drawer.add(uoG);
-const uoDoor=new THREE.Group();uoG.add(uoDoor);
-add(B(49.6,UO.H,1.9),M.front,0,-UO.H/2,0,uoDoor,'uo');
-[-1,1].forEach(s=>add(CY(.6,.6,1.4,14),M.black,s*24.9,0,0,uoDoor,'uo').rotation.z=Math.PI/2);
-add(B(1,1,12.5),M.alu,-24.6,UO.y,-5.27,uoG,'uo');
-const trackR=add(B(1,1,12.5),M.alu,24.6,UO.y,-5.27,uoG,'uo');
-const armL=add(CY(.45,.45,1,10),M.steel,0,0,0,uoG,'uo');
-const armR=add(CY(.45,.45,1,10),M.steel,0,0,0,uoG,'uo');
-[-1,1].forEach(s=>add(CY(.5,.5,1,12),M.reed,s*24.4,UO.F[1],-UO.F[0],uoG,'uo').rotation.z=Math.PI/2);
-const uoBody=add(CY(1.1,1.1,19,16),M.alu,-23.9,UO.y+2.3,-23.7,uoG,'actuator');uoBody.rotation.x=Math.PI/2;
-const uoRod=add(CY(.45,.45,1,12),M.steel,0,0,0,uoG,'actuator');
-const uoLink=add(CY(.3,.3,1,8),M.steel,0,0,0,uoG,'actuator');
-add(B(.6,UO.y+.8,1.2),M.steel,-23.9,(UO.y+3.8)/2,-33.2,uoG,'actuator');
+const uoDoor=new THREE.Group();uoDoor.position.set(0,UO.Q[1],-UO.Q[0]);uoG.add(uoDoor);
+add(B(49.2,UO.top-UO.bot,1.9),M.front,0,(UO.top+UO.bot)/2-UO.Q[1],UO.Q[0]+.95,uoDoor,'uo');
+const uoBody=add(CY(1.3,1.3,1,16),M.alu,0,0,0,uoG,'actuator');
+const uoRod=add(CY(.6,.6,1,12),M.steel,0,0,0,uoG,'actuator');
 
-/* door: parallel lift */
+/* door: parallel lift – 2 print-in-place modules; 4 arms keep the door vertical, an 8 mm square rod couples the front arms */
 const PL=SIM.PL;
 const parG=new THREE.Group();drawer.add(parG);
 const parDoor=new THREE.Group();parG.add(parDoor);
-add(B(49.2,20.4,1.9),M.front,0,11.9,.95,parDoor,'par');
-[-1,1].forEach(s=>{add(B(.5,6.1,5.4),M.steel,s*23.65,6.45,-2.7,parDoor,'par');
- [[1.4,8.4],[4.44,4.43]].forEach(([xs,y])=>add(CY(.42,.42,1.3,12),M.reed,s*24.05,y,-xs,parDoor,'par').rotation.z=Math.PI/2);
- [PL.P1,PL.P2].forEach(([xs,y])=>add(CY(.5,.5,1.4,12),M.reed,s*24.5,y,-xs,parG,'par').rotation.z=Math.PI/2);});
-const parArms=[-1,1].map(()=>[add(B(.3,1,2),M.alu,0,0,0,parG,'par'),add(B(.3,1,2),M.alu,0,0,0,parG,'par')]);
-const parLever=add(B(.4,1,1.6),M.steel,0,0,0,parG,'par');
+add(wedge(PL.door.map(p=>[-p[0],p[1]]),49.2),M.front,0,0,0,parDoor,'par');
+const parSq=add(B(48.4,.8,.8),M.steel,0,PL.P1[1],-PL.P1[0],parG,'par');
 const parBody=add(CY(1.3,1.3,1,16),M.alu,0,0,0,parG,'actuator');
-const parRod=add(CY(.45,.45,1,12),M.steel,0,0,0,parG,'actuator');
-add(B(2.4,2.4,2.4),M.steel,-22.5,PL.F[1],-PL.F[0],parG,'actuator');add(B(2.6,1.4,1.4),M.steel,-23.8,PL.F[1],-PL.F[0],parG,'actuator');
+const parRod=add(CY(.6,.6,1,12),M.steel,0,0,0,parG,'actuator');
+
+/* printed door parts: files/doors-model-v2.0.json = base64 GLB from doors/*.scad (cm, y up, each node's origin = its pivot) */
+M.petg=std(0x3f86d8,.5,0,{flatShading:true});M.petgFix=std(0xa7c8ee,.6,0,{flatShading:true});
+const cutR=[],DN={};
+fetch('files/doors-model-v2.0.json').then(r=>r.ok?r.json():Promise.reject(r.status)).then(j=>{const s=atob(j.glb),a=new Uint8Array(s.length);for(let i=0;i<s.length;i++)a[i]=s.charCodeAt(i);
+ new GLTFLoader().parse(a.buffer,'',g=>{const ms=[],P=new THREE.Vector3();g.scene.updateMatrixWorld(true);g.scene.traverse(o=>{if(o.isMesh)ms.push(o);});
+  const home={pl:parG,uo:uoG,ld:liftG,fl:flapG},part={pl:'par',uo:'uo',ld:'channels',fl:'flap'};
+  ms.forEach(o=>{const k=(o.userData.name||o.name).replace(/_\d+$/,''),ty=k.slice(0,2);o.getWorldPosition(P);o.removeFromParent();
+   o.position.copy(P);o.rotation.set(0,0,0);o.scale.set(1,1,1);
+   o.material=/plate|track|channel|mount|foot|clamp/.test(k)?M.petgFix:M.petg;o.castShadow=o.receiveShadow=true;
+   o.userData.part=/mount|foot|clamp/.test(k)?'actuator':k==='ld_saddle'?'door':part[ty]||'door';pick.push(o);
+   const par=/_bracket_/.test(k)?(ty==='pl'?parDoor:uoDoor):k==='ld_saddle'?ldSad:k==='fl_lever'?flapPivot:home[ty];
+   if(!par)return;if(par!==home[ty])o.position.set(0,0,0);par.add(o);if(/_r$/.test(k))cutR.push(o);DN[k]=o;});
+  window.mode3D(mode);},e=>console.error(e));}).catch(e=>console.error('door model',e));
 
 window.door3D=v=>{liftG.visible=v==='lift';flapG.visible=v==='flap';uoG.visible=v==='upover';parG.visible=v==='parallel';legsG.visible=v!=='flap';};
 window.door3D(S.doorType);
@@ -1823,7 +1879,7 @@ const shellMats=[M.carcass,M.front,M.wood];let mode='solid';
 window.mode3D=v=>{mode=v;const x=v==='xray';
  shellMats.forEach(m=>{m.transparent=x;m.opacity=x?.16:1;m.depthWrite=!x;m.needsUpdate=true;});
  M.dock.transparent=x;M.dock.opacity=x?.4:1;M.dock.depthWrite=!x;M.dock.needsUpdate=true;
- const cut=v==='cut';[sideR,cheekR,railR,chanR,slideR,slideRi,legR,trackR,armR,parArms[1][0],parArms[1][1],wheels[1]].forEach(o=>o.visible=!cut);};
+ const cut=v==='cut';[sideR,cheekR,railR,slideR,slideRi,legR,wheels[1]].concat(cutR).forEach(o=>o.visible=!cut);};
 window.mode3D('cut');
 
 /* picking */
@@ -1845,24 +1901,22 @@ let inView=true;new IntersectionObserver(es=>{inView=es[0].isIntersecting;}).obs
 /* per-frame update, driven by the main loop */
 let rHd=0;
 const ang=(a,b,t)=>{const d=((b-a+Math.PI)%(2*Math.PI)+2*Math.PI)%(2*Math.PI)-Math.PI;return a+d*t;};
+let seeR=false;   /* robot turns see-through while the slider holds the door, so the mechanism behind it shows */
 window.render3D=dt=>{
+ if((S.man!=null)!==seeR){seeR=S.man!=null;[M.robot,M.robotDark,M.bump,M.mop].forEach(m=>{m.transparent=seeR;m.opacity=seeR?.22:1;m.depthWrite=!seeR;m.needsUpdate=true;});}
  const d=S.drawer,id=SIM.phaseId(),t=S.doorType,nk=S.night?1:0;
  if(nightK!==nk){nightK=RM?nk:nk>nightK?Math.min(1,nightK+dt/1.2):Math.max(0,nightK-dt/1.2);applyNight(nightK);}
  drawer.position.z=d;
- if(t==='lift'){const L=15*S.door;door.position.y=12.5+L;brV.position.y=22.7+L;brL.position.y=24.45+L;
-  const tip=23.9+15*S.rod;rod.scale.y=Math.max(.01,tip-21.2);rod.position.y=(21.2+tip)/2;}
+ if(t==='lift'){const st=SIM.ldState(S.rod);door.position.y=12.5+st.lift;ldSad.position.y=st.lift;
+  orient(ldRod,[-21.5,22.5,-3.2],[-21.5,st.tip-.9,-3.2]);ldEye.position.y=st.tip-.9;}
  else if(t==='flap'){const th=S.door*Math.PI/2;flapPivot.rotation.x=-th;
-  const P=SIM.rotP(FL.pin,th),F=FL.F,t3=[-22.5,P[1],-P[0]],A3=[-22.5,F[1],-F[0]];
-  const dx=t3[0]-A3[0],dy=t3[1]-A3[1],dz=t3[2]-A3[2],L=Math.hypot(dx,dy,dz),be=[A3[0]+dx/L*19,A3[1]+dy/L*19,A3[2]+dz/L*19];
-  orient(flapBody,A3,be);orient(flapRod,be,t3);}
- else if(t==='upover'){const st=SIM.uoState(S.door),s=Math.sin(st.ph),c=Math.cos(st.ph);uoDoor.position.set(0,UO.y,-st.t);uoDoor.rotation.x=-st.ph;
-  const D=[st.t-UO.a*s,UO.y-UO.a*c];orient(armL,[-24.4,UO.F[1],-UO.F[0]],[-24.4,D[1],-D[0]]);orient(armR,[24.4,UO.F[1],-UO.F[0]],[24.4,D[1],-D[0]]);
-  const ua=UO.y+2.3;orient(uoRod,[-23.9,ua,-14.2],[-23.9,ua,-st.t]);orient(uoLink,[-23.9,ua,-st.t],[-24.6,UO.y,-st.t]);}
- else if(t==='parallel'){const st=SIM.plState(S.door);parDoor.position.set(0,st.dy,st.du);
-  parArms.forEach((pa,i)=>{const x=(i?1:-1)*24.15;orient(pa[0],[x,PL.P1[1],-PL.P1[0]],[x,st.A1[1],-st.A1[0]]);orient(pa[1],[x,PL.P2[1],-PL.P2[0]],[x,st.A2[1],-st.A2[0]]);});
-  orient(parLever,[-23.3,PL.P2[1],-PL.P2[0]],[-23.3,st.C[1],-st.C[0]]);
-  const F3=[-22.5,PL.F[1],-PL.F[0]],T3=[-22.5,st.C[1],-st.C[0]],dx=T3[0]-F3[0],dy=T3[1]-F3[1],dz=T3[2]-F3[2],L=Math.hypot(dx,dy,dz),be=[F3[0]+dx/L*19,F3[1]+dy/L*19,F3[2]+dz/L*19];
-  orient(parBody,F3,be);orient(parRod,be,T3);}
+  const P=SIM.rotP(FL.pin,th);act(flapBody,flapRod,[-22.6,FL.F[1],-FL.F[0]],[-22.6,P[1],-P[0]]);}
+ else if(t==='upover'){const st=SIM.uoState(S.door);uoDoor.position.set(0,st.Q[1],-st.Q[0]);uoDoor.rotation.x=-st.ps;
+  ['uo_arm_l','uo_arm_r'].forEach(k=>{if(DN[k])DN[k].rotation.x=st.ar;});
+  act(uoBody,uoRod,[-21.8,UO.FA[1],-UO.FA[0]],[-21.8,st.C[1],-st.C[0]]);}
+ else if(t==='parallel'){const st=SIM.plState(S.door);parDoor.position.set(0,st.T[1],-st.T[0]);
+  ['pl_arm1_l','pl_arm1_r','pl_arm2_l','pl_arm2_r'].forEach(k=>{if(DN[k])DN[k].rotation.x=st.ar;});parSq.rotation.x=st.ar;
+  act(parBody,parRod,[-21.8,PL.F[1],-PL.F[0]],[-21.8,st.C[1],-st.C[0]]);}
  wheels.forEach(g=>{g.rotation.x=d/1.5;});ringMat.color.copy(ringOff).lerp(ringOn,window.btnRing?window.btnRing():0);
  toy.visible=S.block;
  tanks.forEach((tk,i)=>{const lvl=i?S.dirtyVis:S.cleanVis,h=Math.max(.02,17*lvl/100);tk.fill.scale.y=h;tk.fill.position.y=40.8+h/2;
