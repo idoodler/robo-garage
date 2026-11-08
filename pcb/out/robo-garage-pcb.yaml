@@ -6,10 +6,13 @@
 # valve output 3 A, 12 V input 6 A. Same GPIOs and logic as v1.2, only the INA219 shunt / range changed.
 # Pin changes vs. the module build: H-bridge IC instead of BTS7960 (no EN pin), INA219 on the board,
 # fan tach on GPIO27, external pull-ups on reeds / button (internal pull-ups stay on, harmless).
+# Light barrier: retroreflective NPN sensor (E3Z-R61 type) + reflector on the BEAM clamp: brown -> RX+,
+# black -> SIG, blue -> TX- (RX-, TX+ free). The self-test switches the whole sensor off via TX-.
 substitutions:
   stall_current: "0.8"   # A: set ~0.3 A above the running current you see in HA ("Door motor current")
-  beam_inverted: "true"  # NPN Light-ON receiver (recommended, often sold as "NC") = true; Dark-ON ("NO") = false.
-                         # Check: beam clear -> HA "Door beam" must show "Clear". If not, flip this value.
+  beam_inverted: "true"  # NPN sensor with its mode switch on L (Light-ON). Keep Light-ON: the self-test switches
+                         # the sensor off and needs "sensor off" = "blocked" (Dark-ON fails it -> "Door beam fault").
+                         # Check: beam clear -> HA "Door beam" must show "Clear". If not, set the switch to L.
   leak_threshold: "2.2"  # V at SIG: electrodes dry = 3.3 V, tap water between them < ~2 V; a digital sensor
                          # gives 0 V or 3.3 V (see "Leak probe")
   leak_inverted: "false" # false = wet when SIG is LOW (electrodes, NPN / open-collector or active-low sensors);
@@ -39,8 +42,8 @@ i2c:
   frequency: 100kHz
 
 globals:
-  - {id: beam_testing, type: bool, initial_value: "false"}   # emitter is off for the self-test
-  - {id: beam_dark_ok, type: bool, initial_value: "true"}    # last self-test: receiver saw "no light"
+  - {id: beam_testing, type: bool, initial_value: "false"}   # sensor is off for the self-test
+  - {id: beam_dark_ok, type: bool, initial_value: "true"}    # last self-test: input read "blocked" with the sensor off
 
 output:
   - {platform: gpio, pin: GPIO4, id: leak_drive}              # v1.2: IO4 -> R40 100k -> leak probe (pulsed)
@@ -67,7 +70,7 @@ switch:
     optimistic: true
     restore_mode: RESTORE_DEFAULT_ON
     entity_category: config
-  - platform: gpio                                             # AO3400A -> light barrier emitter (TX-)
+  - platform: gpio                                             # AO3400A -> light barrier sensor 0 V (TX-, blue wire)
     id: beam_tx
     pin: GPIO13
     restore_mode: ALWAYS_ON
@@ -143,7 +146,7 @@ binary_sensor:
     on_press:
       - cover.stop: door
       - logger.log: "Door stall -> stopped"
-  # ---- light barrier (BEAM clamp): IO34 low = SIG high = receiver output off ----
+  # ---- light barrier (BEAM clamp): IO34 low = SIG high = sensor output off (no light, or sensor off) ----
   - platform: gpio
     id: beam_raw
     internal: true
@@ -168,7 +171,7 @@ binary_sensor:
     filters: [delayed_off: 300ms]
   - platform: template
     id: beam_fault
-    name: "Door beam fault"                                    # on = receiver did not react to the emitter
+    name: "Door beam fault"                                    # on = input did not read "blocked" with the sensor off
     device_class: problem
 
 script:
@@ -180,21 +183,21 @@ script:
             switch.is_on: buzzer_enabled
           then:
             - rtttl.play: "move:d=16,o=7,b=200:e,p,e,p,e"
-  - id: beam_selftest                                          # emitter off -> receiver must report "no light"
+  - id: beam_selftest                                          # sensor off -> input must read "blocked"
     mode: single
     then:
       - lambda: 'id(beam_testing) = true;'
       - switch.turn_off: beam_tx
-      - wait_until:                                            # receiver must drop out (max 0.5 s)
+      - wait_until:                                            # output must drop out (max 0.5 s)
           condition:
             binary_sensor.is_on: beam_raw
           timeout: 500ms
       - lambda: 'id(beam_dark_ok) = id(beam_raw).state;'
       - switch.turn_on: beam_tx
-      - wait_until:                                            # and see the beam again (max 1 s)
+      - wait_until:                                            # sensor powers up and sees the reflector again (max 2 s)
           condition:
             binary_sensor.is_off: beam_raw
-          timeout: 1s
+          timeout: 2s
       - lambda: 'id(beam_testing) = false;'
       - binary_sensor.template.publish:
           id: beam_fault
@@ -297,7 +300,7 @@ cover:
   - platform: endstop
     id: door
     name: "Robo-Garage Door"
-    device_class: garage
+    device_class: damper
     open_action:
       - output.turn_off: door_close_out
       - script.execute: beep_move
@@ -307,7 +310,7 @@ cover:
     close_action:
       - output.turn_off: door_open_out
       - script.execute: beep_move
-      - script.execute: beam_selftest                          # 0.1-1.5 s before every close
+      - script.execute: beam_selftest                          # 0.1-2.5 s before every close
       - script.wait: beam_selftest
       - if:
           condition:

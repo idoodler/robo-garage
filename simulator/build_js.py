@@ -16,7 +16,7 @@ rep(" led:['Status LED','Dot/Ring in the fascia, Line in the fascia gap, Undergl
     " led:['Status LED','Dot/Ring in the fascia, Line in the fascia gap, Underglow under the ramp edge · WS2812B · GPIO16 → level shifter + 330 Ω on the PCB, 470 µF at the LED clamp.'],")
 rep(""" obstacle:['Obstacle test','Something in the way while closing. Lift door: it rests on it, "closed" never triggers → HA re-opens. All other doors: INA219 sees the stall → stop + re-open.']""",
     """ obstacle:['Obstacle test','A toy on the floor in front of the door. The light barrier sees it: the door does not close, or stops and re-opens if it is already closing. It closes again 1.5 s after the beam is clear. Backup: INA219 stall stop.'],
- beam:['Light barrier · door safety','12–24 V through-beam pair (NPN, Light-ON) on 2 small brackets at the front corners of the cabinet sides: beam ≈12 cm in front of the door, ≈2 cm above the floor – past the ramp wedge and under the door\\'s swing, so the door never breaks it itself. Before every close the ESP32 switches the sender off for a moment: the receiver must react (self-test), else "Door beam fault" and the door stays open. Try "Toy in front" and "Beam fault".'],
+ beam:['Light barrier · door safety','12–24 V retroreflective sensor (NPN, E3Z-R61 type, mode switch on L = Light-ON) on a small bracket at the left front corner, its reflector on the right one: beam ≈12 cm in front of the door, ≈2 cm above the floor – past the ramp wedge and under the door\\'s swing, so the door never breaks it itself. Wires: brown → RX+, black → SIG, blue → TX−. Before every close the ESP32 switches the sensor off for a moment: the input must then read "blocked" (self-test), else "Door beam fault" and the door stays open. Orange LED = sees the reflector, green = stable. Try "Toy in front" and "Beam fault".'],
  th:['SHT41 · cabinet air','Temperature + humidity sensor on the controller PCB, on an island with a milled slot, in its own vented corner of the case – it measures cabinet air, not board heat. Drives the auto vent: hot mop drying → humid cabinet → rear fan.']""")
 rep('<div class="info" id="info"><b>Tap any part</b>door, ramp, actuator, drawer, wheels, tanks, LED, rear fan, sensors – to see what it is and what to buy.</div>',
     '<div class="info" id="info"><b>Tap any part</b>door, ramp, actuator, drawer, wheels, tanks, LED, rear fan, light barrier, controller, sensors – to see what it is and what to buy.</div>')
@@ -81,7 +81,7 @@ rep(""" S.door=S.block?Math.max(S.rod,bf):S.rod;
   if(closingPh&&S.door>.03){S.err=true;S.errWhy='timeout';log(""")
 
 # ---------------- render
-rep("cap:E('cap3d'),spk:E('wheelSpk'),", "cap:E('cap3d'),spk:E('wheelSpk'),bDot:E('beamDot'),bGlow:E('beamGlow'),")
+rep("cap:E('cap3d'),spk:E('wheelSpk'),", "cap:E('cap3d'),spk:E('wheelSpk'),bDot:E('beamDot'),bGlow:E('beamGlow'),lbO:E('lbLedO'),lbG:E('lbLedG'),")
 rep(" el.obst.setAttribute('transform',t==='lift'?'':'translate(-11,1.2)');\n", "")
 rep(""" const fanOn=(id==='washing'||id==='drying')&&!svc()&&!S.err;
  if(fanOn&&!RM)S.fanA=(S.fanA+(id==='washing'?28:16))%360;
@@ -93,7 +93,7 @@ rep(""" const fanOn=(id==='washing'||id==='drying')&&!svc()&&!S.err;
  el.air.setAttribute('opacity',fanOn?(.3+.45*S.fanS/100+.2*Math.sin(S.t*4)).toFixed(2):0);
  E('fanTxt').textContent='rear fan'+(fanOn?' '+S.fanS+' %':'');
  E('thTxt').textContent=S.tc.toFixed(1)+' °C · '+Math.round(S.rh)+' %';
- {const c=S.tx?(S.beamBlk?'#ff3b30':'#3ddc84'):'#5b6370';el.bDot.setAttribute('fill',c);el.bGlow.setAttribute('fill',c);el.bGlow.setAttribute('opacity',S.tx?.65:0);}""")
+ {const c=S.tx?(S.beamBlk?'#ff3b30':'#3ddc84'):'#5b6370';el.bDot.setAttribute('fill',c);el.bGlow.setAttribute('fill',c);el.bGlow.setAttribute('opacity',S.tx?.65:0);el.lbO.style.opacity=S.tx&&!S.beamBlk?1:.15;el.lbG.style.opacity=S.tx?1:.15;}""")
 rep(" E('sPhase').textContent=S.err?'Error – door blocked':S.wait?'Waiting – drawer open':p.name;",
     """ const errTxt=S.errWhy==='beam'?'Waiting – beam blocked':S.errWhy==='fault'?'Error – beam fault':'Error – door blocked';
  E('sPhase').textContent=S.err?errTxt:S.wait?'Waiting – drawer open':S.test>0&&(id==='closeOut'||id==='closing')?'Beam self-test':p.name;
@@ -113,7 +113,7 @@ rep(" set('fan.robo_garage_rear_fan',svc()?'off (drawer open)':id==='washing'?'o
 rep(" ['Rear fan','washing / drying → fan on · off +10 min · off if drawer open',()=>['washing','drying'].includes(pid())&&!svc()],",
     " ['Auto vent (on the ESP32)','humidity > 65 % or temp > 30 °C → rear fan 30–100 % · off 5 %RH / 1 °C below · off while the drawer is open',()=>S.fanS>0],")
 rep(" ['Door safety','closed reed not reached / stall → cover.open + notify',()=>S.err],",
-    """ ['Light barrier (on the ESP32)','before every close: sender off → receiver must react · beam blocked → stay open · broken while closing → stop + re-open',()=>S.test>0||(S.err&&(S.errWhy==='beam'||S.errWhy==='fault'))],
+    """ ['Light barrier (on the ESP32)','before every close: sensor off → input must read "blocked" · beam blocked → stay open · broken while closing → stop + re-open',()=>S.test>0||(S.err&&(S.errWhy==='beam'||S.errWhy==='fault'))],
  ['Door safety','beam fault / closed reed not reached / stall → cover.open + notify phone',()=>S.err&&S.errWhy!=='beam'],""")
 rep(" if(S.err)return'opening (retry)';", " if(S.err)return S.errWhy==='beam'?'open (beam blocked)':S.errWhy==='fault'?'open (beam fault)':'opening (retry)';")
 
@@ -125,7 +125,7 @@ rep(old, """E('bBlock').onclick=()=>{
 };
 E('bFault').onclick=()=>{
  S.fault=!S.fault;setP(E('bFault'),S.fault);
- log(S.fault?'Test: beam receiver stuck on "clear" (shorted output)':'Beam receiver fixed');
+ log(S.fault?'Test: beam signal wire shorted to 0 V (pinched cable) – reads "clear" all the time':'Beam wire fixed');
  if(!S.fault)S.faultOn=false;
 };
 """)
@@ -148,10 +148,15 @@ rep("import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometr
     "import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometry.js';\nimport {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';")
 rep("const toy=add(B(9,7.5,7),M.toy,10,5.25,-.6,drawer,'obstacle');toy.visible=false;",
     """const toy=add(B(9,7.5,7),M.toy,10,3.8,11,carcass,'obstacle');toy.visible=false;
-/* light barrier: sender + receiver on brackets at the front corners, beam 12 cm in front, 2.2 cm high */
+/* light barrier: retroreflective sensor (E3Z-R61 size 2 x 3.1 x 1.08 cm, optical axis mid-height) on a bracket at the left
+   front corner, corner-cube reflector on the right one; beam 12 cm in front of the door, 2.2 cm above the floor */
 const lbMat=new THREE.MeshBasicMaterial({color:0x3ddc84,transparent:true,opacity:.9,toneMapped:false});
-[-1,1].forEach(k=>{add(B(1.6,3.2,2.2),M.black,k*31,2.2,12,carcass,'beam');add(B(.4,1.2,12.4),M.steel,k*30.2,1.2,6.4,carcass,'beam');});
-const lbRay=add(CY(.13,.13,60.4,8),lbMat,0,2.2,12,carcass,'beam',{cast:false,recv:false});lbRay.rotation.z=Math.PI/2;""")
+[-1,1].forEach(k=>add(B(.4,1.2,12.4),M.steel,k*30.2,1.2,6.4,carcass,'beam'));
+add(B(2,3.1,1.08),M.black,-31.1,2.2,12,carcass,'beam');
+add(B(.08,1.2,.62),std(0x101826,.15,.2),-30.06,2.2,12,carcass,'beam');                                   /* lens, facing the reflector */
+const lbLed=[0xff9f0a,0x3ddc84].map((c,i)=>add(B(.32,.1,.32),new THREE.MeshBasicMaterial({color:c,toneMapped:false}),-31.6+i*.85,3.8,12.2,carcass,'beam'));
+add(B(.3,3.4,3.4),std(0xc8102e,.3,.1),31.15,2.2,12,carcass,'beam');                                       /* reflector */
+const lbRay=add(CY(.13,.13,61,8),lbMat,.47,2.2,12,carcass,'beam',{cast:false,recv:false});lbRay.rotation.z=Math.PI/2;""")
 rep("legsG.visible=v!=='flap';\n toy.position.set(10,v==='lift'?5.25:4.05,v==='lift'?-.6:11);};", "legsG.visible=v!=='flap';};")
 rep(""" const fanOn=(id==='washing'||id==='drying')&&!SIM.svc()&&!S.err;
  if(fanOn&&!RM)blades.rotation.z-=dt*(id==='washing'?28:16);
@@ -159,7 +164,8 @@ rep(""" const fanOn=(id==='washing'||id==='drying')&&!SIM.svc()&&!S.err;
     """ const fanOn=S.fanS>0;
  if(fanOn&&!RM)blades.rotation.z-=dt*S.fanS*.28;
  updAir(fanOn,S.t);
- lbRay.visible=S.tx!==false;lbMat.color.set(S.beamBlk?0xff3b30:0x3ddc84);""")
+ lbRay.visible=S.tx!==false;lbMat.color.set(S.beamBlk?0xff3b30:0x3ddc84);
+ lbLed[0].visible=S.tx!==false&&!S.beamBlk;lbLed[1].visible=S.tx!==false;   /* orange = sees the reflector, green = powered + stable */""")
 
 # ---------------- downloads (claude.ai downloads capability) + copy YAML
 rep('<script type="module">', """<script>

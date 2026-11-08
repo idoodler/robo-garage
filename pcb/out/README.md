@@ -95,7 +95,7 @@ Out of stock? U1 → DRV8874QPWPRQ1 (C22448174, same pinout). U5 → SHT40-AD1F-
 |---|---|---|
 | ESP32 DevKitC V4, **WROOM** (not WROVER: GPIO16/17 are used), board 1.1 in (28 mm) or 1.0 in (25.4 mm) wide – not the narrow 0.9 in clone | 1 | Plugs into J3 + J4 (25.4 mm rows) or J3 + J15 (22.86 mm), USB-C to the left board edge |
 | Power supply 12 V DC, **5 A** (e.g. Mean Well GST60A12); the 3 A GST36E12 still works for the standard actuator | 1 | 12 V IN clamp (via a DC-jack adapter) |
-| Light barrier pair, 12–24 V DC, through-beam, **NPN**, **Light-ON** (often sold as "NC"), e.g. Omron E3Z-T61 set to L-ON. Dark-ON ("NO", e.g. E3F-5DN1) works too → `beam_inverted: "false"` | 1 | BEAM clamp |
+| Light barrier, 12–24 V DC, **retroreflective** with its reflector, **NPN**, mode switch on **L** (Light-ON), e.g. Omron E3Z-R61 type. Keep Light-ON: the self-test needs it. A through-beam pair (E3Z-T61 type, NPN) works too, see BEAM below | 1 + reflector | BEAM clamp |
 | Leak detection: 2 stainless screws / bare wire ends 5–10 mm apart on the cabinet floor (nothing else needed), **or** a leak sensor with a digital output: NPN / open-collector (12 V or 3.3 V supply, plus a 10 kΩ resistor between the 3V3 and SIG poles) or 3.3–5 V logic module (LM393 type, 3.3 V supply, ≤ 50 mA) | 1 | LEAK clamp |
 | Water valve 12 V DC, **≤ 3 A**, that **closes when powered** (normally-open solenoid or motorised ball valve "NO") | 1 | VALVE clamp (optional) |
 | VL53L1X module | 1 | I2C clamp (optional) |
@@ -109,7 +109,7 @@ Out of stock? U1 → DRV8874QPWPRQ1 (C22448174, same pinout). U5 → SHT40-AD1F-
 | LED | 5V, DAT, GND | WS2812B strip / ring (DIN) |
 | BUTTON | BTN, GND, 12V, LED− | Alu button: NO, C, LED+, LED− |
 | REEDS | CL/GND, OP/GND, DR/GND | Door closed, door open, drawer reed |
-| BEAM (left) | RX+, RX−, SIG, TX+, TX−, GND | Receiver: brown, blue, black. Emitter: brown, blue. Beam across the cabinet front, ≈ 12 cm in front of the door, ≈ 2 cm above the floor |
+| BEAM (left) | RX+, RX−, SIG, TX+, TX−, GND | Retroreflective sensor: brown → RX+, black → SIG, **blue → TX−** (the self-test switches the sensor off there); RX−, TX+, GND stay free. Through-beam pair instead: receiver brown, blue, black → RX+, RX−, SIG; emitter brown, blue → TX+, TX−. Beam across the cabinet front, ≈ 12 cm in front of the door, ≈ 2 cm above the floor |
 | LEAK (left) | 3V3, SIG, GND, 12V | Electrodes: SIG + GND (no polarity). Digital sensor: VCC → 3V3 (≤ 50 mA) or 12V, OUT → SIG (0–5 V only, never 12 V), GND; NPN / open collector: 10 kΩ between 3V3 and SIG. Wet = SIG low (NPN / active-low); active-high sensor → `leak_inverted: "true"` |
 | VALVE (right) | 12V, VLV | Valve + → 12V, valve − → VLV (low side, flyback diode on board), ≤ 3 A |
 | I2C ToF | 3V3, SDA, SCL, GND | VL53L1X module (optional) |
@@ -127,7 +127,7 @@ Out of stock? U1 → DRV8874QPWPRQ1 (C22448174, same pinout). U5 → SHT40-AD1F-
 | 17 / 27 | Fan PWM (2N7002, inverted) / fan tach |
 | 21 / 22 | I²C SDA / SCL (INA219 0x40 + SHT41 0x44 on board, VL53L1X on the clamp) |
 | 34 | Light barrier input (via 2N7002, 12 V safe) |
-| 13 | Light barrier emitter on/off (AO3400A) |
+| 13 | Light barrier self-test: switches the sensor (or the emitter) off via TX− (AO3400A) |
 | 4 / 35 | Leak drive (pulsed 3.3 V through 100 k) / leak ADC (BAT54S clamp) |
 | 2 | Valve (IRLTS6342 low side, 10 k pull-down: off at boot) |
 | 15 | Buzzer (AO3400A, 10 k pull-down: off at boot) |
@@ -143,7 +143,7 @@ Out of stock? U1 → DRV8874QPWPRQ1 (C22448174, same pinout). U5 → SHT40-AD1F-
 | 12 V rail | "12 V rail" sensor (±0.3 V) and "Supply voltage low" when it sags below `supply_low` (weak PSU, stalled actuator). |
 | SHT41 | Own island + vented case chamber → cabinet air. Set `offset` in the YAML after a check. Humidity can read low for 1–2 days after soldering. |
 | Auto vent | Fan on above 65 %RH / 30 °C (HA numbers), 30–100 % speed; off 5 %RH / 1 °C below, and while the drawer is out. |
-| Light barrier | Door does not close while the beam is blocked; broken while closing → stop + reopen. Self-test before every close and every 10 min (emitter off, receiver must react) → "Door beam fault". |
+| Light barrier | Door does not close while the beam is blocked; broken while closing → stop + reopen. Self-test before every close and every 10 min (sensor off via TX−: the input must read "blocked") → "Door beam fault". |
 | Stall stop | INA219 motor current > `stall_current` (default 0.8 A) → stop. Stronger actuator: set it ≈ 0.3 A above the running current shown in HA ("Door motor current"). |
 
 ## Power

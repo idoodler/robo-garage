@@ -11,8 +11,8 @@ ESP32 + ESPHome + Home Assistant: motorised door, light barrier, reed contacts, 
 |---|---|---|
 | Controller PCB | v1.3.1 | DRC 0 errors / 0 warnings (KiCad 7). JLCPCB assembles all parts (SMD + clamps), only the DevKitC is plugged in (USB-C reachable from outside). Power headroom: 12 V in 6 A, actuator 4.9 A limit, valve 3 A, every power path checked against IPC-2221. v1.3.1: clamp pins in 2 rows like the real part, pick & place rotations computed from JLC's own footprints |
 | Case | v1.3.1 | fits PCB v1.3.1 (0 mm³ overlap with the part stand-in), DevKit USB-C through the left wall |
-| ESPHome config | – | checked with ESPHome 2026.10.1 |
-| Simulator | v5.4 | door open slider for all 4 door types, printed door parts in 3D + side view, door downloads |
+| ESPHome config | – | checked with ESPHome 2026.10.1. Light barrier: retroreflective NPN sensor (E3Z-R61 type, Light-ON) + reflector on the BEAM clamp, blue wire on TX− so the self-test can switch it off (no PCB change) |
+| Simulator | v5.5 | door open slider for all 4 door types, printed door parts (doors v2.2) in 3D + side view, door downloads, retroreflective light barrier with its reflector |
 | Doors | v2.2 | Printed parts for all 4 door types (lift door, flap out, up & over, parallel lift), no supports. Up & over + parallel lift: print-in-place modules with hourglass joints and hollow pins, skeleton plates and arms checked by 3D FE as printed (`check_strength.py`): 12 % less filament than v2.1 (both module pairs together), the most loaded spot down from 1.35 to 0.87 of its allowable at a 100 N stall (calculated), checked over the whole travel (joint gap 0.45 mm, up & over peg in its track 0.4 mm, other gaps ≥ 1 mm). Parallel lift parks 23 mm out (40 mm max) |
 
 ## Folders

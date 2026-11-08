@@ -1,4 +1,4 @@
-# Build Robo-Garage simulator v5.4 (PCB + case version from parts.py / the SCAD file) from v4.9: light barrier + auto vent +
+# Build Robo-Garage simulator v5.5 (PCB + case version from parts.py / the SCAD file) from v4.9: light barrier + auto vent +
 # PCB/case section with downloads, leak probe + valve + buzzer (v1.2), power headroom (v1.3).
 # Run simulator/build_files.py first (download manifests + pictures).
 import html
@@ -61,10 +61,11 @@ rep('<text x="49.5" y="-77.6" font-size="1.6" text-anchor="middle">rear fan</tex
 rep('''        <g class="part" data-part="obstacle" id="obstS" style="display:none"><rect x="-4" y="-9" width="8" height="7.5" rx=".6" fill="#ff8a00"/><text x="0" y="-4.6" font-size="1.5" text-anchor="middle" style="fill:#fff">toy</text></g>
 ''', '')
 rep('''      <g id="robotS" class="part" data-part="robot" tabindex="0" role="button" aria-label="Robot">''',
-    '''      <!-- fixed: toy test + light barrier (sender + receiver at the front corners, beam 12 cm in front, 2 cm high) -->
+    '''      <!-- fixed: toy test + light barrier (retroreflective sensor at the left front corner, reflector at the right one, beam 12 cm in front, 2 cm high) -->
       <g class="part" data-part="obstacle" id="obstS" style="display:none" transform="translate(-11,1.2)"><rect x="-4" y="-9" width="8" height="7.5" rx=".6" fill="#ff8a00"/><text x="0" y="-4.6" font-size="1.5" text-anchor="middle" style="fill:#fff">toy</text></g>
       <g class="part" data-part="beam" tabindex="0" role="button" aria-label="Light barrier">
-        <rect x="-13.3" y="-3.7" width="2.6" height="3.1" rx=".35" fill="#2b2f36"/>
+        <rect x="-12.54" y="-3.65" width="1.08" height="3.1" rx=".2" fill="#2b2f36"/>
+        <rect id="lbLedO" x="-12.42" y="-3.85" width=".34" height=".2" fill="#ff9f0a"/><rect id="lbLedG" x="-11.92" y="-3.85" width=".34" height=".2" fill="#3ddc84"/>
         <circle id="beamGlow" cx="-12" cy="-2.1" r="2.2" fill="#3ddc84" filter="url(#gS)" opacity=".6"/>
         <circle id="beamDot" cx="-12" cy="-2.1" r=".75" fill="#3ddc84"/>
         <text x="-12" y="3.4" font-size="1.5" text-anchor="middle">beam</text>
@@ -91,7 +92,7 @@ rep('''      <tr><td>BTS7960 "IBT-2" H-bridge</td><td>1</td><td class="num">1–
 ''', '')
 rep('''      <tr class="grp"><td colspan="4">Hardware store (cut to size)</td></tr>''', '''      <tr class="grp"><td colspan="4">Controller PCB v''' + PCB_V + ''' – <a href="#pcb">files below</a></td></tr>
       <tr><td>JLCPCB: 5 PCBs, 2 fully assembled (Economic PCBA: SMD + push-button clamps + DevKit sockets) – Gerber zip, BOM, CPL from the download <span class="tag">≈ 26 extended parts × $3</span></td><td>1 order</td><td class="num">140–180</td><td><a href="https://jlcpcb.com/">JLCPCB</a></td></tr>
-      <tr><td>Light barrier pair 12–24 V, through-beam, NPN, Light-ON ("NC") – door safety</td><td>1 pair</td><td class="num">9–15</td><td><a href="https://www.aliexpress.com/w/wholesale-through-beam-photoelectric-sensor.html">AliExpress</a></td></tr>
+      <tr><td>Light barrier 12–24 V, retroreflective + reflector, NPN, mode switch on L (Light-ON), E3Z-R61 type – door safety</td><td>1</td><td class="num">9–15</td><td><a href="https://www.aliexpress.com/w/wholesale-E3Z-R61.html">AliExpress</a></td></tr>
       <tr class="opt"><td>Leak detection: 2 stainless screws on the cabinet floor, or any water-leak sensor with a digital output (NPN / 3.3–5 V logic, powered from the clamp) <span class="tag">optional</span> – LEAK clamp</td><td>1</td><td class="num">0–8</td><td><a href="https://www.aliexpress.com/w/wholesale-water-leak-sensor-module.html">AliExpress</a></td></tr>
       <tr class="opt"><td>Water valve 12 V DC ≤ 3 A that closes when powered (NO solenoid / motorised ball valve) <span class="tag">optional</span> – VALVE clamp, for the water kit</td><td>1</td><td class="num">10–30</td><td><a href="https://www.aliexpress.com/w/wholesale-12v-normally-open-solenoid-valve.html">AliExpress</a></td></tr>
       <tr><td>Case: PETG ≈ 70 g + 4× M3×25 screws (STL in the download)</td><td>–</td><td class="num">2–4</td><td>–</td></tr>
@@ -140,7 +141,7 @@ pcb_section = '''<section class="card" style="margin-top:14px" id="pcb">
         <tr><td class="m">16</td><td>WS2812 data (level shifter)</td></tr>
         <tr><td class="m">17 / 27</td><td>Fan PWM / fan tach</td></tr>
         <tr><td class="m">21 / 22</td><td>I²C: INA219 0x40, SHT41 0x44, VL53L1X (clamp)</td></tr>
-        <tr><td class="m">34 / 13</td><td>Light barrier input / sender on-off</td></tr>
+        <tr><td class="m">34 / 13</td><td>Light barrier input / sensor on-off (self-test)</td></tr>
         <tr><td class="m">4 / 35</td><td>Leak probe drive / leak ADC</td></tr>
         <tr><td class="m">2 / 15 / 36</td><td>Valve / buzzer / 12 V rail ADC</td></tr>
         <tr><td class="m">14, 5, 39</td><td>Spare (EXP header)</td></tr>
@@ -185,7 +186,7 @@ rep('''<section class="card" style="margin-top:14px">
 rep('<li>Lift door: PTFE tape in the channels; if it ever tilts, add a second actuator on the right, wired in parallel. All other doors push when closing → add the INA219 stall stop.</li>',
     '<li>Lift door: PTFE tape in the channels; if it ever tilts, add a second actuator on the right, wired in parallel. Every door: the light barrier keeps it from closing on anything in front; the INA219 stall stop on the PCB is the backup.</li>')
 rep('Switch between GPIO19 and GND; ring: 12 V → ring → BC547 → GND, base via 1 kΩ from GPIO23. The fascia is fixed, so no wires through the drag chain.</li>',
-    'Wire it to the BUTTON clamp (BTN, GND, 12V, LED−): GPIO19 reads the switch, a MOSFET on the PCB switches the ring (GPIO23). The fascia is fixed, so no wires through the drag chain.</li>\n      <li><b>Light barrier:</b> sender + receiver on 2 small L-brackets at the front corners of the cabinet sides. Beam ≈12 cm in front of the door, ≈2 cm above the floor – past the ramp wedge and under the door\'s swing, so the door never breaks it itself. Both cables go to the BEAM clamp.</li>\n      <li><b>Controller:</b> PCB in its printed case under the top, the vented sensor corner open to the cabinet air. Keep those vents free.</li>')
+    'Wire it to the BUTTON clamp (BTN, GND, 12V, LED−): GPIO19 reads the switch, a MOSFET on the PCB switches the ring (GPIO23). The fascia is fixed, so no wires through the drag chain.</li>\n      <li><b>Light barrier:</b> retroreflective sensor on a small L-bracket at the left front corner, its reflector on the right one. Beam ≈12 cm in front of the door, ≈2 cm above the floor – past the ramp wedge and under the door\'s swing, so the door never breaks it itself. Mode switch on L (Light-ON); turn the sensor until the green LED is steady. Cable to the BEAM clamp: brown → RX+, black → SIG, blue → TX− (the self-test switches the sensor off there).</li>\n      <li><b>Controller:</b> PCB in its printed case under the top, the vented sensor corner open to the cabinet air. Keep those vents free.</li>')
 old_wiring = s[s.index('  <details>\n    <summary>ESP32 wiring + ESPHome snippets</summary>'):s.index('  </details>\n</section>\n</div>\n\n<script>') + len('  </details>\n')]
 assert old_wiring.count('<details>') == 1
 rep(old_wiring, '''  <details>
@@ -199,7 +200,7 @@ rep(old_wiring, '''  <details>
         <tr><td>LED</td><td class="m">5V, DAT, GND</td><td>WS2812B strip or ring (DIN)</td></tr>
         <tr><td>BUTTON</td><td class="m">BTN, GND, 12V, LED−</td><td>Alu button: NO, C, LED+, LED−</td></tr>
         <tr><td>REEDS</td><td class="m">CL/GND, OP/GND, DR/GND</td><td>Door closed, door open, drawer</td></tr>
-        <tr><td>BEAM</td><td class="m">RX+, RX−, SIG, TX+, TX−, GND</td><td>Receiver brown, blue, black · sender brown, blue</td></tr>
+        <tr><td>BEAM</td><td class="m">RX+, RX−, SIG, TX+, TX−, GND</td><td>Sensor brown → RX+, black → SIG, blue → TX− · RX−, TX+, GND stay free</td></tr>
         <tr><td>LEAK</td><td class="m">3V3, SIG, GND, 12V</td><td>2 electrodes on SIG + GND, or a digital leak sensor (power from 3V3 ≤ 50 mA or 12V; NPN: 10 kΩ 3V3–SIG)</td></tr>
         <tr><td>VALVE</td><td class="m">+12V, VLV</td><td>12 V valve ≤ 3 A that closes when powered (optional)</td></tr>
         <tr><td>I2C</td><td class="m">3V3, SDA, SCL, GND</td><td>VL53L1X (optional)</td></tr>
