@@ -15,7 +15,7 @@
 //        "assembly" | "scene" | "layout"                                previews; `pose` 0 = closed .. 1 = open
 //        "plate_l" | "plate_r" | "arm_l" | "arm_r" | "bracket"          single bodies (closed pose)
 
-version = "1.1";
+version = "1.2";
 
 /* [Output] */
 part = "assembly";      // [left, right, track, mount, template, assembly, scene, layout]
@@ -68,11 +68,16 @@ FA = let(d = norm(C1 - C0), a = (ACT0 * ACT0 - ACT1 * ACT1 + d * d) / (2 * d), h
 // ---- layer stack + joints (hourglass pin, as the parallel lift) ----
 z_top = 22;  h1 = 6;  z2 = h1 + gz;  z_mov = z_top - 5;
 ridge = 1;  land = 0.8;  ef = 0.4;  fz = 0.2;
-rFl = 10;  rFr = 7;  rA = 5.5;  wall = 3.5;  wallF_l = 9;  wallF_r = 4;  // left arm carries the lever, the right one only follows
+rFl = 10;  rFr = 7;  rA = 5.5;  wall = 3.5;  wallF_l = 9;  wallF_r = 7;  // left arm carries the lever; the right arm is a link, its ring takes the full pull
+// wall: ring at D. The lug below makes a thicker one unnecessary (FE: same stress at 3.5 and 4.5) and 4.5 left the arm 1.1 mm from the door
+lug_l = 14;  pin_hole = 4;              // tapered lug from the arm's ring into the arm; hole through the solid pin (see parallel-lift.scad)
+w_lev = 14;                             // lever half width at the pivot: the lever root over the F ring is only z 6.6..17 tall
+z_lev = 12;  lev_full_r = 30;           // lever web top: full height only near the pivot and at the eye boss
 function rF(lev) = lev ? rFl : rFr;
 function rRF(lev) = rF(lev) + cj + (lev ? wallF_l : wallF_r);
 rRA = rA + cj + wall;
-function w0(lev) = lev ? 9 : 6;         // arm half width at F. Keep below rF + cj - cs, or the arm's sweep cuts the bearing wall
+function w0(lev) = lev ? 14 : 6;        // arm half width at F. Left: as wide as the lever root (FE: the arm's step into the ring layer 1.05 -> 0.87 of the allowable from 12 to 14);
+                                        // its sweep trims the bearing wall above the ring, which the lever's sweep has cut there anyway
 function wA(lev) = lev ? 6 : 5;         // arm half width at D
 rboss = 12;  tf = 5;
 yf = [40, 146];                         // bracket flange on the door's back
@@ -80,9 +85,10 @@ YSC = [48, 95, 125];  dsb = 45;  dze = 5;
 peg_d = 10;  trk = [17.5, z_top];  trk_y = [Q[1] - 10, Q[1] + 18];   // track: Z band and Y extent
 ENV_L = [[38, 15.5], [178, 15.5], [178, 95], [140, 95], [100, 108], [38, 108]];   // nothing above the pivot: lever + arm
 ENV_R = [[38, 15.5], [178, 15.5], [178, 120], [38, 120]];                         // below the track
-SCREWS = [[62, 40], [115, 28], [115, 70], [167, 28], [167, 75]];
-// ribs [from, to, width]: routes and widths from a plane-stress FE run (300 N on F, all directions: peak 30 MPa, ring moves <= 0.55 mm)
-function ribs_of(lev) = let(S = SCREWS, w = lev ? 7 : 5) [[F, S[0], w], [F, S[2], w], [S[0], S[1], 3], [S[1], S[2], 3], [S[2], S[4], 3], [S[1], S[3], 3], [S[3], S[4], 3]];
+S0 = [62, 40];  S1 = [115, 28];  S2 = [115, 70];  S4 = [167, 75];
+SCREWS = [S0, S1, S2, S4];             // v2.1 had a 5th screw at [167, 28]: FE gives it under 5 N, so it and its ties are gone
+// ribs [from, to, width]: routes and widths from FE (check_strength.py, 3D as printed: v2.2 at a 100 N stall, plates at 0.70 / 0.32 of the allowable)
+function ribs_of(lev) = let(w = lev ? 7 : 5) [[F, S0, w], [F, S2, w], [S1, S2, 3], [S2, S4, 3]];   // ties without load left out (FE)
 WHEEL = [[52, 0], [88, 33]];
 rbs = 6.8;                              // screw boss radius (counterbore r 4.3 + 2.5 mm wall)
 function Qof(lev) = D - (rA + cs + wA(lev)) * (D - F) / norm(D - F);   // upper-layer arm end, clear of the bracket hub
@@ -111,9 +117,10 @@ module hole3d(c, r, top = h1 + 1) translate(c) rotate_extrude($fn = FNJ) hole_pr
 
 // ---------------------------------------------------------------- arm (+ lever on the left), closed pose
 module arm_shape(lev, E) capsule(F, E, w0(lev), wA(lev));
-module arm_b1(lev) { difference() { arm_shape(lev, D); disk(F, rRF(lev) + cs); } disk(D, rRA); }
+module lug(lev) hull() { disk(D, rRA); disk(D + lug_l * (F - D) / L, wA(lev)); }
+module arm_b1(lev) { difference() { arm_shape(lev, D); disk(F, rRF(lev) + cs); } disk(D, rRA); lug(lev); }
 module arm_b2(lev) { disk(F, rF(lev), FNJ); arm_shape(lev, Qof(lev)); }
-module lever_hull() hull() { disk(F, w0(true)); disk(C0, rboss); }
+module lever_hull() hull() { disk(F, w_lev); disk(C0, rboss); }
 module lever_b1() difference() { lever_hull(); disk(F, rRF(true) + cs); }
 function nut_af(d) = d >= 6 ? 10 : d >= 5 ? 8 : 7;
 module eye_hole(c, h) {
@@ -124,7 +131,8 @@ module arm3d(lev = false) difference() {
   union() {
     linear_extrude(h1) { arm_b1(lev); if (lev) lever_b1(); }
     translate([0, 0, h1]) linear_extrude(gz) { intersection() { arm_b1(lev); arm_b2(lev); } if (lev) lever_b1(); }
-    translate([0, 0, z2]) linear_extrude(z_mov - z2) { arm_b2(lev); if (lev) lever_hull(); }
+    translate([0, 0, z2]) linear_extrude(z_mov - z2) { arm_b2(lev); if (lev) intersection() { lever_hull(); union() { disk(F, lev_full_r); disk(C0, rboss); } } }
+    if (lev) translate([0, 0, z2]) linear_extrude(z_lev - z2) lever_hull();
     pin3d(F, rF(lev));
   }
   hole3d(D, rA);
@@ -134,7 +142,7 @@ module arm3d(lev = false) difference() {
 // ---------------------------------------------------------------- door bracket (closed pose) with the track peg
 module brk_desired() hull() { translate([0, yf[0]]) square([tf, yf[1] - yf[0]]); disk(D, rA + 5); disk(Q, 8); }
 // same bracket left and right: it clears the wider (left) arm
-module arm_bf_b1() { sweep_rel(D) arm_shape(true, D); disk(D, rRA); }
+module arm_bf_b1() { sweep_rel(D) arm_shape(true, D); disk(D, rRA); sweep_rel(D) difference() { lug(true); disk(D, rRA + 0.3); } }   // ring not swept: see parallel-lift.scad
 module arm_bf_b2() sweep_rel(D) arm_shape(true, Qof(true));
 module brk_b1() difference() { brk_desired(); offset(delta = cs) arm_bf_b1(); }
 module brk_b2() { difference() { brk_desired(); offset(delta = cs) arm_bf_b2(); } disk(D, rA, FNJ); }
@@ -148,6 +156,7 @@ module bracket3d() difference() {
     translate([Q[0], Q[1], z_mov - 0.01]) cylinder(d1 = peg_d + 3, d2 = peg_d, h = 0.51, $fn = 32);
   }
   for (y = YSC) door_screw_hole(y);
+  translate([D[0], D[1], -1]) cylinder(d = pin_hole, h = z_mov + 2, $fn = 24);
 }
 module door_screw_hole(y) translate([0, y, dze]) rotate([0, 90 + dsb, 0]) {
   d = door_screw + 0.4;  dh = 2 * door_screw + 0.6;  sh = dze / sin(dsb) - 1;
@@ -168,7 +177,7 @@ module plate_desired(lev) difference() {
   intersection() { polygon(lev ? ENV_L : ENV_R); polygon([for (y = [0 : 10 : 520]) [x_cheek(y) - 3, y], [0, 520], [0, 0]]); }
   translate(WHEEL[0]) square(WHEEL[1] - WHEEL[0]);
 }
-module arm_sw_b1(lev) { difference() { sweep_rot(F) arm_shape(lev, D); disk(F, rRF(lev) + cs); } sweep_rot(F) disk(D, rRA); }
+module arm_sw_b1(lev) { difference() { sweep_rot(F) arm_shape(lev, D); disk(F, rRF(lev) + cs); } sweep_rot(F) disk(D, rRA); sweep_rot(F) lug(lev); }
 module arm_sw_b2(lev) sweep_rot(F) arm_shape(lev, Qof(lev));
 module lever_sw_b1() difference() { sweep_rot(F) lever_hull(); disk(F, rRF(true) + cs); }
 module lever_sw_b2() sweep_rot(F) lever_hull();
@@ -187,8 +196,10 @@ module skel2d(lev) {
   for (s = SCREWS) disk(s, rbs);
   disk(F, rRF(lev), FNJ);
 }
-module plate_b1(lev) intersection() { plate_b1_full(lev); skel2d(lev); }
-module plate_b2(lev) offset(r = 0.6) offset(r = -0.6) intersection() { plate_b2_full(lev); skel2d(lev); }   // sliver tips rounded off
+rf = 3;   // fillet in the concave corners where ribs meet rings and bosses, clipped back to the free space
+module fil() intersection() { children(0); offset(r = -rf) offset(r = rf) intersection() { children(0); children(1); } }
+module plate_b1(lev) fil() { plate_b1_full(lev); skel2d(lev); }
+module plate_b2(lev) offset(r = 0.6) offset(r = -0.6) fil() { plate_b2_full(lev); skel2d(lev); }   // sliver tips rounded off
 module wall_screw_hole(s, h) translate([s[0], s[1], 0]) {
   d = wall_screw + 0.5;  dc = 2 * wall_screw + 0.6;  zs = h - 5 - (dc - d) / 2;
   translate([0, 0, -1]) cylinder(d = d, h = h + 2, $fn = 24);
@@ -279,7 +290,8 @@ else if (part == "echo") echo(str("GEO Q=", Q, ";D=", D, ";F=", F, ";L=", L, ";P
                                   ";z_top=", z_top, ";z_mov=", z_mov, ";h1=", h1, ";YSC=", YSC, ";dsb=", dsb, ";dze=", dze,
                                   ";wall_screw=", wall_screw, ";act_r_tube=", act_r_tube, ";act_r_body=", act_r_body,
                                   ";act_tube_from=", act_tube_from, ";act_body_len=", act_body_len, ";trk=", trk, ";trk_y=", trk_y,
-                                  ";TRK_X=", TRK_X, ";peg_d=", peg_d, ";version='", version, "'"));
+                                  ";TRK_X=", TRK_X, ";peg_d=", peg_d, ";rA=", rA, ";rFl=", rFl, ";rFr=", rFr, ";eye_bolt=", eye_bolt,
+                                  ";version='", version, "'"));
 else if (part == "2d_plate_b1_l") plate_b1(true);
 else if (part == "2d_plate_b2_l") plate_b2(true);
 else if (part == "2d_plate_b1_r") plate_b1(false);

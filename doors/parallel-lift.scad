@@ -19,7 +19,7 @@
 //        "plate_l" | "plate_r" | "arm1_l" | "arm1_r" | "arm2" | "bracket"   single bodies (closed pose)
 // Other joint gap: openscad -D cj=0.35 -D 'part="left"' -o parallel_left.stl parallel-lift.scad
 
-version = "2.1";
+version = "2.2";
 
 /* [Output] */
 part = "assembly";      // [left, right, mount, coupon, template, assembly, scene, layout]
@@ -72,17 +72,23 @@ z_mov = z_top - 5;                      // arms + bracket end here: the door's s
 ridge = 1;  land = 0.8;                 // waist depth (= retention), waist length
 ef = 0.4;  fz = 0.2;                    // first-layer relief; lip flanks moved apart axially: the layer-to-layer gap on a 45 deg flank stays = cj
 rP1 = 10;  rP2 = 5.5;  rA = 5.5;        // pin radius at P1 (rod socket inside), P2 and A1/A2 (bracket pins)
-wall = 3.5;  wall1_l = 9;  wall1_r = 7; // ring wall (radial); P1 is wide: on the left the lever sweeps over it, so it is h1 tall and hangs on 2 narrow necks
+wall = 5;                               // ring wall (radial) at A1/A2 in the arms (5.5 would bring the arms within 2 mm of the drawer front)
+wallP2 = 5;  wall1_l = 12;  wall1_r = 7; // plate rings. P1 is wide: on the left the lever sweeps over it, so it is h1 tall and hangs on 2 narrow necks
+lug_l = 14;                             // the arm's ring runs into the arm as a tapered lug over this length, not a sharp corner
+pin_hole = 4;                           // hole through every solid pin: perimeters then fill the whole pin and run on through its root in any slicer
 function rPof(P) = P == P1 ? rP1 : rP2;
 rRA = rA + cj + wall;                   // ring radius at A1/A2 (in the arms)
-function rRPof(P, lev = true) = rPof(P) + cj + (P == P1 ? (lev ? wall1_l : wall1_r) : wall);   // ring radius at P1/P2 (in the wall plate)
+function rRPof(P, lev = true) = rPof(P) + cj + (P == P1 ? (lev ? wall1_l : wall1_r) : wallP2);   // ring radius at P1/P2 (in the wall plate)
 
 // ---- arms, lever, bracket, plate ----
 // half widths at the pivot / at the door end. The front arms carry the actuator or rod torque, so they taper; the rear arms
-// only see tension or compression. Keep the pivot half width below rP + cj - cs, or the arm's sweep cuts the bearing wall.
-function w0(P) = P == P1 ? 9 : 4.75;
+// only see tension or compression. A pivot half width above rP + cj - cs lets the arm's sweep cut the bearing wall above the ring:
+// only the front arm does that, on purpose (below).
+function w0(P) = P == P1 ? 12 : 4.75;    // front arm wider than its pin at P1: its sweep trims the bearing wall above the ring, but FE shows
+                                        // the arm's step into the ring layer gains more (shear between the layers -17 %) than the plate loses
 function wA(P) = P == P1 ? 6 : 4.75;
 rboss = 12;                             // lever boss at C (rod eye)
+z_lev = 12;  lev_full_r = 30;           // lever web top: full height only near the pivot (bending peaks there) and at the eye boss
 tf = 5;                                 // bracket flange on the door back
 door_up = 2;                            // the wedge and the play lower the door's bottom: flange (and door) starts this much higher
 yf = [17 + door_up, 106];               // flange: bottom flush with the door's bottom edge
@@ -99,7 +105,7 @@ y_mid = (A1[1] + A2[1]) / 2;
 function fx(y) = tan(lean) * (y - y_mid);                          // X of the flange's door face at height y
 
 // ---- skeleton plate: pivot rings + screw bosses + ribs, all full height, so the ribs print as solid in-layer walls.
-// Rib routes and widths from a plane-stress FE run (100 N actuator, all load directions): peak 31 MPa, ring moves <= 0.65 mm.
+// Rib routes and widths from FE; check_strength.py runs the 3D FE of every body as printed (v2.2, 100 N stall: plates at 0.50 / 0.76 of the allowable).
 rbs = 6.8;                              // screw boss radius (counterbore r 4.3 + 2.5 mm wall)
 N1 = [48, 195];                         // rib node above P1 on the left: the lever's sweep leaves only this way out
 N2 = [60, 146];                         // start of the diagonal rib to the screw at [112, 80]
@@ -107,7 +113,8 @@ N2 = [60, 146];                         // start of the diagonal rib to the scre
 // wall plate envelope (the sweeps cut it; nothing under the bracket: room for the closed reed on the tray) and screws [x, y] - same positions left and right (template)
 ENV_L = [[40, 15.5], [40, 40], [2, 120], [2, 232], [92, 232], [125, 160], [125, 15.5]];
 ENV_R = [[40, 15.5], [40, 40], [2, 120], [2, 232], [104, 232], [125, 205], [125, 15.5]];
-SCREWS = [[22, 222], [66, 222], [112, 24], [72, 42], [112, 80]];
+S0 = [22, 222];  S1 = [66, 222];  S3 = [72, 42];  S4 = [112, 80];
+SCREWS = [S0, S1, S3, S4];             // v2.1 had a 5th screw at [112, 24]: FE gives it under 35 N at the design load, so it and its two ribs are gone
 WHEEL = [[52, 0], [88, 33]];            // drawer wheel (X 55-85, Y 0-30) + 3 mm: the plate's foot stays behind it
 
 function Aof(P) = P + R * dirv(TH0);
@@ -140,19 +147,23 @@ module hole3d(c, r, top = h1 + 1) translate(c) rotate_extrude($fn = FNJ) hole_pr
 
 // ---------------------------------------------------------------- arms (closed pose)
 module arm_shape(P, E) capsule(P, E, w0(P), wA(P));
-module arm_b1(P, lev) { difference() { arm_shape(P, Aof(P)); disk(P, rRPof(P, lev) + cs); } disk(Aof(P), rRA); }
+module lug(P) hull() { disk(Aof(P), rRA); disk(Aof(P) + lug_l * (P - Aof(P)) / R, wA(P)); }
+module arm_b1(P, lev) { difference() { arm_shape(P, Aof(P)); disk(P, rRPof(P, lev) + cs); } disk(Aof(P), rRA); lug(P); }
 module arm_b2(P) { disk(P, rPof(P), FNJ); arm_shape(P, Qof(P)); }
-module lever_hull() hull() { disk(P1, w0(P1)); disk(C0, rboss); }
+w_lev = 9;                              // lever half width at P1: wider would sweep over the left plate's P1 neck and the screw boss at S1
+module lever_hull() hull() { disk(P1, w_lev); disk(C0, rboss); }
 module lever_b1() difference() { lever_hull(); disk(P1, rRPof(P1, true) + cs); }
 
 module arm3d(P, lev = false, sock = false) difference() {
   union() {
     linear_extrude(h1) { arm_b1(P, lev); if (lev && P == P1) lever_b1(); }
     translate([0, 0, h1]) linear_extrude(gz) { intersection() { arm_b1(P, lev); arm_b2(P); } if (lev && P == P1) lever_b1(); }
-    translate([0, 0, z2]) linear_extrude(z_mov - z2) { arm_b2(P); if (lev && P == P1) lever_hull(); }
+    translate([0, 0, z2]) linear_extrude(z_mov - z2) { arm_b2(P); if (lev && P == P1) intersection() { lever_hull(); union() { disk(P1, lev_full_r); disk(C0, rboss); } } }
+    if (lev && P == P1) translate([0, 0, z2]) linear_extrude(z_lev - z2) lever_hull();
     pin3d(P, rPof(P));
   }
   hole3d(Aof(P), rA);
+  if (!sock) translate([P[0], P[1], -1]) cylinder(d = pin_hole, h = z_mov + 2, $fn = 24);
   if (sock) translate([P[0], P[1], -1]) linear_extrude(sock_top + 1) square(shaft + 0.25, center = true);   // rod socket, open to the bay: tight, so little backlash between the sides
   if (lev && P == P1) eye_hole(C0, z_mov);
 }
@@ -168,7 +179,9 @@ module eye_hole(c, h) {
 module flange() polygon([[fx(yf[0]), yf[0]], [fx(yf[1]), yf[1]], [fx(yf[1]) + tf, yf[1]], [fx(yf[0]) + tf, yf[0]]]);
 module brk_desired() hull() { flange(); disk(A1, rA + 4); disk(A2, rA + 4); }
 // arms seen from the bracket: they turn about A1 / A2
-module arms_bf_b1() for (P = [P1, P2]) { sweep_rot(Aof(P)) arm_shape(P, Aof(P)); disk(Aof(P), rRA); }
+// the lug's taper is swept, its ring is not: a polygon circle turned about its own centre only adds facets (the cs offset closes the seam)
+module arms_bf_b1() for (P = [P1, P2]) { sweep_rot(Aof(P)) arm_shape(P, Aof(P)); disk(Aof(P), rRA);
+  sweep_rot(Aof(P)) difference() { lug(P); disk(Aof(P), rRA + 0.3); } }
 module arms_bf_b2() for (P = [P1, P2]) sweep_rot(Aof(P)) arm_shape(P, Qof(P));
 module brk_b1() difference() { brk_desired(); offset(delta = cs) arms_bf_b1(); }
 module brk_b2() { difference() { brk_desired(); offset(delta = cs) arms_bf_b2(); } disk(A1, rA, FNJ); disk(A2, rA, FNJ); }
@@ -181,6 +194,7 @@ module bracket3d() difference() {
     pin3d(A1, rA);  pin3d(A2, rA);
   }
   for (y = YSC) door_screw_hole(y);
+  for (a = [A1, A2]) translate([a[0], a[1], -1]) cylinder(d = pin_hole, h = z_mov + 2, $fn = 24);
 }
 // screw at 45 deg in the X-Z plane: head on the robot-bay face, driven from the bay at any door position.
 // Axis through the door back (the flange face) at Z dze; 3.5 x 16 ends 7 mm deep in the door, 5 mm inside its side edge.
@@ -206,16 +220,17 @@ module plate_desired(lev) difference() {
   translate(WHEEL[0]) square(WHEEL[1] - WHEEL[0]);
 }
 module arm_sw_b1(P, lev) { difference() { sweep_rot(P) arm_shape(P, Aof(P)); disk(P, rRPof(P, lev) + cs); }
-                           sweep_rot(P) disk(Aof(P), rRA); }
+                           sweep_rot(P) disk(Aof(P), rRA);  sweep_rot(P) lug(P); }
 module arm_sw_b2(P) sweep_rot(P) arm_shape(P, Qof(P));
 module lever_sw_b1() difference() { sweep_rot(P1) lever_hull(); disk(P1, rRPof(P1, true) + cs); }
 module lever_sw_b2() sweep_rot(P1) lever_hull();
 module brk_sw() sweep_move() brk_desired();
 
 // ribs [from, to, width]. The two necks at left P1 are as wide as the sweeps allow: this ring is only h1 tall
-function ribs_of(lev) = let(S = SCREWS) lev
-  ? [[P1, N1, 14], [N1, S[0], 5], [N1, S[1], 6], [S[0], S[1], 3], [P1, P2, 14], [N2, S[4], 8], [P2, S[4], 6], [P2, S[3], 6], [S[3], S[2], 3], [S[4], S[2], 3]]
-  : [[P1, S[0], 5], [P1, S[1], 6], [S[0], S[1], 3], [P1, P2, 8], [P1, S[4], 6], [P2, S[4], 6], [P2, S[3], 6], [S[3], S[2], 3], [S[4], S[2], 3]];
+// Ties that FE showed carrying no load are left out: left S0-S1; right P1-S0 (arm 1's sweep cut it off the ring anyway).
+function ribs_of(lev) = lev
+  ? [[P1, N1, 14], [N1, S0, 5], [N1, S1, 6], [P1, P2, 14], [N2, S4, 8], [P2, S4, 6], [P2, S3, 6]]
+  : [[P1, S1, 6], [S0, S1, 3], [P1, P2, 8], [P1, S4, 6], [P2, S4, 6], [P2, S3, 6]];
 module skel2d(lev) {
   for (r = ribs_of(lev)) capsule(r[0], r[1], r[2] / 2);
   for (s = SCREWS) disk(s, rbs);
@@ -231,8 +246,10 @@ module plate_b2_full(lev) intersection() {
     offset(delta = cs) { arm_sw_b2(P1); arm_sw_b2(P2); if (lev) { lever_sw_b2(); act_sw(); } brk_sw(); } }
   offset(r = 0.8) plate_b1_full(lev);
 }
-module plate_b1(lev) intersection() { plate_b1_full(lev); skel2d(lev); }
-module plate_b2(lev) offset(r = 0.6) offset(r = -0.6) intersection() { plate_b2_full(lev); skel2d(lev); }   // sliver tips rounded off
+rf = 3;   // fillet in the concave corners where ribs meet rings and bosses, clipped back to the free space
+module fil() intersection() { children(0); offset(r = -rf) offset(r = rf) intersection() { children(0); children(1); } }
+module plate_b1(lev) fil() { plate_b1_full(lev); skel2d(lev); }
+module plate_b2(lev) offset(r = 0.6) offset(r = -0.6) fil() { plate_b2_full(lev); skel2d(lev); }   // sliver tips rounded off
 
 module plate3d(lev) difference() {
   union() {
@@ -291,22 +308,29 @@ module mount_spacer() translate([F[0] - 20, F[1] - 22, 0]) spacer();
 // ---------------------------------------------------------------- clearance test coupon
 // three joints like A1/A2 with 0.35 / 0.45 / 0.55 mm, each with the bracket's ceiling (no bridge). Keep the smallest one that
 // turns freely. The fourth joint is the big P1 size at the chosen 0.45 mm: if that one is stiff, the large bore needs more gap.
+// It also copies the riskiest bridge of the modules: the left front arm prints flat over the 12 mm wall of the P1 ring, 13.5 mm
+// from the pin to its bottom layer, 0.6 mm above the ring. Joint P has the same ring and a flat bar as wide as the arm.
 CJ_TEST = [0.35, 0.45, 0.55];
-module coupon_joint(c, r, g, h, lab) {
-  rr = r + g + wall;  arm_y = rr + cs + rA;
+module coupon_joint(c, r, g, h, lab, rw = wall, flat_w = 0) difference() {   // the A-size test pins get the same hole as the real ones
+  coupon_joint_solid(c, r, g, h, lab, rw, flat_w);
+  if (r == rA) translate([c[0], c[1], -1]) cylinder(d = pin_hole, h = h + 2, $fn = 24);
+}
+module coupon_joint_solid(c, r, g, h, lab, rw, flat_w) {
+  rr = r + g + rw;  arm_y = rr + cs + rA;
   difference() {
     linear_extrude(h1) { disk(c, rr); translate(c + [-5, -rr - 12]) square([10, 12 + rr]); }
     translate(c) rotate_extrude($fn = FNJ) hole_prof(r, h1, h1 + 1, g);
   }
   translate(c) rotate_extrude($fn = FNJ) pin_prof(r, h1);
   translate([0, 0, 0]) linear_extrude(h) disk(c + [0, arm_y], rA);
-  translate([0, 0, z2]) for (i = [0 : (h - z2) / lh - 1]) translate([0, 0, i * lh]) linear_extrude(lh + 0.001)
+  if (flat_w > 0) translate([0, 0, z2]) linear_extrude(h - z2) capsule(c, c + [0, arm_y], flat_w, rA);   // flat over the ring, like an arm
+  else translate([0, 0, z2]) for (i = [0 : (h - z2) / lh - 1]) translate([0, 0, i * lh]) linear_extrude(lh + 0.001)
     intersection() { capsule(c, c + [0, arm_y], r); offset(r = i * lh) { disk(c, r, FNJ); disk(c + [0, arm_y], rA); } }
   translate([c[0], c[1] + arm_y, h - 0.5]) linear_extrude(1) text(lab, size = 4, halign = "center", valign = "center");
 }
 module coupon() {
   for (i = [0 : 2]) coupon_joint([i * 42, 0], rA, CJ_TEST[i], z2 + 4, str(round(CJ_TEST[i] * 100)));
-  coupon_joint([126 + rP1 - rA + 3, 0], rP1, 0.45, z2 + 4, "P");
+  coupon_joint([126 + rP1 - rA + 3 + wall1_l - wall, 0], rP1, 0.45, z2 + 4, "P", wall1_l, w0(P1));
 }
 
 // ---------------------------------------------------------------- drill template (both cheeks)
@@ -348,7 +372,8 @@ else if (part == "echo") echo(str("GEO ", "P1=", P1, ";P2=", P2, ";A1=", A1, ";A
                                   ";cj=", cj, ";cs=", cs, ";gz=", gz, ";z_top=", z_top, ";z_mov=", z_mov, ";h1=", h1,
                                   ";YSC=", YSC, ";dsb=", dsb, ";dze=", dze, ";door_screw=", door_screw, ";wall_screw=", wall_screw,
                                   ";act_r_tube=", act_r_tube, ";act_r_body=", act_r_body, ";act_tube_from=", act_tube_from,
-                                  ";act_body_len=", act_body_len, ";mt=", mt, ";version=", str("'", version, "'")));
+                                  ";act_body_len=", act_body_len, ";mt=", mt, ";rA=", rA, ";rP1=", rP1, ";rP2=", rP2, ";shaft=", shaft,
+                                  ";sock_top=", sock_top, ";eye_bolt=", eye_bolt, ";version=", str("'", version, "'")));
 // 2D layer outlines (debug)
 else if (part == "2d_plate_b1_l") plate_b1(true);
 else if (part == "2d_plate_b2_l") plate_b2(true);

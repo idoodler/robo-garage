@@ -13,7 +13,7 @@ ESP32 + ESPHome + Home Assistant: motorised door, light barrier, reed contacts, 
 | Case | v1.3.1 | fits PCB v1.3.1 (0 mm³ overlap with the part stand-in), DevKit USB-C through the left wall |
 | ESPHome config | – | checked with ESPHome 2026.10.1 |
 | Simulator | v5.4 | door open slider for all 4 door types, printed door parts in 3D + side view, door downloads |
-| Doors | v2.1 | Printed parts for all 4 door types (lift door, flap out, up & over, parallel lift), no supports. Up & over + parallel lift: print-in-place modules with hourglass joints and FE-checked skeleton plates, about a third less filament, checked over the whole travel (joint gap 0.45 mm, other gaps ≥ 1 mm). Parallel lift parks 23 mm out (40 mm max) |
+| Doors | v2.2 | Printed parts for all 4 door types (lift door, flap out, up & over, parallel lift), no supports. Up & over + parallel lift: print-in-place modules with hourglass joints and hollow pins, skeleton plates and arms checked by 3D FE as printed (`check_strength.py`): 12 % less filament than v2.1 (both module pairs together), the most loaded spot down from 1.35 to 0.87 of its allowable at a 100 N stall (calculated), checked over the whole travel (joint gap 0.45 mm, up & over peg in its track 0.4 mm, other gaps ≥ 1 mm). Parallel lift parks 23 mm out (40 mm max) |
 
 ## Folders
 
@@ -42,6 +42,7 @@ Locally: run from the repo root. Tested with KiCad 7.0.11 (Python `pcbnew`), Pyt
 | Case: PCB data, STL, zip | `case/build.sh` |
 | Doors: STL, zip | `doors/build.sh` (other joint gap: `doors/build.sh -D cj=0.35`) |
 | Doors: motion, gap and overhang checks | `python3 doors/check_parallel.py`, `python3 doors/check_upover.py`, `python3 doors/check_simple.py` |
+| Doors: strength (joint loads + 3D FE as printed, about 6 min on 32 cores, up to 48 GB; `--jobs=1` for less) | `python3 doors/check_strength.py` (misuse case: `--yank`) |
 | Simulator page | `python3 simulator/build_files.py` (downloads, pictures, case + door GLB) then `python3 simulator/build_page.py` |
 | Flash ESP32 | `esphome run esphome/robo-garage-pcb.yaml` |
 
@@ -51,7 +52,7 @@ Locally: run from the repo root. Tested with KiCad 7.0.11 (Python `pcbnew`), Pyt
 | `kicad-cli`, `rsvg-convert`, Python package `Pillow` | `fab.py` |
 | `zip` | `package.sh`, `case/build.sh`, `doors/build.sh` |
 | `openscad`, font DejaVu Sans | `case/build.sh`, `doors/build.sh`, `simulator/build_files.py` |
-| Python packages `trimesh`, `rtree`, `shapely`, `numpy`; `xvfb-run` for `render.py` | `doors/check_*.py`, `doors/render.py` |
+| Python packages `trimesh`, `rtree`, `shapely`, `numpy`; `xvfb-run` for `render.py`; `scipy`, `pyamg` for `check_strength.py` | `doors/check_*.py`, `doors/render.py` |
 | Python packages `Pillow`, `trimesh`, `numpy`, `shapely`, `fast-simplification` | `simulator/build_files.py` |
 | Java, `xvfb-run`, `pcb/tools/freerouting-1.9.0.jar` ([Freerouting releases](https://github.com/freerouting/freerouting/releases)) | `pipeline.sh` only |
 
