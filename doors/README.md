@@ -191,7 +191,7 @@ The door stays vertical. It moves out, then up on a circle and parks 116 mm high
 | `parallel_left.stl` | 1 | Left module, with the actuator lever. Printed open, 167 × 194 mm |
 | `parallel_right.stl` | 1 | Right module, 143 × 194 mm |
 | `parallel_mount.stl` | 1 | Actuator top mount + rod-eye spacer |
-| `parallel_template.stl` | 1 | Drill template for the plate screws |
+| `parallel_template.pdf` | 1 | Drill template on paper: print on A4 at 100 %, page 1 right cheek, page 2 left cheek |
 | `parallel-lift.scad` | | Source |
 
 **Door:** 492 × 204 mm. **45° chamfer on the top back edge, leave a 1 mm flat at the front.** It lets the door slide past
@@ -201,7 +201,7 @@ the drawer front's bottom edge; from the front you do not see it.
 
 | Step | What to do |
 |---|---|
-| 1 | Template on the cheek (front edge on the back of the front leg, bottom edge on the tray). Pre-drill the 4 holes. Left cheek: turn it over |
+| 1 | Template: print `parallel_template.pdf` on A4 at 100 % ("actual size") and check that both bars measure 100 mm. Cut along the two cut lines, tape it on the cheek's inner face: front edge against the back of the front leg, bottom edge on the tray. Pre-drill the 4 crosses with 3 mm. Page 1 is the right cheek, page 2 the left |
 | 2 | Left module on, 4 screws 4 × 20 from the robot side |
 | 3 | Solid steel square rod 8 × 8 mm into the square hole of the left front arm, 14 mm deep (tight on purpose: file the hole if the rod does not go in). Length = distance between the cheeks − 16 mm (502 → 486 mm) |
 | 4 | Right module onto the other end of the rod, then screw it on |
@@ -233,11 +233,11 @@ ESPHome: no change. Same endstop cover with both reeds.
 
 | Command | What |
 |---|---|
-| `doors/build.sh` | All STL + `robo-garage-doors_v<version>.zip`. Extra args go to OpenSCAD, e.g. `-D cj=0.35` |
+| `doors/build.sh` | All STL, the paper template `parallel_template.pdf` (`paper_template.py`) + `robo-garage-doors_v<version>.zip`. Extra args go to OpenSCAD, e.g. `-D cj=0.35` |
 | `python3 doors/check_parallel.py` | Parallel lift: whole travel in 1 % steps (`--quick`: 5 %) |
 | `python3 doors/check_upover.py` | Up & over |
 | `python3 doors/check_simple.py` | Lift door + flap |
 | `python3 doors/check_strength.py` | Up & over + parallel lift: joint loads over the whole travel, 3D FE of every module body as printed (`--yank`: misuse case, `--solid`: all solid). About 6 min on 32 cores; one body needs up to 16 GB and 3 run at a time (`--jobs=1` for a 16 GB machine) |
 | `python3 doors/render.py` | The pictures in this file |
 
-Needs `openscad`, `zip`, `xvfb-run`; Python `trimesh`, `rtree`, `shapely`, `numpy`, `Pillow`; for `check_strength.py` also `scipy`, `pyamg`.
+Needs `openscad`, `zip`, `xvfb-run`; Python `trimesh`, `rtree`, `shapely`, `numpy`, `Pillow`, `matplotlib` (paper template); for `check_strength.py` also `scipy`, `pyamg`.

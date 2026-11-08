@@ -8,7 +8,7 @@ stl() {   # OpenSCAD keeps going on errors and silently drops the broken geometr
   local log; log=$(openscad --export-format binstl -D "part=\"$2\"" "${@:4}" -o "$3" "$1" 2>&1)
   if grep -qE '^ERROR|undefined' <<<"$log"; then echo "$3: $(grep -E '^ERROR|undefined' <<<"$log" | head -3)" >&2; touch "$3.failed"; fi
 }
-for p in left right mount template; do stl parallel-lift.scad "$p" "parallel_$p.stl" "$@" & done
+for p in left right mount; do stl parallel-lift.scad "$p" "parallel_$p.stl" "$@" & done
 for p in left right mount template; do stl up-over.scad "$p" "upover_$p.stl" "$@" & done
 wait
 stl up-over.scad track upover_track_right.stl "$@" &
@@ -18,6 +18,7 @@ for p in channel saddle foot clamp; do stl lift-door.scad "$p" "lift_$p.stl" "$@
 for p in lever mount; do stl flap.scad "$p" "flap_$p.stl" "$@" & done
 wait
 if ls ./*.failed >/dev/null 2>&1; then rm -f ./*.failed; echo "OpenSCAD errors, see above"; exit 1; fi
-rm -f robo-garage-doors_v*.zip parallel_coupon.stl upover_coupon.stl upover_track.stl
-zip -q -X "robo-garage-doors_v$V.zip" README.md ./*.scad ./*.py build.sh ./*.stl ./*.png
+python3 paper_template.py "$@" >/dev/null || { echo "paper_template.py failed (needs matplotlib, trimesh, shapely)"; exit 1; }   # parallel_template.pdf
+rm -f robo-garage-doors_v*.zip parallel_coupon.stl upover_coupon.stl upover_track.stl parallel_template.stl
+zip -q -X "robo-garage-doors_v$V.zip" README.md ./*.scad ./*.py build.sh ./*.stl ./*.png ./*.pdf
 echo "doors/robo-garage-doors_v$V.zip"

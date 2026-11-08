@@ -52,7 +52,7 @@ Locally: run from the repo root. Tested with KiCad 7.0.11 (Python `pcbnew`), Pyt
 | `kicad-cli`, `rsvg-convert`, Python package `Pillow` | `fab.py` |
 | `zip` | `package.sh`, `case/build.sh`, `doors/build.sh` |
 | `openscad`, font DejaVu Sans | `case/build.sh`, `doors/build.sh`, `simulator/build_files.py` |
-| Python packages `trimesh`, `rtree`, `shapely`, `numpy`; `xvfb-run` for `render.py`; `scipy`, `pyamg` for `check_strength.py` | `doors/check_*.py`, `doors/render.py` |
+| Python packages `trimesh`, `rtree`, `shapely`, `numpy`; `xvfb-run` for `render.py`; `scipy`, `pyamg` for `check_strength.py`; `matplotlib` for `paper_template.py` (run by `doors/build.sh`) | `doors/check_*.py`, `doors/render.py`, `doors/paper_template.py` |
 | Python packages `Pillow`, `trimesh`, `numpy`, `shapely`, `fast-simplification` | `simulator/build_files.py` |
 | Java, `xvfb-run`, `pcb/tools/freerouting-1.9.0.jar` ([Freerouting releases](https://github.com/freerouting/freerouting/releases)) | `pipeline.sh` only |
 

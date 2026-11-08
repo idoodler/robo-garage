@@ -101,7 +101,7 @@ def build():
         'upover': [txt('up-over.scad'), txt('check_upover.py'), stl('coupon.stl'), stl('upover_left.stl'), stl('upover_right.stl'), stl('upover_track_left.stl'),
                    stl('upover_track_right.stl'), stl('upover_mount.stl'), stl('upover_template.stl'), pic('upover_motion.png'), pic('upover_print.png')],
         'parallel': [txt('parallel-lift.scad'), txt('check_parallel.py'), stl('coupon.stl'), stl('parallel_left.stl'), stl('parallel_right.stl'), stl('parallel_mount.stl'),
-                     stl('parallel_template.stl'), pic('parallel_motion.png'), pic('parallel_print.png')],
+                     stl('parallel_template.pdf'), pic('parallel_motion.png'), pic('parallel_print.png')],   # binary as b64, like the STL
     }
     for k, files in sets.items():
         name = 'doors-%s-v%s.json' % (k, DOORS_V)

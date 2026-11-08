@@ -53,7 +53,7 @@ PRINTS = {
     'flap': ['flap_lever.stl', 'flap_mount.stl'],
     'upover': ['upover_left.stl', 'upover_right.stl', 'upover_track_left.stl', 'upover_track_right.stl', 'upover_mount.stl',
                'upover_template.stl', 'coupon.stl'],
-    'parallel': ['parallel_left.stl', 'parallel_right.stl', 'parallel_mount.stl', 'parallel_template.stl', 'coupon.stl'],
+    'parallel': ['parallel_left.stl', 'parallel_right.stl', 'parallel_mount.stl', 'coupon.stl'],   # the drill template is on paper
 }
 G = {k: grams(v) for k, v in PRINTS.items()}
 
@@ -179,7 +179,7 @@ ROWS = {
     'lift': ('Lift door', '4 channels, saddle, foot, clamp'),
     'flap': ('Flap out', 'lever, actuator top mount'),
     'upover': ('Up &amp; over', '2 print-in-place modules, 2 tracks, top mount, drill template'),
-    'parallel': ('Parallel lift', '2 print-in-place modules, top mount, drill template'),
+    'parallel': ('Parallel lift', '2 print-in-place modules, top mount, drill template on A4 paper'),
 }
 KB = {k: zip_kb(k) for k in TYPES}
 card = '''<section class="card" style="margin-top:14px" id="doorparts">
@@ -220,7 +220,7 @@ rep(old_rows, '\n'.join([
     '      <tr data-door="flap"><td>Flap 59.6×20.7 from the 18 mm MDF, 2 M6 bolts + nyloc nuts, screws</td><td>–</td><td class="num">2–4</td><td>store</td></tr>',
     '      <tr data-door="upover"><td>3D-printed PETG ≈ %d g: 2 print-in-place modules, 2 tracks, top mount, drill template (STL in "Door parts" below)</td><td>–</td><td class="num">8–10</td><td>–</td></tr>' % G['upover'],
     '      <tr data-door="upover"><td>Door 49.2×20.2 + 2 front legs 4.9×20.8 from the 18 mm MDF, 2 M6 bolts + nyloc nuts, screws</td><td>–</td><td class="num">4–6</td><td>store</td></tr>',
-    '      <tr data-door="parallel"><td>3D-printed PETG ≈ %d g: 2 print-in-place modules, top mount, drill template (STL in "Door parts" below)</td><td>–</td><td class="num">9–12</td><td>–</td></tr>' % G['parallel'],
+    '      <tr data-door="parallel"><td>3D-printed PETG ≈ %d g: 2 print-in-place modules, top mount (STL in "Door parts" below); drill template on A4 paper</td><td>–</td><td class="num">9–12</td><td>–</td></tr>' % G['parallel'],
     '      <tr data-door="parallel"><td>Solid steel square rod 8×8 mm, 1 m, cut to 48.6 cm – couples the two sides</td><td>1</td><td class="num">4–7</td><td>store</td></tr>',
     '      <tr data-door="parallel"><td>Door 49.2×20.4 with a 45° chamfer on the top back edge + 2 front legs 4.9×20.8 from the 18 mm MDF, 2 M6 bolts + nyloc nuts, screws</td><td>–</td><td class="num">4–6</td><td>store</td></tr>']))
 rep("DP={lift:[8.09,17.89],flap:[11.79,15.79],upover:[13.09,26.89],parallel:[9.15,23.05]}",
