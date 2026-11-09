@@ -13,7 +13,7 @@ rep(" esp:['ESP32 + BTS7960 + buck','In the fixed space above the station: door 
 rep(" fan:['Rear fan · ARCTIC P12 Slim','On the inside of the back panel, blows into the 4 cm wall gap – invisible from the front. Runs while washing/drying, stops when the drawer is open.'],",
     " fan:['Rear fan · ARCTIC P12 Slim','On the inside of the back panel, blows into the 4 cm wall gap – invisible from the front. Auto vent on the ESP32: above 65 % humidity or 30 °C (SHT41) it runs at 30–100 %, off again 5 %RH / 1 °C below. Stops while the drawer is open.'],")
 rep(" led:['Status LED','Dot/Ring in the fascia, Line in the fascia gap, Underglow under the ramp edge · WS2812B · GPIO16 · 330 Ω + 1000 µF.'],",
-    " led:['Status LED','Dot/Ring in the fascia, Line in the fascia gap, Underglow under the ramp edge · WS2812B · GPIO16 → level shifter + 330 Ω on the PCB, 470 µF at the LED clamp.'],")
+    " led:['Status LED','Dot/Ring in the fascia, Line in the fascia gap, Underglow under the ramp edge. Line: SK6812 RGBW 144/m, one 50 cm segment = 72 LEDs, natural white for the work light, capped at 25 % per channel in ESPHome (≤ 1.44 A of the 1.5 A LED output). Dot/Ring/Underglow: WS2812B. GPIO16 → level shifter + 330 Ω on the PCB, 470 µF at the LED clamp.'],")
 rep(""" obstacle:['Obstacle test','Something in the way while closing. Lift door: it rests on it, "closed" never triggers → HA re-opens. All other doors: INA219 sees the stall → stop + re-open.']""",
     """ obstacle:['Obstacle test','A toy on the floor in front of the door. The light barrier sees it: the door does not close, or stops and re-opens if it is already closing. It closes again 1.5 s after the beam is clear. Backup: INA219 stall stop.'],
  beam:['Light barrier · door safety','12–24 V retroreflective sensor (NPN, E3Z-R61 type, mode switch on L = Light-ON) on a small bracket at the left front corner, its reflector on the right one: beam ≈12 cm in front of the door, ≈2 cm above the floor – past the ramp wedge and under the door\\'s swing, so the door never breaks it itself. Wires: brown → RX+, black → SIG, blue → TX−. Before every close the ESP32 switches the sensor off for a moment: the input must then read "blocked" (self-test), else "Door beam fault" and the door stays open. Orange LED = sees the reflector, green = stable. Try "Toy in front" and "Beam fault".'],
@@ -202,7 +202,20 @@ rep('<script type="module">', """<script>
 <script type="module">""")
 
 # ---------------- totals (PCB replaces BTS7960 + buck + loose parts; INA219 now on the PCB)
-rep("const BASE=[273.13,326.13],", "const BASE=[418.13,512.13],")   # PCB order 140-180 replaces BTS7960, buck, loose parts, WAGO, headers
+rep("const BASE=[273.13,326.13],", "const BASE=[418.13,512.13],")
+rep("line:[27.99,27.99],under:", "line:[12.89,14.27],under:")             # Line: SK6812 RGBW 144/m (1 m, one 50 cm segment used)
+rep("const LEDN={dot:1,ring:12,line:16,under:16};", "const LEDN={dot:1,ring:12,line:72,under:16};")
+rep("else if(st==='line'){for(let i=0;i<16;i++)pts.push([-25+i*50/15,62.35,1.98]);size=.2;gs=3.4;",
+    "else if(st==='line'){for(let i=0;i<72;i++)pts.push([-25+i*50/71,62.35,1.98]);size=.11;gs=1.5;")
+# chase / spinner: same speed and tail in cm on a denser strip, moving smoothly between LEDs
+rep("case'chase':{if(n===1){b=.3+.7*(.5-.5*Math.cos(tt*8));break;}const h=Math.floor(tt*14)%n;const d=((h-i)%n+n)%n;b=Math.max(.05,1-d*.3);}break;",
+    "case'chase':{if(n===1){b=.3+.7*(.5-.5*Math.cos(tt*8));break;}const s=Math.max(1,n/16),h=n>16?(tt*14*s)%n:Math.floor(tt*14)%n;const d=((h-i)%n+n)%n;b=Math.max(.05,1-d*.3/s);}break;")
+rep("case'spin':{if(n===1){b=.3+.7*(.5-.5*Math.cos(tt*6));break;}const h=(tt*9)%n;",
+    "case'spin':{if(n===1){b=.3+.7*(.5-.5*Math.cos(tt*6));break;}const s=Math.max(1,n/16),h=(tt*9*s)%n;")
+rep("b=Math.max(.05,1-dm*.45);}break;", "b=Math.max(.05,1-dm*.45/s);}break;")
+# YAML on the page follows the LED style: Line = SK6812 RGBW + power cap, others = WS2812
+rep(" E('numLeds').textContent=LEDN[S.style];}",
+    " E('numLeds').textContent=LEDN[S.style];{const ln=S.style==='line',cc=E('ledCC');if(cc){cc.dataset.t=cc.dataset.t||cc.textContent;cc.textContent=ln?cc.dataset.t:'';E('ledChip').textContent=ln?'SK6812':'WS2812';E('ledOrder').textContent=ln?'GRBW':'GRB';}}}")   # PCB order 140-180 replaces BTS7960, buck, loose parts, WAGO, headers
 rep("DP={lift:[8.09,17.89],flap:[12.79,18.79],upover:[14.09,29.89],parallel:[10.15,26.05]}", "DP={lift:[8.09,17.89],flap:[11.79,15.79],upover:[13.09,26.89],parallel:[9.15,23.05]}")
 # ---------------- phase messages (fan now runs from the SHT41, not from the phase)
 rep("msg:'Hot mop wash (1150 W) → rear fan on'}", "msg:'Hot mop wash (1150 W) → humidity rises'}")

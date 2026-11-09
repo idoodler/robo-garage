@@ -123,7 +123,7 @@ binary_sensor:
     on_press:
       - logger.log: "WATER LEAK -> valve powered, alarm"
       - switch.turn_on: valve
-      - light.turn_on: {id: status_led, red: 100%, green: 0%, blue: 0%, effect: "Error strobe"}
+      - light.turn_on: {id: status_led, red: 100%, green: 0%, blue: 0%, white: 0%, effect: "Error strobe"}
       - rtttl.play: "leak:d=4,o=7,b=140:e,p,e,p,e,p,e,p,e,p,e"
     on_release:
       - light.turn_off: status_led                             # the valve stays powered until you switch it off in HA
@@ -333,9 +333,12 @@ light:
     id: status_led
     name: "Robo-Garage Status LED"
     pin: GPIO16                                                # via 74AHCT1G125 level shifter
-    num_leds: 16
-    chipset: WS2812
-    channel_colors: GRB
+    # Line: SK6812 RGBW 144 LEDs/m, natural white (RGBNW), one 50 cm segment = 72 LEDs.
+    # Dot / Ring 12 / Underglow (WS2812B): num_leds 1 / 12 / 16, chipset WS2812, channel_colors GRB, no color_correct.
+    num_leds: 72
+    chipset: SK6812
+    channel_colors: GRBW
+    color_correct: [25%, 25%, 25%, 25%]                        # <= 1.44 A at full RGBW: the LED clamp gives 1.5 A (F2)
     effects:
       - pulse: {name: "Slow pulse", transition_length: 1s, update_interval: 1s}
       - strobe: {name: "Error strobe"}

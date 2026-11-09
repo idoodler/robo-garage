@@ -1,4 +1,4 @@
-# Build Robo-Garage simulator v5.5 (PCB + case version from parts.py / the SCAD file) from v4.9: light barrier + auto vent +
+# Build Robo-Garage simulator v5.6 (PCB + case version from parts.py / the SCAD file) from v4.9: light barrier + auto vent +
 # PCB/case section with downloads, leak probe + valve + buzzer (v1.2), power headroom (v1.3).
 # Run simulator/build_files.py first (download manifests + pictures).
 import html
@@ -97,6 +97,10 @@ rep('''      <tr class="grp"><td colspan="4">Hardware store (cut to size)</td></
       <tr class="opt"><td>Water valve 12 V DC ≤ 3 A that closes when powered (NO solenoid / motorised ball valve) <span class="tag">optional</span> – VALVE clamp, for the water kit</td><td>1</td><td class="num">10–30</td><td><a href="https://www.aliexpress.com/w/wholesale-12v-normally-open-solenoid-valve.html">AliExpress</a></td></tr>
       <tr><td>Case: PETG ≈ 70 g + 4× M3×25 screws (STL in the download)</td><td>–</td><td class="num">2–4</td><td>–</td></tr>
       <tr class="grp"><td colspan="4">Hardware store (cut to size)</td></tr>''')
+old_led = [l for l in s.split('\n') if l.startswith('      <tr data-led="line under">')]
+assert len(old_led) == 1
+rep(old_led[0], old_led[0].replace('data-led="line under"', 'data-led="under"').replace('status LED (Line / Underglow)', 'status LED (Underglow)') + '\n'
+    '      <tr data-led="line"><td>SK6812 RGBW strip 144 LED/m, 5 V, RGBNW (natural white 4000 K), black PCB, IP30, 1 m – status LED (Line): one 50 cm segment = 72 LEDs</td><td>1</td><td class="num">12.89–14.27</td><td><a href="https://de.aliexpress.com/item/32857962825.html">AliExpress</a></td></tr>')
 rep('''      <tr><td>Wire, Wago, 3 A fuse, screws, wood glue, 4 steel angles 30 mm, 330 Ω, 1000 µF/10 V, BC547 + 1 kΩ (button ring)</td><td>–</td><td class="num">12–22</td><td>–</td></tr>''',
     '''      <tr><td>Wire 0.5 mm², screws, wood glue, 4 steel angles 30 mm, zip ties</td><td>–</td><td class="num">8–15</td><td>–</td></tr>''')
 for d, w in (('flap', 'flap'), ('upover', 'flap'), ('parallel', 'door')):
@@ -107,8 +111,14 @@ rep('<p class="note">IKEA/Amazon prices from current listings; AliExpress change
 
 # ---------------------------------------------------------------- PCB + case section
 yaml_txt = open(YAML, encoding='utf-8').read()
-assert yaml_txt.count('num_leds: 16') == 1
-yaml_html = html.escape(yaml_txt, quote=False).replace('num_leds: 16', 'num_leds: <span id="numLeds">16</span>')
+CC_LINE = '    color_correct: [25%, 25%, 25%, 25%]                        # <= 1.44 A at full RGBW: the LED clamp gives 1.5 A (F2)\n'
+for k in ('num_leds: 72', 'chipset: SK6812', 'channel_colors: GRBW', CC_LINE):
+    assert yaml_txt.count(k) == 1, k
+yaml_html = (html.escape(yaml_txt, quote=False)
+             .replace('num_leds: 72', 'num_leds: <span id="numLeds">72</span>')
+             .replace('chipset: SK6812', 'chipset: <span id="ledChip">SK6812</span>')
+             .replace('channel_colors: GRBW', 'channel_colors: <span id="ledOrder">GRBW</span>')
+             .replace(html.escape(CC_LINE, quote=False), '<span id="ledCC">' + html.escape(CC_LINE, quote=False) + '</span>'))
 pcb_section = '''<section class="card" style="margin-top:14px" id="pcb">
   <div class="vhead"><h2>Controller PCB v''' + PCB_V + ''' + 3D-printed case</h2><span class="lbl">KiCad + OpenSCAD · all files open</span></div>
   <div class="cols2">
@@ -128,7 +138,7 @@ pcb_section = '''<section class="card" style="margin-top:14px" id="pcb">
         <tr><td>Power</td><td>12 V in, 6 A (4-pole clamp) → 7 A PTC, reverse protection, TVS → 5.1 V buck on board (no 5 V adapter)</td></tr>
         <tr><td>Door</td><td>DRV8874 driver (3 A moves, 4.9 A hardware limit) + INA219 current sense (20 mΩ shunt) → stall stop</td></tr>
         <tr><td>Sensors</td><td>SHT41 temperature + humidity on a slotted island · light-barrier input (12 V safe, self-test) · water-leak input: bare electrodes (pulsed, no corrosion) or a digital sensor (12 V / 3.3 V on the clamp) · 12 V rail monitor</td></tr>
-        <tr><td>Outputs</td><td>Fan PWM + tach · WS2812 level shifter · 12 V button ring · 12 V valve output (3 A, a leak closes the water) · buzzer</td></tr>
+        <tr><td>Outputs</td><td>Fan PWM + tach · LED strip level shifter · 12 V button ring · 12 V valve output (3 A, a leak closes the water) · buzzer</td></tr>
         <tr><td>Clamps</td><td>9 push-button spring clamps (KF250, 0.2–0.75 mm²) on 3 edges, soldered by JLCPCB</td></tr>
       </tbody></table>
     </div>
@@ -138,7 +148,7 @@ pcb_section = '''<section class="card" style="margin-top:14px" id="pcb">
         <tr><td class="m">25 / 26</td><td>DRV8874 IN1 (open) / IN2 (close)</td></tr>
         <tr><td class="m">32 / 33 / 18</td><td>Reed door closed / door open / drawer</td></tr>
         <tr><td class="m">19 / 23</td><td>Clean button / button ring</td></tr>
-        <tr><td class="m">16</td><td>WS2812 data (level shifter)</td></tr>
+        <tr><td class="m">16</td><td>LED strip data (level shifter)</td></tr>
         <tr><td class="m">17 / 27</td><td>Fan PWM / fan tach</td></tr>
         <tr><td class="m">21 / 22</td><td>I²C: INA219 0x40, SHT41 0x44, VL53L1X (clamp)</td></tr>
         <tr><td class="m">34 / 13</td><td>Light barrier input / sensor on-off (self-test)</td></tr>
@@ -197,7 +207,7 @@ rep(old_wiring, '''  <details>
         <tr><td>12 V IN</td><td class="m">+12V, +12V, GND, GND</td><td>12 V / 5 A adapter (e.g. Mean Well GST60A12) → DC jack adapter; above 5 A use both pairs</td></tr>
         <tr><td>ACTUATOR</td><td class="m">M+, M−</td><td>Linear actuator (wrong direction → swap the 2 wires)</td></tr>
         <tr><td>FAN</td><td class="m">4-pin</td><td>ARCTIC P12 Slim PWM plug</td></tr>
-        <tr><td>LED</td><td class="m">5V, DAT, GND</td><td>WS2812B strip or ring (DIN)</td></tr>
+        <tr><td>LED</td><td class="m">5V, DAT, GND</td><td>Strip or ring DIN: SK6812 RGBW line or WS2812B</td></tr>
         <tr><td>BUTTON</td><td class="m">BTN, GND, 12V, LED−</td><td>Alu button: NO, C, LED+, LED−</td></tr>
         <tr><td>REEDS</td><td class="m">CL/GND, OP/GND, DR/GND</td><td>Door closed, door open, drawer</td></tr>
         <tr><td>BEAM</td><td class="m">RX+, RX−, SIG, TX+, TX−, GND</td><td>Sensor brown → RX+, black → SIG, blue → TX− · RX−, TX+, GND stay free</td></tr>

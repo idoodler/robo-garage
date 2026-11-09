@@ -29,7 +29,7 @@
 | 12 V IN | 6 A continuous (board ≤ 40 °C). PSU 12 V / 5 A recommended, a 3 A PSU still works | F1 PTC 7 A hold / 14 A trip, reverse-polarity P-FET, TVS 15 V |
 | ACTUATOR | 3 A moving, **4.9 A hardware limit** | DRV8874 current regulation + over-current + thermal shutdown, INA219 stall stop (firmware) |
 | VALVE | 12 V, **3 A** continuous, inductive OK | F4 PTC 4 A hold (≈ 3.2 A at 50 °C), SS34 flyback |
-| LED 5 V | 1.5 A (16 WS2812 at full white ≈ 1 A) | F2 PTC 2 A |
+| LED 5 V | 1.5 A (16 WS2812 at full white ≈ 1 A; Line: 72 SK6812 RGBW capped at 25 % in ESPHome ≈ 1.44 A) | F2 PTC 2 A |
 | 5 V rail total | 3 A | LMR51430 current limit + hiccup |
 | FAN + BEAM + LEAK 12 V | 1.1 A together | F7 1.1 A, F3 / F5 0.2 A per sensor feed |
 | BUTTON LED 12 V | 0.2 A | F8 0.2 A |
@@ -106,7 +106,7 @@ Out of stock? U1 → DRV8874QPWPRQ1 (C22448174, same pinout). U5 → SHT40-AD1F-
 | 12 V IN | +12V, +12V, GND, GND | 12 V adapter → DC-jack adapter. Up to 5 A one +12V + one GND is enough, above 5 A use both pairs |
 | ACTUATOR | M+, M− | Actuator (≤ 4.9 A). Door moves the wrong way → swap the 2 wires |
 | FAN | 4-pin header | ARCTIC P12 Slim PWM plug |
-| LED | 5V, DAT, GND | WS2812B strip / ring (DIN) |
+| LED | 5V, DAT, GND | SK6812 RGBW line (72 LEDs) or WS2812B strip / ring (DIN) |
 | BUTTON | BTN, GND, 12V, LED− | Alu button: NO, C, LED+, LED− |
 | REEDS | CL/GND, OP/GND, DR/GND | Door closed, door open, drawer reed |
 | BEAM (left) | RX+, RX−, SIG, TX+, TX−, GND | Retroreflective sensor: brown → RX+, black → SIG, **blue → TX−** (the self-test switches the sensor off there); RX−, TX+, GND stay free. Through-beam pair instead: receiver brown, blue, black → RX+, RX−, SIG; emitter brown, blue → TX+, TX−. Beam across the cabinet front, ≈ 12 cm in front of the door, ≈ 2 cm above the floor |
@@ -123,7 +123,7 @@ Out of stock? U1 → DRV8874QPWPRQ1 (C22448174, same pinout). U5 → SHT40-AD1F-
 | 32 / 33 / 18 | Reed door closed / door open / drawer |
 | 19 | Clean button |
 | 23 | Button ring (AO3400A, 12 V) |
-| 16 | WS2812 data (74AHCT1G125 → 330 Ω) |
+| 16 | LED strip data (74AHCT1G125 → 330 Ω) |
 | 17 / 27 | Fan PWM (2N7002, inverted) / fan tach |
 | 21 / 22 | I²C SDA / SCL (INA219 0x40 + SHT41 0x44 on board, VL53L1X on the clamp) |
 | 34 | Light barrier input (via 2N7002, 12 V safe) |
