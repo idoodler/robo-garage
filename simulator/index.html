@@ -631,10 +631,6 @@ h3{font-size:.86rem;margin:0 0 6px}
 # Light barrier: retroreflective NPN sensor (E3Z-R61 type) + reflector on the BEAM clamp: brown -&gt; RX+,
 # black -&gt; SIG, blue -&gt; TX- (RX-, TX+ free). The self-test switches the whole sensor off via TX-.
 substitutions:
-  stall_current: "0.8"   # A: set ~0.3 A above the running current you see in HA ("Door motor current")
-  beam_inverted: "true"  # NPN sensor with its mode switch on L (Light-ON). Keep Light-ON: the self-test switches
-                         # the sensor off and needs "sensor off" = "blocked" (Dark-ON fails it -&gt; "Door beam fault").
-                         # Check: beam clear -&gt; HA "Door beam" must show "Clear". If not, set the switch to L.
   leak_threshold: "2.2"  # V at SIG: electrodes dry = 3.3 V, tap water between them &lt; ~2 V; a digital sensor
                          # gives 0 V or 3.3 V (see "Leak probe")
   leak_inverted: "false" # false = wet when SIG is LOW (electrodes, NPN / open-collector or active-low sensors);
@@ -644,6 +640,11 @@ substitutions:
 esphome:
   name: robo-garage
   friendly_name: Robo-Garage
+  on_boot:
+    priority: -100                                             # after the HA numbers are restored
+    then:
+      - script.execute: apply_travel_times
+      - script.execute: door_sync
 
 esp32:
   board: esp32dev
@@ -651,6 +652,8 @@ esp32:
     type: esp-idf
 
 logger:
+  logs:
+    pulse_counter: INFO                                        # fan tach: no extra "Retrieved counter" line every 10 s
 api:
 ota:
   - platform: esphome
@@ -664,16 +667,21 @@ i2c:
   frequency: 100kHz
 
 globals:
+  - {id: at_open_limit, type: bool, restore_value: true, initial_value: "false"}    # actuator stopped itself at the
+  - {id: at_closed_limit, type: bool, restore_value: true, initial_value: "false"}  # open / closed end (built-in limits)
+  - {id: move_from_end, type: bool, initial_value: "false"}  # this move started at the opposite end (flag or reed)
   - {id: beam_testing, type: bool, initial_value: "false"}   # sensor is off for the self-test
   - {id: beam_dark_ok, type: bool, initial_value: "true"}    # last self-test: input read "blocked" with the sensor off
+  - {id: vent_self, type: bool, initial_value: "false"}      # true while the firmware itself changes the fan
 
 output:
   - {platform: gpio, pin: GPIO4, id: leak_drive}              # v1.2: IO4 -&gt; R40 100k -&gt; leak probe (pulsed)
-  - {platform: ledc, pin: {number: GPIO15, ignore_strapping_warning: true}, id: buzzer_pwm}  # v1.2: buzzer, R46 pull-down
-  - {platform: ledc, pin: GPIO25, id: door_open_out}          # DRV8874 IN1 -&gt; actuator extends (PWM mode)
-  - {platform: ledc, pin: GPIO26, id: door_close_out}         # DRV8874 IN2 -&gt; actuator retracts
-  - {platform: ledc, pin: GPIO23, id: btn_ring_out}           # AO3400A -&gt; button ring (12 V)
-  - {platform: ledc, pin: GPIO17, id: fan_pwm, frequency: 25000Hz, inverted: true}  # 2N7002 open drain
+  - {platform: ledc, pin: {number: GPIO15, ignore_strapping_warning: true}, id: buzzer_pwm, channel: 0}  # v1.2: buzzer,
+                                                              # R46 pull-down. LEDC timer 0 alone (rtttl retunes it per note)
+  - {platform: gpio, pin: GPIO25, id: door_open_out}          # DRV8874 IN1 -&gt; actuator extends (on/off only, no LEDC timer)
+  - {platform: gpio, pin: GPIO26, id: door_close_out}         # DRV8874 IN2 -&gt; actuator retracts
+  - {platform: ledc, pin: GPIO23, id: btn_ring_out, channel: 2}  # AO3400A -&gt; button ring (12 V), LEDC timer 1
+  - {platform: ledc, pin: GPIO17, id: fan_pwm, frequency: 25000Hz, inverted: true, channel: 4}  # 2N7002 open drain, timer 2
 
 rtttl:
   id: buzzer
@@ -699,14 +707,102 @@ switch:
     internal: true
   - platform: template
     id: vent_auto
-    name: "Vent auto"                                          # off = fan only from HA / manual
-    optimistic: true
+    name: "Vent auto"                                          # on = speed from the SHT41; changing "Rear fan" in HA
+    optimistic: true                                           # switches this off (manual), switch on to resume
     restore_mode: RESTORE_DEFAULT_ON
     entity_category: config
-    on_turn_off:
-      - fan.turn_off: rear_fan
+    on_turn_on:
+      - script.execute: vent_update                            # resume right away, not after up to 30 s
+
+select:
+  - platform: template                                         # light barrier sensor type, set in HA (no reflash)
+    id: beam_type
+    name: "Beam type"                                          # Light-ON = sensor mode switch on L (often sold as "NC").
+    options: ["Light-ON (NC)", "Dark-ON (NO)", "None"]         # Keep Light-ON with the retroreflective sensor: the
+    initial_option: "Light-ON (NC)"                            # self-test switches it off, Dark-ON fails that test.
+                                                               # Check: beam clear -&gt; "Door beam" must show "Clear".
+    optimistic: true                                           # None = no light barrier: always clear, no self-test,
+    restore_value: true                                        # the door closes WITHOUT the safety stop.
+    entity_category: config
+    icon: mdi:motion-sensor
+    on_value:
+      - logger.log: {format: "Beam type: %s", args: ['x.c_str()']}
+      - if:                                                    # re-check right away (clears the fault for None)
+          condition:
+            lambda: 'return id(door_ctl).current_operation == cover::COVER_OPERATION_IDLE;'
+          then:
+            - script.execute: beam_selftest
+  - platform: template                                         # linear actuator, set in HA (no reflash)
+    id: actuator_type
+    name: "Actuator type"                                      # No limit switches: stops at a reed, a stall or "Open/Close time".
+    options: ["No limit switches", "Built-in limit switches"]  # Built-in: it cuts its own power at each end; current
+    initial_option: "No limit switches"                        # &lt; "Motor current threshold" for 0.3 s = end reached
+    optimistic: true                                           # (the reeds still work, but are optional).
+    restore_value: true
+    entity_category: config
+    icon: mdi:arrow-expand-horizontal
+    on_value:
+      - lambda: 'id(at_open_limit) = false; id(at_closed_limit) = false;'
+      - logger.log: {format: "Actuator type: %s", args: ['x.c_str()']}
 
 number:
+  # ---- door motor tuning (HA device page -&gt; Configuration, no reflash) ----
+  - platform: template
+    id: open_time
+    name: "Open time"                                          # longest the motor drives to open (stops earlier at the
+    unit_of_measurement: s                                     # open reed or, built-in limit switches, when the current
+    min_value: 1                                               # drops). Set to the full stroke time (+1 s for built-in
+    max_value: 120                                             # limit switches). Also used for the position in HA.
+    step: 0.5
+    initial_value: 15
+    mode: box
+    optimistic: true
+    restore_value: true
+    entity_category: config
+    icon: mdi:timer-arrow-up
+    on_value:
+      - script.execute: apply_travel_times
+  - platform: template
+    id: close_time
+    name: "Close time"                                         # same for closing
+    unit_of_measurement: s
+    min_value: 1
+    max_value: 120
+    step: 0.5
+    initial_value: 15
+    mode: box
+    optimistic: true
+    restore_value: true
+    entity_category: config
+    icon: mdi:timer-arrow-down
+    on_value:
+      - script.execute: apply_travel_times
+  - platform: template
+    id: motor_threshold
+    name: "Motor current threshold"                            # above = motor runs, below = stopped / actuator end
+    unit_of_measurement: A                                     # reached. Set it between the idle and the running
+    min_value: 0.005                                           # current you see in "Door motor current"
+    max_value: 2                                               # (e.g. idle 0.001 A, running 0.04 A -&gt; 0.02 A).
+    step: 0.005
+    initial_value: 0.02
+    mode: box
+    optimistic: true
+    restore_value: true
+    entity_category: config
+    icon: mdi:current-dc
+  - platform: template
+    id: stall_current
+    name: "Stall current"                                      # above this for 0.4 s = blocked -&gt; stop. Set it
+    unit_of_measurement: A                                     # ~0.3 A above the running current under load.
+    min_value: 0.1
+    max_value: 5
+    step: 0.05
+    initial_value: 0.8
+    mode: box
+    optimistic: true
+    restore_value: true
+    entity_category: config
+    icon: mdi:car-brake-alert
   - platform: template
     id: vent_hum_on
     name: "Vent humidity limit"
@@ -756,6 +852,14 @@ binary_sensor:
     filters: [delayed_on: 2s, delayed_off: 5s]
   - {platform: gpio, id: door_closed_reed, name: "Door closed", pin: {number: GPIO32, mode: INPUT_PULLUP, inverted: true}}
   - {platform: gpio, id: door_open_reed, name: "Door open", pin: {number: GPIO33, mode: INPUT_PULLUP, inverted: true}}
+  - platform: template                                         # end positions for the cover: reed, or (built-in limit
+    id: door_open_end                                          # switches) the actuator stopped itself at that end
+    internal: true
+    lambda: 'return id(door_open_reed).state || (id(actuator_type).active_index().value_or(0) == 1 &amp;&amp; id(at_open_limit));'
+  - platform: template
+    id: door_closed_end
+    internal: true
+    lambda: 'return id(door_closed_reed).state || (id(actuator_type).active_index().value_or(0) == 1 &amp;&amp; id(at_closed_limit));'
   - {platform: gpio, id: drawer_reed, name: "Drawer", device_class: opening,
      pin: {number: GPIO18, mode: INPUT_PULLUP, inverted: false}}            # on = drawer out
   - {platform: gpio, name: "Clean button", pin: {number: GPIO19, mode: INPUT_PULLUP, inverted: true},
@@ -763,26 +867,33 @@ binary_sensor:
   - platform: template                                         # stall stop (INA219 on the PCB)
     id: door_stall
     name: "Door stall"
-    lambda: return id(motor_current).state &gt; ${stall_current};
+    lambda: return id(motor_current).get_raw_state() &gt; id(stall_current).state;   # raw: before the delta filter
     filters: [delayed_on: 400ms]                               # ignores the start-up inrush
     on_press:
-      - cover.stop: door
+      - cover.stop: door_ctl
       - logger.log: "Door stall -&gt; stopped"
   # ---- light barrier (BEAM clamp): IO34 low = SIG high = sensor output off (no light, or sensor off) ----
   - platform: gpio
-    id: beam_raw
+    id: beam_pin                                               # on = IO34 low = sensor output off
     internal: true
-    pin: {number: GPIO34, inverted: "${beam_inverted}"}       # input-only pin, pull-up R36 on the PCB
+    pin: {number: GPIO34, inverted: true}                      # input-only pin, pull-up R36 on the PCB
     filters: [delayed_on_off: 5ms]
+  - platform: template
+    id: beam_raw                                               # on = beam blocked ("Beam type" applied)
+    internal: true
+    lambda: |-
+      const size_t type = id(beam_type).active_index().value_or(0);
+      if (type == 2) return false;                             // None: no light barrier, always clear
+      return type == 0 ? id(beam_pin).state : !id(beam_pin).state;   // Light-ON: output off = dark
     on_press:                                                  # unfiltered edge: beam broken while closing
       - if:
           condition:
-            lambda: 'return !id(beam_testing) &amp;&amp; id(door).current_operation == cover::COVER_OPERATION_CLOSING;'
+            lambda: 'return !id(beam_testing) &amp;&amp; id(door_ctl).current_operation == cover::COVER_OPERATION_CLOSING;'
           then:
             - logger.log: "Beam blocked while closing -&gt; reopen"
-            - cover.stop: door
+            - cover.stop: door_ctl
             - delay: 300ms
-            - cover.open: door
+            - cover.open: door_ctl
   - platform: template
     id: beam
     name: "Door beam"                                          # on = something in the door opening (HA display)
@@ -795,9 +906,13 @@ binary_sensor:
     id: beam_fault
     name: "Door beam fault"                                    # on = input did not read "blocked" with the sensor off
     device_class: problem
+  - platform: template
+    id: door_motor_fault
+    name: "Door motor fault"                                   # on = driven, but current &lt; threshold within 1.5 s
+    device_class: problem                                      # (driver, J5 wiring or actuator); a good move clears it
 
 script:
-  - id: beep_move                                              # 3 short beeps before the door moves
+  - id: beep_move                                              # 3 short beeps (the cover waits for them to finish)
     mode: single
     then:
       - if:
@@ -805,22 +920,125 @@ script:
             switch.is_on: buzzer_enabled
           then:
             - rtttl.play: "move:d=16,o=7,b=200:e,p,e,p,e"
+  - id: door_sync                                              # door_ctl -&gt; HA cover: closed only at the closed end,
+    then:                                                      # stopped anywhere else = open
+      - cover.template.publish:
+          id: door
+          position: !lambda 'return id(door_ctl).position == cover::COVER_CLOSED ? cover::COVER_CLOSED : cover::COVER_OPEN;'
+          current_operation: !lambda 'return id(door_ctl).current_operation;'
+  - id: apply_travel_times                                     # "Open time" / "Close time" -&gt; cover
+    then:
+      - lambda: |-
+          const float o = id(open_time).state, c = id(close_time).state;
+          if (std::isnan(o) || std::isnan(c)) return;
+          id(door_ctl).set_open_duration(o * 1000);                // position estimate
+          id(door_ctl).set_close_duration(c * 1000);
+          id(door_ctl).set_max_duration((std::max(o, c) + 5.0f) * 1000);   // backstop; run_timer stops first
+          ESP_LOGI("door", "Open time %.1f s, close time %.1f s", o, c);
+  - id: run_timer                                              # stop after "Open time" / "Close time" of driving
+    mode: restart
+    parameters:
+      seconds: float
+    then:
+      - delay: !lambda 'return (uint32_t) (seconds * 1000);'
+      - logger.log: {format: "Run time reached (%.1f s) -&gt; stop", args: ['seconds']}
+      - cover.stop: door_ctl                                   # keep last: stop_action also stops this script
+  - id: limit_watch                                            # every move: the motor must draw current;
+    mode: restart                                              # built-in limit switches: current gone = end reached
+    then:
+      - wait_until:                                            # raw = before the delta filter
+          condition:
+            lambda: 'return id(motor_current).get_raw_state() &gt; id(motor_threshold).state;'
+          timeout: 1500ms
+      - if:
+          condition:
+            lambda: 'return id(motor_current).get_raw_state() &gt; id(motor_threshold).state;'
+          then:                                                # the motor runs
+            - binary_sensor.template.publish: {id: door_motor_fault, state: false}
+            - if:
+                condition:
+                  lambda: 'return id(actuator_type).active_index().value_or(0) == 1;'
+                then:
+                  - wait_until:                                # below the threshold for 0.3 s (3 readings)
+                      condition:
+                        for:
+                          time: 300ms
+                          condition:
+                            lambda: 'return id(motor_current).get_raw_state() &lt; id(motor_threshold).state;'
+                      timeout: 130s
+                  - lambda: |-
+                      if (!(id(motor_current).get_raw_state() &lt; id(motor_threshold).state)) return;
+                      if (id(door_ctl).current_operation == cover::COVER_OPERATION_OPENING) id(at_open_limit) = true;
+                      if (id(door_ctl).current_operation == cover::COVER_OPERATION_CLOSING) id(at_closed_limit) = true;
+                      ESP_LOGI("door", "Actuator limit switch reached (current %.3f A)", id(motor_current).get_raw_state());
+          else:                                                # no current at all
+            - if:
+                condition:                                     # built-in limits, start position unknown, no
+                  lambda: |-                                   # fault yet: the actuator may already sit at this end
+                    return id(actuator_type).active_index().value_or(0) == 1 &amp;&amp; !id(move_from_end) &amp;&amp;
+                           !id(door_motor_fault).state;
+                then:
+                  - lambda: |-
+                      if (id(door_ctl).current_operation == cover::COVER_OPERATION_OPENING) id(at_open_limit) = true;
+                      if (id(door_ctl).current_operation == cover::COVER_OPERATION_CLOSING) id(at_closed_limit) = true;
+                      ESP_LOGW("door", "No motor current (%.3f A): taken as already at this end", id(motor_current).get_raw_state());
+                else:
+                  - lambda: 'ESP_LOGE("door", "No motor current (%.3f A) while driving: driver, wiring or actuator fault", id(motor_current).get_raw_state());'
+                  - binary_sensor.template.publish: {id: door_motor_fault, state: true}
+                  - cover.stop: door_ctl                       # keep last: stop_action also stops this script
+  - id: vent_update                                            # auto vent from the SHT41 (only while "Vent auto" is on)
+    then:
+      - if:
+          condition:
+            switch.is_on: vent_auto
+          then:
+            - lambda: |-
+                id(vent_self) = true;                              // our own change: not "set by hand"
+                [&amp;]() {
+                  if (id(drawer_reed).state) {                     // drawer out: no fan while you work at the station
+                    if (id(rear_fan).state) id(rear_fan).turn_off().perform();
+                    return;
+                  }
+                  const float h = id(cab_hum).state, t = id(cab_temp).state;
+                  if (std::isnan(h) || std::isnan(t)) return;
+                  const float h_on = id(vent_hum_on).state, t_on = id(vent_temp_on).state;
+                  static bool running = false;
+                  if (h &gt; h_on || t &gt; t_on) running = true;
+                  else if (h &lt; h_on - 5.0f &amp;&amp; t &lt; t_on - 1.0f) running = false;   // 5 %RH / 1 degC hysteresis
+                  if (!running) {
+                    if (id(rear_fan).state) id(rear_fan).turn_off().perform();
+                    return;
+                  }
+                  // 30 % at the switch-off point, 100 % at limit + 15 %RH or + 6 degC, in 10 % steps
+                  const float x = std::max((h - h_on + 5.0f) / 20.0f, (t - t_on + 1.0f) / 7.0f);
+                  const float s = 30.0f + 70.0f * std::min(std::max(x, 0.0f), 1.0f);
+                  const int speed = 10 * (int) roundf(s / 10.0f);
+                  if (!id(rear_fan).state || id(rear_fan).speed != speed)
+                    id(rear_fan).turn_on().set_speed(speed).perform();
+                }();
+                id(vent_self) = false;
   - id: beam_selftest                                          # sensor off -&gt; input must read "blocked"
     mode: single
     then:
-      - lambda: 'id(beam_testing) = true;'
-      - switch.turn_off: beam_tx
-      - wait_until:                                            # output must drop out (max 0.5 s)
+      - if:
           condition:
-            binary_sensor.is_on: beam_raw
-          timeout: 500ms
-      - lambda: 'id(beam_dark_ok) = id(beam_raw).state;'
-      - switch.turn_on: beam_tx
-      - wait_until:                                            # sensor powers up and sees the reflector again (max 2 s)
-          condition:
-            binary_sensor.is_off: beam_raw
-          timeout: 2s
-      - lambda: 'id(beam_testing) = false;'
+            lambda: 'return id(beam_type).active_index().value_or(0) == 2;'
+          then:                                                # Beam type None: nothing to test, no fault
+            - lambda: 'id(beam_dark_ok) = true;'
+          else:
+            - lambda: 'id(beam_testing) = true;'
+            - switch.turn_off: beam_tx
+            - wait_until:                                      # output must drop out (max 0.5 s)
+                condition:
+                  binary_sensor.is_on: beam_raw
+                timeout: 500ms
+            - lambda: 'id(beam_dark_ok) = id(beam_raw).state;'
+            - switch.turn_on: beam_tx
+            - wait_until:                                      # sensor powers up, sees the reflector (max 2 s)
+                condition:
+                  binary_sensor.is_off: beam_raw
+                timeout: 2s
+            - lambda: 'id(beam_testing) = false;'
       - binary_sensor.template.publish:
           id: beam_fault
           state: !lambda 'return !id(beam_dark_ok);'
@@ -841,7 +1059,7 @@ sensor:
     pin: GPIO36
     attenuation: 12db
     update_interval: 1s
-    filters: [multiply: 5.545, sliding_window_moving_average: {window_size: 5, send_every: 5}]
+    filters: [multiply: 5.545, sliding_window_moving_average: {window_size: 5, send_every: 5}, delta: 0.1]
     accuracy_decimals: 1
     unit_of_measurement: V
   - platform: ina219                                           # v1.3: on the PCB, shunt 20 mOhm (range 8 A)
@@ -850,11 +1068,13 @@ sensor:
     max_voltage: 16V
     max_current: 8A
     update_interval: 100ms
-    current:
-      name: "Door motor current"
-      id: motor_current
+    current:                                                   # read every 100 ms for the stall stop, but only
+      name: "Door motor current"                               # published (HA + log) on a change &gt; 10 mA
+      id: motor_current                                        # (the door logic uses the raw value)
+      filters: [delta: 0.01]
     bus_voltage:
       name: "12 V supply"
+      filters: [delta: 0.1]                                    # publish on a change &gt; 0.1 V
   - platform: sht4x                                            # SHT41 (v1.3; SHT40 on older boards) on the island
     address: 0x44
     update_interval: 30s
@@ -869,11 +1089,21 @@ sensor:
     pin: {number: GPIO27, mode: INPUT_PULLUP}
     name: "Rear fan speed"
     unit_of_measurement: rpm
-    filters: [multiply: 0.5]
+    filters: [multiply: 0.5, delta: 50]                        # publish on a change &gt; 50 rpm
     update_interval: 10s
 
 fan:
-  - {platform: speed, id: rear_fan, output: fan_pwm, name: "Rear fan"}
+  - platform: speed                                            # HA: on / off + speed slider (1-100 %)
+    id: rear_fan
+    output: fan_pwm
+    name: "Rear fan"
+    on_state:                                                  # set by hand in HA -&gt; manual, auto vent pauses
+      - if:
+          condition:
+            lambda: 'return !id(vent_self) &amp;&amp; id(vent_auto).state &amp;&amp; millis() &gt; 15000;'   # not the boot restore
+          then:
+            - switch.turn_off: vent_auto
+            - logger.log: "Rear fan set by hand -&gt; Vent auto off (switch it on again to resume)"
 
 interval:
   - interval: 10s                                              # v1.2: leak probe, 70 ms of 3.3 V every 10 s (no corrosion)
@@ -885,67 +1115,80 @@ interval:
       - output.turn_off: leak_drive
   - interval: 30s                                              # auto vent from the SHT41
     then:
-      - if:
-          condition:
-            switch.is_on: vent_auto
-          then:
-            - lambda: |-
-                if (id(drawer_reed).state) {                       // drawer out: no fan while you work at the station
-                  if (id(rear_fan).state) id(rear_fan).turn_off().perform();
-                  return;
-                }
-                const float h = id(cab_hum).state, t = id(cab_temp).state;
-                if (std::isnan(h) || std::isnan(t)) return;
-                const float h_on = id(vent_hum_on).state, t_on = id(vent_temp_on).state;
-                static bool running = false;
-                if (h &gt; h_on || t &gt; t_on) running = true;
-                else if (h &lt; h_on - 5.0f &amp;&amp; t &lt; t_on - 1.0f) running = false;   // 5 %RH / 1 degC hysteresis
-                if (!running) {
-                  if (id(rear_fan).state) id(rear_fan).turn_off().perform();
-                  return;
-                }
-                // 30 % at the switch-off point, 100 % at limit + 15 %RH or + 6 degC, in 10 % steps
-                const float x = std::max((h - h_on + 5.0f) / 20.0f, (t - t_on + 1.0f) / 7.0f);
-                const float s = 30.0f + 70.0f * std::min(std::max(x, 0.0f), 1.0f);
-                const int speed = 10 * (int) roundf(s / 10.0f);
-                if (!id(rear_fan).state || id(rear_fan).speed != speed)
-                  id(rear_fan).turn_on().set_speed(speed).perform();
+      - script.execute: vent_update
   - interval: 10min                                            # beam self-test while the door is idle
     then:
       - if:
           condition:
-            lambda: 'return id(door).current_operation == cover::COVER_OPERATION_IDLE;'
+            lambda: 'return id(door_ctl).current_operation == cover::COVER_OPERATION_IDLE;'
           then:
             - script.execute: beam_selftest
 
 cover:
-  - platform: endstop
-    id: door
+  - platform: template                                         # what HA shows: open / closed / opening / closing,
+    id: door                                                   # no position percentage (mirrors door_ctl)
     name: "Robo-Garage Door"
     device_class: damper
+    has_position: false
+    restore_mode: NO_RESTORE                                   # state comes from door_ctl (door_sync)
+    open_action:
+      - cover.open: door_ctl
+    close_action:
+      - cover.close: door_ctl
+    stop_action:
+      - cover.stop: door_ctl
+  - platform: endstop                                          # the actual drive (internal): reeds / limit switches,
+    id: door_ctl                                               # run times, position estimate
+    name: "Door drive"
+    internal: true
+    on_opening: [script.execute: door_sync]
+    on_closing: [script.execute: door_sync]
+    on_idle: [script.execute: door_sync]
     open_action:
       - output.turn_off: door_close_out
       - script.execute: beep_move
+      - delay: 200ms                                           # coast before a reversal (open while closing)
+      - wait_until:                                            # the 3 beeps sound BEFORE the door moves (~0.4 s)
+          condition:
+            lambda: 'return !id(buzzer).is_playing();'
+          timeout: 1s
+      - lambda: |-
+          id(move_from_end) = id(at_closed_limit) || id(door_closed_reed).state;   // started at the closed end?
+          id(at_closed_limit) = false;                                             // leaving the closed end
       - output.turn_on: door_open_out
-    open_endstop: door_open_reed
-    open_duration: 11s
+      - script.execute: limit_watch
+      - script.execute: {id: run_timer, seconds: !lambda 'return id(open_time).state;'}
+    open_endstop: door_open_end
+    open_duration: 15s                                         # start values, replaced at boot by "Open time" / "Close time"
     close_action:
       - output.turn_off: door_open_out
       - script.execute: beep_move
       - script.execute: beam_selftest                          # 0.1-2.5 s before every close
+      - delay: 200ms                                           # coast before a reversal (close while opening)
       - script.wait: beam_selftest
+      - wait_until:                                            # the 3 beeps sound BEFORE the door moves
+          condition:
+            lambda: 'return !id(buzzer).is_playing();'
+          timeout: 1s
       - if:
           condition:
             lambda: 'return id(beam_dark_ok) &amp;&amp; !id(beam_raw).state;'   # sensor works and beam is clear
           then:
+            - lambda: |-
+                id(move_from_end) = id(at_open_limit) || id(door_open_reed).state;   // started at the open end?
+                id(at_open_limit) = false;                                           // leaving the open end
             - output.turn_on: door_close_out
+            - script.execute: limit_watch
+            - script.execute: {id: run_timer, seconds: !lambda 'return id(close_time).state;'}
           else:
             - logger.log: "Door stays open: beam blocked or beam fault"
-            - cover.open: door                                 # back to fully open (no-op if already open)
-    close_endstop: door_closed_reed
-    close_duration: 11s
-    max_duration: 15s
+            - cover.open: door_ctl                             # back to fully open (no-op if already open)
+    close_endstop: door_closed_end
+    close_duration: 15s
+    max_duration: 20s
     stop_action:
+      - script.stop: limit_watch
+      - script.stop: run_timer
       - output.turn_off: door_open_out
       - output.turn_off: door_close_out
 

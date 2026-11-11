@@ -95,7 +95,7 @@ Out of stock? U1 → DRV8874QPWPRQ1 (C22448174, same pinout). U5 → SHT40-AD1F-
 |---|---|---|
 | ESP32 DevKitC V4, **WROOM** (not WROVER: GPIO16/17 are used), board 1.1 in (28 mm) or 1.0 in (25.4 mm) wide – not the narrow 0.9 in clone | 1 | Plugs into J3 + J4 (25.4 mm rows) or J3 + J15 (22.86 mm), USB-C to the left board edge |
 | Power supply 12 V DC, **5 A** (e.g. Mean Well GST60A12); the 3 A GST36E12 still works for the standard actuator | 1 | 12 V IN clamp (via a DC-jack adapter) |
-| Light barrier, 12–24 V DC, **retroreflective** with its reflector, **NPN**, mode switch on **L** (Light-ON), e.g. Omron E3Z-R61 type. Keep Light-ON: the self-test needs it. A through-beam pair (E3Z-T61 type, NPN) works too, see BEAM below | 1 + reflector | BEAM clamp |
+| Light barrier, 12–24 V DC, **retroreflective** with its reflector, **NPN**, mode switch on **L** (Light-ON), e.g. Omron E3Z-R61 type. Keep Light-ON (HA "Beam type" = Light-ON (NC)): the self-test needs it. A through-beam pair (E3Z-T61 type, NPN) works too, see BEAM below | 1 + reflector | BEAM clamp |
 | Leak detection: 2 stainless screws / bare wire ends 5–10 mm apart on the cabinet floor (nothing else needed), **or** a leak sensor with a digital output: NPN / open-collector (12 V or 3.3 V supply, plus a 10 kΩ resistor between the 3V3 and SIG poles) or 3.3–5 V logic module (LM393 type, 3.3 V supply, ≤ 50 mA) | 1 | LEAK clamp |
 | Water valve 12 V DC, **≤ 3 A**, that **closes when powered** (normally-open solenoid or motorised ball valve "NO") | 1 | VALVE clamp (optional) |
 | VL53L1X module | 1 | I2C clamp (optional) |
@@ -142,9 +142,10 @@ Out of stock? U1 → DRV8874QPWPRQ1 (C22448174, same pinout). U5 → SHT40-AD1F-
 | Buzzer | Alerts in ESPHome via `rtttl.play`. "Buzzer" switch off → everything except the leak alarm is silent. |
 | 12 V rail | "12 V rail" sensor (±0.3 V) and "Supply voltage low" when it sags below `supply_low` (weak PSU, stalled actuator). |
 | SHT41 | Own island + vented case chamber → cabinet air. Set `offset` in the YAML after a check. Humidity can read low for 1–2 days after soldering. |
-| Auto vent | Fan on above 65 %RH / 30 °C (HA numbers), 30–100 % speed; off 5 %RH / 1 °C below, and while the drawer is out. |
-| Light barrier | Door does not close while the beam is blocked; broken while closing → stop + reopen. Self-test before every close and every 10 min (sensor off via TX−: the input must read "blocked") → "Door beam fault". |
-| Stall stop | INA219 motor current > `stall_current` (default 0.8 A) → stop. Stronger actuator: set it ≈ 0.3 A above the running current shown in HA ("Door motor current"). |
+| Auto vent | Fan on above 65 %RH / 30 °C (HA numbers), 30–100 % speed; off 5 %RH / 1 °C below, and while the drawer is out. Set "Rear fan" (on / off / speed) by hand in HA → "Vent auto" switches off and your setting stays; switch "Vent auto" on again to resume. |
+| Light barrier | Door does not close while the beam is blocked; broken while closing → stop + reopen. Self-test before every close and every 10 min (sensor off via TX−: the input must read "blocked") → "Door beam fault". Receiver type: HA "Beam type" (beam clear → "Door beam" must show "Clear", else pick the other type). "None" = no light barrier: no check, no self-test, the door closes without the safety stop. |
+| Actuator type | HA "Actuator type": **No limit switches** (default) = the door stops at the reeds, on a stall, or after "Open time" / "Close time" (HA, default 15 s). **Built-in limit switches** = the actuator cuts its own power at each end; current below "Motor current threshold" (HA, default 0.02 A) for 0.3 s counts as that end reached, so the reeds are optional. Every move must draw more than the threshold within 1.5 s, else the door stops and "Door motor fault" turns on (driver, J5 wiring or actuator). Tune the threshold between the idle and running current shown in "Door motor current". |
+| Stall stop | INA219 motor current > "Stall current" (HA, default 0.8 A) for 0.4 s → stop. Set it ≈ 0.3 A above the running current under load ("Door motor current"). |
 
 ## Power
 12 V in (6 A) → PTC 7 A → reverse-polarity P-FET → TVS 15 V → three branches: actuator (shunt → DRV8874, 4.9 A limit), valve (PTC 4 A), aux 12 V (PTC 1.1 A: fan, beam, leak; PTC 0.2 A: button LED). LMR51430 buck makes 5.1 V (3 A max) for the ESP32 (via Schottky, USB can stay plugged in), the LEDs (PTC 2 A) and the buzzer.
