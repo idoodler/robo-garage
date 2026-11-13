@@ -17,6 +17,11 @@ blueprint:
 
     * Messages for a water leak, beam fault, motor fault, stall, low supply and robot errors.
 
+    * iOS Live Activities (optional): door status (opening, open, closing, closed) and a red alert
+    with every active problem.
+
+    * Rear fan: dries the cabinet after the robot is parked (speed + time), then hands the fan back to "Vent auto".
+
     * After a restart of Home Assistant or the controller, the door is put back where it belongs.
 
 
@@ -158,6 +163,51 @@ blueprint:
           default: 30
           selector:
             number: {min: 0, max: 100, unit_of_measurement: "%", mode: slider}
+    fan_settings:
+      name: Rear fan
+      icon: mdi:fan
+      collapsed: true
+      input:
+        rear_fan:
+          name: Rear fan
+          selector:
+            entity:
+              domain: fan
+              integration: esphome
+        vent_auto:
+          name: Vent auto switch
+          description: Switched on again after drying, so the firmware controls the fan from the SHT41 again.
+          selector:
+            entity:
+              domain: switch
+              integration: esphome
+        dry_speed:
+          name: Drying speed
+          description: Fan speed after the robot is parked and the door closed (wet mop, warm station). 0 = no drying run.
+          default: 60
+          selector:
+            number: {min: 0, max: 100, step: 10, unit_of_measurement: "%", mode: slider}
+        dry_minutes:
+          name: Drying time
+          description: Then "Vent auto" takes over again. Stops early when the robot leaves the dock or you switch "Vent auto" on.
+          default: 60
+          selector:
+            number: {min: 5, max: 480, step: 5, unit_of_measurement: min, mode: box}
+    live_settings:
+      name: Live Activities (iOS)
+      icon: mdi:cellphone-text
+      collapsed: true
+      input:
+        live_devices:
+          name: Phones
+          description: >
+            Companion-app devices that get the Live Activities (door status, problems).
+            Empty = no Live Activities.
+          default: []
+          selector:
+            device:
+              integration: mobile_app
+              multiple: true
     notify_settings:
       name: Messages
       icon: mdi:message-alert
@@ -194,6 +244,10 @@ variables:
   ring_brightness: !input ring_brightness
   notify_targets: !input notify_targets
   notify_title: !input notify_title
+  problem_sensors: !input problem_sensors
+  dry_speed: !input dry_speed
+  dry_minutes: !input dry_minutes
+  live_devices: !input live_devices
 
 triggers:
   - trigger: vacuum.started_returning
@@ -257,6 +311,22 @@ triggers:
   - trigger: vacuum.errored
     target: {entity_id: !input vacuum}
     id: robot_error
+  - trigger: state
+    entity_id: !input problem_sensors
+    from: "on"
+    to: "off"
+    id: problem_cleared
+  - trigger: state
+    entity_id: !input door
+    to: [opening, open, closing, closed]
+    not_from: [unavailable, unknown]
+    id: door_state
+  - trigger: state
+    entity_id: !input door
+    to: closed
+    not_from: [unavailable, unknown]
+    for: {seconds: 5}
+    id: dry
 
 actions:
   - choose:
@@ -445,6 +515,87 @@ actions:
                     target: {entity_id: !input vacuum}
                 sequence: [*close_door]
 
+      # ---- rear fan: drying run after parking ----
+      - conditions:
+          - condition: trigger
+            id: dry
+          - "{{ dry_speed > 0 }}"
+          - condition: vacuum.is_docked
+            target: {entity_id: !input vacuum}
+        sequence:
+          - action: fan.turn_on
+            target: {entity_id: !input rear_fan}
+            data: {percentage: "{{ dry_speed }}"}
+            note: the firmware switches "Vent auto" off when the fan is set from HA
+          - wait_for_trigger:
+              - trigger: state
+                entity_id: !input vacuum
+                from: docked
+              - trigger: state
+                entity_id: !input vent_auto
+                to: "on"
+            timeout: {minutes: "{{ dry_minutes }}"}
+          - action: switch.turn_on
+            target: {entity_id: !input vent_auto}
+
+      # ---- Live Activity: door status ----
+      - conditions:
+          - condition: trigger
+            id: door_state
+          - "{{ live_devices | length > 0 }}"
+        sequence:
+          - variables:
+              st: "{{ trigger.to_state.state }}"
+              out: "{{ not is_state(vacuum, 'docked') }}"
+              la_tag: robo_garage
+              la_silent: true
+              la_message: >
+                {% if st == 'opening' %}Door opening…
+                {% elif st == 'closing' %}Door closing…
+                {% elif st == 'open' %}{{ 'Robot out cleaning' if out else 'Door open' }}
+                {% else %}Garage closed · {{ 'robot out' if out else 'robot parked' }}{{
+                  ' · drying ' ~ dry_minutes ~ ' min' if (not out and dry_speed > 0) else '' }}{% endif %}
+              la_text: "{{ {'opening': 'Opening', 'open': 'Open', 'closing': 'Closing', 'closed': 'Closed'}[st] }}"
+              la_color: "{{ {'opening': '#FF9800', 'open': '#2196F3', 'closing': '#FF9800', 'closed': '#4CAF50'}[st] }}"
+              la_icon: "{{ 'mdi:garage-open-variant' if st in ['opening', 'open'] else 'mdi:garage-variant' }}"
+          - &live
+            repeat:
+              for_each: "{{ live_devices }}"
+              sequence:
+                - action: "notify.mobile_app_{{ device_attr(repeat.item, 'name') | slugify }}"
+                  continue_on_error: true
+                  data:
+                    title: "{{ notify_title }}"
+                    message: "{{ la_message | trim }}"
+                    data:
+                      tag: "{{ la_tag }}"
+                      live_activity: true
+                      live_update: true
+                      silent: "{{ la_silent }}"
+                      critical_text: "{{ la_text }}"
+                      color: "{{ la_color }}"
+                      notification_icon: "{{ la_icon }}"
+                      notification_icon_color: "{{ la_color }}"
+                      url: "entityId:{{ door }}"
+          - if:
+              - "{{ st == 'closed' }}"
+            then:
+              - wait_for_trigger:
+                  - trigger: state
+                    entity_id: !input door
+                timeout: {minutes: 2}
+              - condition: "{{ not wait.trigger }}"
+                note: door moved again → a newer run owns the Live Activity
+              - &live_clear
+                repeat:
+                  for_each: "{{ live_devices }}"
+                  sequence:
+                    - action: "notify.mobile_app_{{ device_attr(repeat.item, 'name') | slugify }}"
+                      continue_on_error: true
+                      data:
+                        message: clear_notification
+                        data: {tag: "{{ la_tag }}"}
+
       # ---- messages ----
       - conditions:
           - condition: trigger
@@ -453,6 +604,42 @@ actions:
           - variables:
               message: "{{ trigger.to_state.name }} is on."
           - *notify
+          - variables:
+              active: "{{ expand(problem_sensors) | selectattr('state', 'eq', 'on') | map(attribute='name') | list }}"
+              la_tag: robo_garage_alert
+              la_silent: false
+              la_message: "{{ active | join('\n') }}"
+              la_text: "{{ active | count }} ⚠️"
+              la_color: "#F44336"
+              la_icon: mdi:alert
+          - *live
+      - conditions:
+          - condition: trigger
+            id: problem_cleared
+          - "{{ live_devices | length > 0 }}"
+        sequence:
+          - variables:
+              active: "{{ expand(problem_sensors) | selectattr('state', 'eq', 'on') | map(attribute='name') | list }}"
+              la_tag: robo_garage_alert
+              la_silent: true
+          - if:
+              - "{{ active | count > 0 }}"
+            then:
+              - variables:
+                  la_message: "{{ active | join('\n') }}"
+                  la_text: "{{ active | count }} ⚠️"
+                  la_color: "#F44336"
+                  la_icon: mdi:alert
+              - *live
+            else:
+              - variables:
+                  la_message: ✅ Problem solved
+                  la_text: OK
+                  la_color: "#4CAF50"
+                  la_icon: mdi:check-circle
+              - *live
+              - delay: {minutes: 1}
+              - *live_clear
       - conditions:
           - condition: trigger
             id: robot_error

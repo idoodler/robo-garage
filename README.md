@@ -20,7 +20,7 @@ ESP32 + ESPHome + Home Assistant: motorised door, light barrier, reed contacts, 
 | Folder | What is inside |
 |---|---|
 | `esphome/` | ESPHome config for the board (needs `secrets.yaml` with `wifi_ssid`, `wifi_password`) |
-| `homeassistant/` | Home Assistant blueprint `robo-garage.yaml`: door follows the robot vacuum, clean button, button ring, messages (see below) |
+| `homeassistant/` | Home Assistant blueprint `robo-garage.yaml`: door follows the robot vacuum, clean button, button ring, rear fan drying, iOS Live Activities, messages (see below) |
 | `pcb/gen/` | PCB generator (Python + KiCad `pcbnew`). `parts.py` = single source of truth, `fplib.py` makes the own footprints (`pcb/lib/robo.pretty`) |
 | `pcb/robo-garage/` | Work folder. Only `robo-garage.ses` (Freerouting result) is in git |
 | `pcb/out/` | Order files: gerbers zip, BOM + CPL for JLCPCB, KiCad project, renders, `pin1-check.png`. **Order guide: `pcb/out/README.md`** |
@@ -71,6 +71,8 @@ Blueprint `homeassistant/robo-garage.yaml` (HA 2026.7 or newer). Import it: *Set
 | Clean button | robot docked → door opens, then the robot starts. Robot out → sent home (or paused / nothing) |
 | Button ring | on while the robot is parked (brightness set it, 0 = off) |
 | Water leak, beam fault, motor fault, stall, supply low, robot error | message to the notify entities you pick, else a notification in HA |
+| Rear fan | after parking (door closed): fan at 60 % for 60 min (set both, 0 % = off), then back to "Vent auto". Stops early when the robot leaves |
+| iOS Live Activities (optional, pick the phones) | door status: opening, open, closing, closed (cleared after 2 min); red alert with every active problem, "✅ Problem solved" when all are clear |
 | HA or controller restart | door put back where it belongs |
 | Optional | close the door while the robot is out (opens again on "returning"); keep the door open while the drawer is out |
 
