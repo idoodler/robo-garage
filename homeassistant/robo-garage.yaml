@@ -450,7 +450,6 @@ triggers:
       The door closes once the job is really over. Vacuums without this attribute never fire it.
   - trigger: state
     entity_id: !input vacuum
-    to: null
     not_to: [unavailable, unknown]
     for: !input close_delay
     id: robot_docked
