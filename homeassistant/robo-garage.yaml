@@ -1,0 +1,465 @@
+blueprint:
+  name: Robo-Garage
+  description: >
+    Runs the Robo-Garage (ESPHome) together with the robot vacuum that parks in it.
+
+
+    * The robot leaves the dock or starts returning → the door opens. If it is not open
+    in time, the robot is paused and you get a message.
+
+    * The robot has been back in the dock for a while and its job is over → the door closes. A blocked light barrier
+    makes the controller open the door again; the blueprint waits for a clear beam and tries again.
+
+    * Clean button: robot in the dock → open the door, then start cleaning. Robot out → send it home
+    (or pause it, or do nothing).
+
+    * Clean button ring lights up while the robot is parked.
+
+    * Messages for a water leak, beam fault, motor fault, stall, low supply and robot errors.
+
+    * After a restart of Home Assistant or the controller, the door is put back where it belongs.
+
+
+    The door firmware still does the safety work on its own (beam stop, stall stop, leak valve).
+  domain: automation
+  author: idoodler
+  source_url: https://github.com/idoodler/robo-garage/blob/main/homeassistant/robo-garage.yaml
+  homeassistant:
+    min_version: "2026.7.0"
+  input:
+    devices:
+      name: Devices
+      icon: mdi:garage-variant
+      input:
+        vacuum:
+          name: Robot vacuum
+          selector:
+            entity:
+              domain: vacuum
+        door:
+          name: Robo-Garage door
+          description: The door cover of the controller ("Robo-Garage Door").
+          selector:
+            entity:
+              domain: cover
+              integration: esphome
+        beam:
+          name: Door beam
+          description: Light barrier ("Door beam"), on = something in the door opening.
+          selector:
+            entity:
+              domain: binary_sensor
+              integration: esphome
+        clean_button:
+          name: Clean button
+          selector:
+            entity:
+              domain: binary_sensor
+              integration: esphome
+        button_ring:
+          name: Clean button ring
+          selector:
+            entity:
+              domain: light
+              integration: esphome
+        drawer:
+          name: Drawer
+          description: Drawer reed ("Drawer"), on = drawer out. Only used when "Keep the door open while the drawer is out" is on.
+          selector:
+            entity:
+              domain: binary_sensor
+              integration: esphome
+        problem_sensors:
+          name: Sensors to report
+          description: >
+            Each one sends a message when it turns on. Pick "Water leak", "Door beam fault",
+            "Door motor fault", "Door stall" and "Supply voltage low".
+          selector:
+            entity:
+              domain: binary_sensor
+              multiple: true
+    door_settings:
+      name: Door
+      icon: mdi:door-sliding
+      input:
+        close_delay:
+          name: Close after docking
+          description: How long the robot must stay in the dock before the door closes.
+          default: {minutes: 1}
+          selector:
+            duration: {}
+        open_timeout:
+          name: Opening time limit
+          description: The door must be open within this time (beeps + "Open time" + margin), else the robot is paused.
+          default: 20
+          selector:
+            number: {min: 5, max: 180, unit_of_measurement: s, mode: box}
+        close_timeout:
+          name: Closing time limit
+          description: The door must be closed within this time (beeps + beam test + "Close time" + margin).
+          default: 25
+          selector:
+            number: {min: 5, max: 180, unit_of_measurement: s, mode: box}
+        close_tries:
+          name: Close attempts
+          description: How often to try closing when the beam was blocked, before giving up with a message.
+          default: 3
+          selector:
+            number: {min: 1, max: 10, mode: box}
+        retry_delay:
+          name: Wait between attempts
+          description: The beam must be clear this long before the next close attempt.
+          default: 30
+          selector:
+            number: {min: 5, max: 600, unit_of_measurement: s, mode: box}
+        respect_drawer:
+          name: Keep the door open while the drawer is out
+          description: Off when no drawer reed is fitted (the input then reads "out" all the time).
+          default: false
+          selector:
+            boolean: {}
+        close_while_out:
+          name: Close the door while the robot is out
+          description: >
+            Closes the garage while the robot cleans and opens it again when the robot starts returning.
+            Only if the robot reports "returning" early enough for the door to open in time.
+          default: false
+          selector:
+            boolean: {}
+        out_close_delay:
+          name: Close after the robot left
+          description: Used with "Close the door while the robot is out". Time from "cleaning" until the door closes.
+          default: {minutes: 2}
+          selector:
+            duration: {}
+    button_settings:
+      name: Clean button and ring
+      icon: mdi:gesture-tap-button
+      collapsed: true
+      input:
+        button_starts:
+          name: Button starts cleaning
+          description: Robot in the dock → open the door, then start the robot.
+          default: true
+          selector:
+            boolean: {}
+        button_while_out:
+          name: Button while the robot is out
+          default: return
+          selector:
+            select:
+              options:
+                - {label: Send it home, value: return}
+                - {label: Pause it, value: pause}
+                - {label: Nothing, value: nothing}
+        ring_brightness:
+          name: Ring brightness while parked
+          description: 0 = ring always off.
+          default: 30
+          selector:
+            number: {min: 0, max: 100, unit_of_measurement: "%", mode: slider}
+    notify_settings:
+      name: Messages
+      icon: mdi:message-alert
+      collapsed: true
+      input:
+        notify_targets:
+          name: Notify
+          description: Notify entities (e.g. your phone). Empty = a notification in Home Assistant.
+          default: []
+          selector:
+            entity:
+              domain: notify
+              multiple: true
+        notify_title:
+          name: Title
+          default: Robo-Garage
+          selector:
+            text: {}
+
+mode: parallel
+max: 10
+max_exceeded: silent
+
+variables:
+  vacuum: !input vacuum
+  door: !input door
+  beam: !input beam
+  open_timeout: !input open_timeout
+  close_timeout: !input close_timeout
+  close_tries: !input close_tries
+  retry_delay: !input retry_delay
+  button_starts: !input button_starts
+  button_while_out: !input button_while_out
+  ring_brightness: !input ring_brightness
+  notify_targets: !input notify_targets
+  notify_title: !input notify_title
+
+triggers:
+  - trigger: vacuum.started_returning
+    target: {entity_id: !input vacuum}
+    id: robot_out
+  - trigger: state
+    entity_id: !input vacuum
+    from: docked
+    not_to: [unavailable, unknown]
+    id: robot_out
+    note: Leaves the dock (the Dreame reports "cleaning" while it still washes its mop in the station).
+  - trigger: vacuum.returned_to_dock
+    target: {entity_id: !input vacuum}
+    options:
+      for: !input close_delay
+    id: robot_docked
+  - trigger: state
+    entity_id: !input vacuum
+    attribute: started
+    to: false
+    for: !input close_delay
+    id: robot_docked
+    note: >
+      Dreame: a job that waits in the dock (mop washing, recharge before resume) keeps "started" true.
+      The door closes once the job is really over. Vacuums without this attribute never fire it.
+  - trigger: state
+    entity_id: !input drawer
+    to: "off"
+    for: {seconds: 10}
+    id: robot_docked
+    enabled: !input respect_drawer
+    note: Drawer pushed back in → close if the robot is home.
+  - trigger: state
+    entity_id: !input vacuum
+    to: cleaning
+    for: !input out_close_delay
+    id: out_close
+    enabled: !input close_while_out
+  - trigger: state
+    entity_id: !input clean_button
+    to: "on"
+    id: button
+  - trigger: homeassistant
+    event: start
+    id: resync
+  - trigger: state
+    entity_id: !input door
+    from: [unavailable, unknown]
+    not_to: [unavailable, unknown]
+    id: resync
+    note: Controller back online (reboot, Wi-Fi).
+  - trigger: state
+    entity_id: !input vacuum
+    from: [unavailable, unknown]
+    not_to: [unavailable, unknown]
+    id: resync
+  - trigger: state
+    entity_id: !input problem_sensors
+    to: "on"
+    id: problem
+  - trigger: vacuum.errored
+    target: {entity_id: !input vacuum}
+    id: robot_error
+
+actions:
+  - choose:
+      # ---- robot out: open the door, pause the robot if the door does not open ----
+      - conditions:
+          - condition: trigger
+            id: robot_out
+        sequence:
+          - action: light.turn_off
+            target: {entity_id: !input button_ring}
+          - if:
+              - condition: state
+                entity_id: !input door
+                state: [closed, closing]
+            then:
+              - action: cover.open_cover
+                target: {entity_id: !input door}
+              - wait_template: "{{ is_state(door, 'open') }}"
+                timeout: {seconds: "{{ open_timeout }}"}
+              - if:
+                  - "{{ not wait.completed }}"
+                then:
+                  - action: vacuum.pause
+                    target: {entity_id: !input vacuum}
+                    continue_on_error: true
+                  - variables:
+                      message: "The door did not open in {{ open_timeout }} s. The robot is paused."
+                  - &notify
+                    if:
+                      - "{{ notify_targets | length > 0 }}"
+                    then:
+                      - action: notify.send_message
+                        target: {entity_id: "{{ notify_targets }}"}
+                        data: {title: "{{ notify_title }}", message: "{{ message }}"}
+                    else:
+                      - action: persistent_notification.create
+                        data: {title: "{{ notify_title }}", message: "{{ message }}"}
+
+      # ---- robot home (or drawer back in): close the door, retry while the beam is blocked ----
+      - conditions:
+          - condition: trigger
+            id: robot_docked
+          - condition: vacuum.is_docked
+            target: {entity_id: !input vacuum}
+        sequence:
+          - &close_door
+            sequence:
+              - condition: "{{ not state_attr(vacuum, 'started') }}"
+                note: job still running (washing / recharging in the dock) → keep the door open
+              - action: light.turn_on
+                target: {entity_id: !input button_ring}
+                data: {brightness_pct: "{{ ring_brightness }}"}
+              - condition: not
+                conditions:
+                  - condition: state
+                    entity_id: !input door
+                    state: [closed, closing]
+              - condition: state
+                entity_id: !input drawer
+                state: "off"
+                enabled: !input respect_drawer
+              - repeat:
+                  sequence:
+                    - if:
+                        - "{{ repeat.index > 1 }}"
+                      then:
+                        - wait_template: "{{ is_state(beam, 'off') }}"
+                          timeout: {hours: 1}
+                          continue_on_timeout: false
+                        - wait_for_trigger:
+                            - trigger: state
+                              entity_id: !input beam
+                              to: "on"
+                          timeout: {seconds: "{{ retry_delay }}"}
+                        - condition: "{{ not wait.trigger }}"
+                          note: Beam blocked again while waiting → this attempt is skipped, the loop tries again.
+                    - condition: vacuum.is_docked
+                      target: {entity_id: !input vacuum}
+                    - action: cover.close_cover
+                      target: {entity_id: !input door}
+                    - note: open = the controller re-opened the door (beam blocked or beam fault)
+                      wait_for_trigger:
+                        - trigger: state
+                          entity_id: !input door
+                          to: [closed, open]
+                      timeout: {seconds: "{{ close_timeout }}"}
+                  until:
+                    - or:
+                        - condition: state
+                          entity_id: !input door
+                          state: closed
+                        - "{{ repeat.index >= close_tries }}"
+                        - not:
+                            - condition: vacuum.is_docked
+                              target: {entity_id: !input vacuum}
+              - if:
+                  - condition: vacuum.is_docked
+                    target: {entity_id: !input vacuum}
+                  - not:
+                      - condition: state
+                        entity_id: !input door
+                        state: closed
+                then:
+                  - variables:
+                      message: >
+                        The door did not close after {{ close_tries }} attempt(s)
+                        (beam {{ 'blocked' if is_state(beam, 'on') else 'clear' }}). It stays open.
+                  - *notify
+
+      # ---- optional: close the garage while the robot is out cleaning ----
+      - conditions:
+          - condition: trigger
+            id: out_close
+          - condition: vacuum.is_cleaning
+            target: {entity_id: !input vacuum}
+          - condition: state
+            entity_id: !input beam
+            state: "off"
+          - condition: state
+            entity_id: !input door
+            state: open
+        sequence:
+          - action: cover.close_cover
+            target: {entity_id: !input door}
+
+      # ---- clean button ----
+      - conditions:
+          - condition: trigger
+            id: button
+        sequence:
+          - if:
+              - condition: vacuum.is_docked
+                target: {entity_id: !input vacuum}
+            then:
+              - condition: "{{ button_starts }}"
+              - action: cover.open_cover
+                target: {entity_id: !input door}
+              - wait_template: "{{ is_state(door, 'open') }}"
+                timeout: {seconds: "{{ open_timeout }}"}
+              - if:
+                  - "{{ wait.completed }}"
+                then:
+                  - action: vacuum.start
+                    target: {entity_id: !input vacuum}
+                else:
+                  - variables:
+                      message: "Clean button: the door did not open in {{ open_timeout }} s, the robot was not started."
+                  - *notify
+            else:
+              - choose:
+                  - conditions: "{{ button_while_out == 'return' }}"
+                    sequence:
+                      - action: vacuum.return_to_base
+                        target: {entity_id: !input vacuum}
+                  - conditions: "{{ button_while_out == 'pause' }}"
+                    sequence:
+                      - action: vacuum.pause
+                        target: {entity_id: !input vacuum}
+
+      # ---- after a restart: put the door where it belongs ----
+      - conditions:
+          - condition: trigger
+            id: resync
+        sequence:
+          - delay: {seconds: 10}
+            note: let both devices report their real state first
+          - choose:
+              - conditions:
+                  - not:
+                      - condition: vacuum.is_docked
+                        target: {entity_id: !input vacuum}
+                  - not:
+                      - condition: state
+                        entity_id: !input vacuum
+                        state: [unavailable, unknown]
+                  - condition: state
+                    entity_id: !input door
+                    state: closed
+                sequence:
+                  - action: light.turn_off
+                    target: {entity_id: !input button_ring}
+                  - action: cover.open_cover
+                    target: {entity_id: !input door}
+              - conditions:
+                  - condition: vacuum.is_docked
+                    target: {entity_id: !input vacuum}
+                sequence: [*close_door]
+
+      # ---- messages ----
+      - conditions:
+          - condition: trigger
+            id: problem
+        sequence:
+          - variables:
+              message: "{{ trigger.to_state.name }} is on."
+          - *notify
+      - conditions:
+          - condition: trigger
+            id: robot_error
+        sequence:
+          - variables:
+              message: >
+                {{ state_attr(vacuum, 'friendly_name') }} reports an error{{ ': ' ~ state_attr(vacuum, 'error')
+                if state_attr(vacuum, 'error') not in [none, '', 'No error'] else '' }}.
+                Door: {{ states(door) }}.
+          - *notify

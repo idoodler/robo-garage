@@ -20,6 +20,7 @@ ESP32 + ESPHome + Home Assistant: motorised door, light barrier, reed contacts, 
 | Folder | What is inside |
 |---|---|
 | `esphome/` | ESPHome config for the board (needs `secrets.yaml` with `wifi_ssid`, `wifi_password`) |
+| `homeassistant/` | Home Assistant blueprint `robo-garage.yaml`: door follows the robot vacuum, clean button, button ring, messages (see below) |
 | `pcb/gen/` | PCB generator (Python + KiCad `pcbnew`). `parts.py` = single source of truth, `fplib.py` makes the own footprints (`pcb/lib/robo.pretty`) |
 | `pcb/robo-garage/` | Work folder. Only `robo-garage.ses` (Freerouting result) is in git |
 | `pcb/out/` | Order files: gerbers zip, BOM + CPL for JLCPCB, KiCad project, renders, `pin1-check.png`. **Order guide: `pcb/out/README.md`** |
@@ -57,6 +58,23 @@ Locally: run from the repo root. Tested with KiCad 7.0.11 (Python `pcbnew`), Pyt
 | Java, `xvfb-run`, `pcb/tools/freerouting-1.9.0.jar` ([Freerouting releases](https://github.com/freerouting/freerouting/releases)) | `pipeline.sh` only |
 
 Moved a part in `parts.py`? Then the old tracks no longer fit: run `pcb/gen/pipeline.sh` and commit the new `pcb/robo-garage/robo-garage.ses`.
+
+## Home Assistant
+
+Blueprint `homeassistant/robo-garage.yaml` (HA 2026.7 or newer). Import it: *Settings → Automations & scenes → Blueprints → Import blueprint*, URL
+`https://github.com/idoodler/robo-garage/blob/main/homeassistant/robo-garage.yaml`, then *Create automation* and pick the robot vacuum and the Robo-Garage entities.
+
+| What happens | How |
+|---|---|
+| Robot leaves the dock or starts returning | door opens; not open within the time limit → robot paused + message |
+| Robot back in the dock, job over, for 1 min (set it) | door closes; beam blocked → the controller reopens, the blueprint waits for a clear beam and tries again (3×), then a message. Dreame: waits while the job still runs in the dock (mop washing, recharge) |
+| Clean button | robot docked → door opens, then the robot starts. Robot out → sent home (or paused / nothing) |
+| Button ring | on while the robot is parked (brightness set it, 0 = off) |
+| Water leak, beam fault, motor fault, stall, supply low, robot error | message to the notify entities you pick, else a notification in HA |
+| HA or controller restart | door put back where it belongs |
+| Optional | close the door while the robot is out (opens again on "returning"); keep the door open while the drawer is out |
+
+The safety work stays in the firmware: beam stop, stall stop, leak valve.
 
 ## Release
 
