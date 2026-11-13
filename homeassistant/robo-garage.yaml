@@ -5,7 +5,8 @@ blueprint:
 
 
     * The robot leaves the dock or starts returning → the door opens. If it is not open
-    in time, the robot is paused and you get a message.
+    in time, the robot is paused and you get a message. Mop washing / drying after the job
+    (Dreame reports "cleaning" while it sits in the dock) keeps the door shut.
 
     * The robot has been back in the dock for a while and its job is over → the door closes. A blocked light barrier
     makes the controller open the door again; the blueprint waits for a clear beam and tries again.
@@ -13,7 +14,9 @@ blueprint:
     * Clean button: robot in the dock → open the door, then start cleaning. Robot out → send it home
     (or pause it, or do nothing).
 
-    * Clean button ring lights up while the robot is parked.
+    * Lights follow the robot: status LED shows problems (red strobe), door moving (orange chase),
+    the job progress as a blue bar, returning (spinner), washing in the dock (pulse) and "done" (green).
+    The clean button ring is on while parked, pulses during a job in the dock, blinks on a problem.
 
     * Messages for a water leak, beam fault, motor fault, stall, low supply and robot errors.
 
@@ -173,6 +176,40 @@ blueprint:
           default: 30
           selector:
             number: {min: 0, max: 100, unit_of_measurement: "%", mode: slider}
+    light_settings:
+      name: Lights
+      icon: mdi:led-strip-variant
+      collapsed: true
+      input:
+        status_light:
+          name: Status LED
+          description: >
+            "Robo-Garage Status LED". Empty = not used. Effects "Error strobe", "Chase", "Spinner",
+            "Slow pulse" and "Progress" come with the firmware; a missing one falls back to a steady color.
+          default: []
+          selector:
+            entity:
+              domain: light
+              integration: esphome
+        status_progress:
+          name: Status LED progress
+          description: '"Status LED progress" number. The "Progress" effect draws its value as a bar.'
+          default: []
+          selector:
+            entity:
+              domain: number
+              integration: esphome
+        status_brightness:
+          name: Status LED brightness
+          default: 60
+          selector:
+            number: {min: 5, max: 100, unit_of_measurement: "%", mode: slider}
+        done_minutes:
+          name: Show "done" for
+          description: Green after a finished job, then off.
+          default: 2
+          selector:
+            number: {min: 0, max: 60, unit_of_measurement: min, mode: box}
     fan_settings:
       name: Rear fan
       icon: mdi:fan
@@ -328,6 +365,11 @@ variables:
   button_starts: !input button_starts
   button_while_out: !input button_while_out
   ring_brightness: !input ring_brightness
+  ring: !input button_ring
+  status_light: !input status_light
+  status_progress: !input status_progress
+  status_brightness: !input status_brightness
+  done_minutes: !input done_minutes
   notify_targets: !input notify_targets
   notify_title: !input notify_title
   problem_sensors: !input problem_sensors
@@ -382,8 +424,16 @@ triggers:
     entity_id: !input vacuum
     from: docked
     not_to: [unavailable, unknown]
-    id: robot_out
-    note: Leaves the dock (the Dreame reports "cleaning" while it still washes its mop in the station).
+    id: robot_leave
+    note: >
+      Leaves the dock. The Dreame also reports "cleaning" for the mop wash before the job (started = true,
+      door opens early, fine) and after it (started = false, door stays shut).
+  - trigger: state
+    entity_id: !input vacuum
+    attribute: started
+    to: true
+    id: robot_leave
+    note: Job started (in case "started" comes after the state change).
   - trigger: vacuum.returned_to_dock
     target: {entity_id: !input vacuum}
     options:
@@ -398,6 +448,13 @@ triggers:
     note: >
       Dreame: a job that waits in the dock (mop washing, recharge before resume) keeps "started" true.
       The door closes once the job is really over. Vacuums without this attribute never fire it.
+  - trigger: state
+    entity_id: !input vacuum
+    to: null
+    not_to: [unavailable, unknown]
+    for: !input close_delay
+    id: robot_docked
+    note: Mop wash / drying after the job ends in "cleaning" or "docked" without a "returned" event.
   - trigger: state
     entity_id: !input drawer
     to: "off"
@@ -510,16 +567,113 @@ triggers:
     not_from: [unavailable, unknown]
     for: {seconds: 5}
     id: dry
+  # ---- lights (they also update on every trigger above) ----
+  - trigger: state
+    entity_id: !input motor_fault
+    to: null
+    id: lights
+  - trigger: state
+    entity_id: !input vac_task_status
+    to: completed
+    for: {minutes: !input done_minutes, seconds: 5}
+    id: lights
+    note: end of the green "done"
 
 actions:
+  # ---- lights: derived from the current states on every run ----
+  - variables:
+      home: "{{ is_state(vacuum, 'docked') or state_attr(vacuum, 'docked') == true }}"
+      job: >-
+        {{ state_attr(vacuum, 'started') == true
+           or states(t_task) not in ['completed', 'unavailable', 'unknown', 'none'] }}
+      vs: "{{ states(vacuum) }}"
+      ds: "{{ states(door) }}"
+      bad_state: ['unavailable', 'unknown', 'none', '']
+      problem: >-
+        {{ is_state(vacuum, 'error') or is_state(motor_fault, 'on')
+           or states(t_error) not in bad_state + ['no_error']
+           or expand(problem_sensors) | selectattr('state', 'eq', 'on') | list | count > 0
+           or expand(t_leak) | selectattr('state', 'eq', 'on') | list | count > 0 }}
+      warning: >-
+        {{ states(t_water) not in bad_state + ['no_warning', 'no_water_left_dismiss']
+           or expand(t_station) | rejectattr('state', 'in', bad_state + ['installed']) | list | count > 0 }}
+      done: >-
+        {% set t = expand(t_task) | first %}
+        {{ t is defined and t.state == 'completed' and not job and vs != 'error'
+           and (now() - t.last_changed).total_seconds() < done_minutes * 60 }}
+      prog: "{{ states(t_prog) | int(0) }}"
+      sl: >-
+        {% if problem %}{{ {'c': [255, 0, 0], 'e': 'Error strobe'} }}
+        {% elif ds in ['opening', 'closing'] %}{{ {'c': [255, 120, 0], 'e': 'Chase'} }}
+        {% elif job and vs == 'paused' %}{{ {'c': [255, 160, 0], 'e': 'None'} }}
+        {% elif job and home %}{{ {'c': [0, 200, 255], 'e': 'Slow pulse'} }}
+        {% elif job and vs == 'returning' %}{{ {'c': [0, 200, 255], 'e': 'Spinner'} }}
+        {% elif job %}{{ {'c': [0, 80, 255], 'e': 'Progress'} }}
+        {% elif done %}{{ {'c': [0, 255, 60], 'e': 'None'} }}
+        {% elif home and vs == 'cleaning' %}{{ {'c': [0, 200, 255], 'e': 'Slow pulse', 'b': 0.3} }}
+        {% elif warning %}{{ {'c': [255, 160, 0], 'e': 'Slow pulse', 'b': 0.3} }}
+        {% else %}{{ {'e': 'off'} }}{% endif %}
+      ring_mode: >-
+        {% if ring_brightness | int(0) == 0 %}off
+        {% elif problem %}Blink
+        {% elif job and home %}Pulse
+        {% elif home %}on
+        {% else %}off{% endif %}
+  - if:
+      - "{{ status_light | length > 0 }}"
+    then:
+      - if:
+          - "{{ sl.e == 'off' }}"
+        then:
+          - action: light.turn_off
+            target: {entity_id: "{{ status_light }}"}
+            continue_on_error: true
+        else:
+          - variables:
+              effects: "{{ state_attr(status_light, 'effect_list') or [] }}"
+              eff: >-
+                {{ sl.e if sl.e in effects and (sl.e != 'Progress' or status_progress | length > 0)
+                   else ('None' if 'None' in effects else '') }}
+          - if:
+              - "{{ eff == 'Progress' }}"
+            then:
+              - action: number.set_value
+                target: {entity_id: "{{ status_progress }}"}
+                data: {value: "{{ prog }}"}
+                continue_on_error: true
+          - action: light.turn_on
+            target: {entity_id: "{{ status_light }}"}
+            continue_on_error: true
+            data: >-
+              {% set d = {'rgb_color': sl.c, 'brightness_pct': (status_brightness * (sl.b | default(1))) | round(0) | int} %}
+              {{ dict(d, effect=eff) if eff else d }}
+  - if:
+      - "{{ ring_mode == 'off' }}"
+    then:
+      - action: light.turn_off
+        target: {entity_id: !input button_ring}
+        continue_on_error: true
+    else:
+      - action: light.turn_on
+        target: {entity_id: !input button_ring}
+        continue_on_error: true
+        data: >-
+          {% set d = {'brightness_pct': ring_brightness} %}
+          {{ dict(d, effect=ring_mode) if ring_mode in (state_attr(ring, 'effect_list') or [])
+             else dict(d, effect='None') if 'None' in (state_attr(ring, 'effect_list') or []) else d }}
   - choose:
       # ---- robot out: open the door, pause the robot if the door does not open ----
       - conditions:
-          - condition: trigger
-            id: robot_out
+          - or:
+              - condition: trigger
+                id: robot_out
+              - and:
+                  - condition: trigger
+                    id: robot_leave
+                  - condition: template
+                    value_template: "{{ state_attr(vacuum, 'started') != false }}"
+                    note: false = mop wash / drying after the job, the robot stays in the dock
         sequence:
-          - action: light.turn_off
-            target: {entity_id: !input button_ring}
           - if:
               - condition: state
                 entity_id: !input door
@@ -556,16 +710,15 @@ actions:
       - conditions:
           - condition: trigger
             id: robot_docked
-          - condition: vacuum.is_docked
-            target: {entity_id: !input vacuum}
+          - &at_home
+            condition: template
+            value_template: "{{ is_state(vacuum, 'docked') or state_attr(vacuum, 'docked') == true }}"
+            note: Dreame keeps "docked" true while it washes / dries its mop in the station
         sequence:
           - &close_door
             sequence:
               - condition: "{{ not state_attr(vacuum, 'started') }}"
                 note: job still running (washing / recharging in the dock) → keep the door open
-              - action: light.turn_on
-                target: {entity_id: !input button_ring}
-                data: {brightness_pct: "{{ ring_brightness }}"}
               - condition: not
                 conditions:
                   - condition: state
@@ -590,8 +743,7 @@ actions:
                           timeout: {seconds: "{{ retry_delay }}"}
                         - condition: "{{ not wait.trigger }}"
                           note: Beam blocked again while waiting → this attempt is skipped, the loop tries again.
-                    - condition: vacuum.is_docked
-                      target: {entity_id: !input vacuum}
+                    - *at_home
                     - action: cover.close_cover
                       target: {entity_id: !input door}
                     - note: open = the controller re-opened the door (beam blocked or beam fault)
@@ -607,11 +759,9 @@ actions:
                           state: closed
                         - "{{ repeat.index >= close_tries }}"
                         - not:
-                            - condition: vacuum.is_docked
-                              target: {entity_id: !input vacuum}
+                            - *at_home
               - if:
-                  - condition: vacuum.is_docked
-                    target: {entity_id: !input vacuum}
+                  - *at_home
                   - not:
                       - condition: state
                         entity_id: !input door
@@ -629,6 +779,8 @@ actions:
             id: out_close
           - condition: vacuum.is_cleaning
             target: {entity_id: !input vacuum}
+          - not:
+              - *at_home
           - condition: state
             entity_id: !input beam
             state: "off"
@@ -645,8 +797,7 @@ actions:
             id: button
         sequence:
           - if:
-              - condition: vacuum.is_docked
-                target: {entity_id: !input vacuum}
+              - *at_home
             then:
               - condition: "{{ button_starts }}"
               - action: cover.open_cover
@@ -685,9 +836,10 @@ actions:
             note: let both devices report their real state first
           - choose:
               - conditions:
-                  - not:
-                      - condition: vacuum.is_docked
-                        target: {entity_id: !input vacuum}
+                  - or:
+                      - not:
+                          - *at_home
+                      - "{{ state_attr(vacuum, 'started') == true }}"
                   - not:
                       - condition: state
                         entity_id: !input vacuum
@@ -696,13 +848,10 @@ actions:
                     entity_id: !input door
                     state: closed
                 sequence:
-                  - action: light.turn_off
-                    target: {entity_id: !input button_ring}
                   - action: cover.open_cover
                     target: {entity_id: !input door}
               - conditions:
-                  - condition: vacuum.is_docked
-                    target: {entity_id: !input vacuum}
+                  - *at_home
                 sequence: [*close_door]
 
       # ---- rear fan: drying run after parking ----
@@ -710,8 +859,7 @@ actions:
           - condition: trigger
             id: dry
           - "{{ dry_speed > 0 }}"
-          - condition: vacuum.is_docked
-            target: {entity_id: !input vacuum}
+          - *at_home
         sequence:
           - action: fan.turn_on
             target: {entity_id: !input rear_fan}
@@ -719,8 +867,9 @@ actions:
             note: the firmware switches "Vent auto" off when the fan is set from HA
           - wait_for_trigger:
               - trigger: state
-                entity_id: !input vacuum
-                from: docked
+                entity_id: !input door
+                to: [opening, open]
+                note: robot about to leave (the mop wash after the job does not count)
               - trigger: state
                 entity_id: !input vent_auto
                 to: "on"
@@ -872,7 +1021,7 @@ actions:
         sequence:
           - variables:
               st: "{{ trigger.to_state.state }}"
-              out: "{{ not is_state(vacuum, 'docked') }}"
+              out: "{{ not home }}"
               la_tag: vacuum_progress
               la_title: "{{ notify_title }}"
               la_silent: true

@@ -746,6 +746,16 @@ select:
       - logger.log: {format: "Actuator type: %s", args: ['x.c_str()']}
 
 number:
+  - platform: template                                         # set by the HA blueprint: job progress for the
+    id: led_progress                                           # "Progress" effect of the status LED (not restored)
+    name: "Status LED progress"
+    unit_of_measurement: "%"
+    min_value: 0
+    max_value: 100
+    step: 1
+    initial_value: 0
+    optimistic: true
+    icon: mdi:progress-helper
   # ---- door motor tuning (HA device page -&gt; Configuration, no reflash) ----
   - platform: template
     id: open_time
@@ -1193,7 +1203,12 @@ cover:
       - output.turn_off: door_close_out
 
 light:
-  - {platform: monochromatic, name: "Clean button ring", output: btn_ring_out}
+  - platform: monochromatic
+    name: "Clean button ring"
+    output: btn_ring_out
+    effects:                                                   # used by the HA blueprint: job in the dock / problem
+      - pulse: {name: "Pulse", transition_length: 1s, update_interval: 1s}
+      - strobe: {name: "Blink"}
   - platform: esp32_rmt_led_strip
     id: status_led
     name: "Robo-Garage Status LED"
@@ -1209,6 +1224,19 @@ light:
       - strobe: {name: "Error strobe"}
       - addressable_scan: {name: "Chase"}
       - addressable_color_wipe: {name: "Spinner"}
+      - addressable_lambda:                                    # bar = "Status LED progress" %, rest dimmed, tip blinks
+          name: "Progress"
+          update_interval: 100ms
+          lambda: |-
+            const int n = it.size();
+            const float p = id(led_progress).state;
+            const int lit = std::isnan(p) ? 0 : std::min(n, (int) roundf(n * p / 100.0f));
+            const bool tip_on = (millis() / 500) % 2;
+            for (int i = 0; i &lt; n; i++) {
+              if (i &lt; lit) it[i] = current_color;
+              else if (i == lit &amp;&amp; tip_on) it[i] = current_color;
+              else it[i] = current_color * 20;
+            }
 
 # Optional VL53L1X (robot in bay) on the I2C clamp: needs an external ESPHome component.
 </pre>

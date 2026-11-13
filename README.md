@@ -20,7 +20,7 @@ ESP32 + ESPHome + Home Assistant: motorised door, light barrier, reed contacts, 
 | Folder | What is inside |
 |---|---|
 | `esphome/` | ESPHome config for the board (needs `secrets.yaml` with `wifi_ssid`, `wifi_password`) |
-| `homeassistant/` | Home Assistant blueprint `robo-garage.yaml`: door follows the robot vacuum, clean button, button ring, rear fan drying, iOS Live Activities, messages (see below) |
+| `homeassistant/` | Home Assistant blueprint `robo-garage.yaml`: door follows the robot vacuum, clean button, button ring + status LED, rear fan drying, iOS Live Activities, messages (see below) |
 | `pcb/gen/` | PCB generator (Python + KiCad `pcbnew`). `parts.py` = single source of truth, `fplib.py` makes the own footprints (`pcb/lib/robo.pretty`) |
 | `pcb/robo-garage/` | Work folder. Only `robo-garage.ses` (Freerouting result) is in git |
 | `pcb/out/` | Order files: gerbers zip, BOM + CPL for JLCPCB, KiCad project, renders, `pin1-check.png`. **Order guide: `pcb/out/README.md`** |
@@ -66,10 +66,11 @@ Blueprint `homeassistant/robo-garage.yaml` (HA 2026.7 or newer). Import it: *Set
 
 | What happens | How |
 |---|---|
-| Robot leaves the dock or starts returning | door opens; not open within the time limit or a door motor fault → robot paused + message |
+| Robot leaves the dock or starts returning | door opens; not open within the time limit or a door motor fault → robot paused + message. Dreame mop wash / drying after the job (reports "cleaning" while docked) keeps the door shut |
 | Robot back in the dock, job over, for 1 min (set it) | door closes; beam blocked → the controller reopens, the blueprint waits for a clear beam and tries again (3×), then a message. Dreame: waits while the job still runs in the dock (mop washing, recharge) |
 | Clean button | robot docked → door opens, then the robot starts (not on a door motor fault). Robot out → sent home (or paused / nothing) |
-| Button ring | on while the robot is parked (brightness set it, 0 = off) |
+| Button ring | on while the robot is parked (brightness set it, 0 = off), pulses during a job in the dock, blinks on a problem |
+| Status LED (optional) | red strobe = problem, orange chase = door moving, blue bar = job progress ("Progress" effect + "Status LED progress" number), spinner = returning, pulse = washing / charging in the dock, green = done (2 min), dim pulse = mop wash after the job |
 | Water leak, beam fault, motor fault, stall, supply low, robot error | message to the notify entities you pick, else a notification in HA |
 | Rear fan | after parking (door closed): fan at 60 % for 60 min (set both, 0 % = off), then back to "Vent auto". Stops early when the robot leaves |
 | iOS Live Activities (optional, pick the phones; English or German) | cleaning job: a bar per room, current room + %, phase (mop wash, to the station, ...), door opening / closing, then done / stopped / error; outside a job the door status. Problems: one red list of every robot, station and garage problem, "✅ Problem solved" when all are clear. Made for the Dreame integration (task status, state, current room, progress, error, station sensors + a text and a toggle helper) |
