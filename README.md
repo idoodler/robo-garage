@@ -66,13 +66,13 @@ Blueprint `homeassistant/robo-garage.yaml` (HA 2026.7 or newer). Import it: *Set
 
 | What happens | How |
 |---|---|
-| Robot leaves the dock or starts returning | door opens; not open within the time limit → robot paused + message |
+| Robot leaves the dock or starts returning | door opens; not open within the time limit or a door motor fault → robot paused + message |
 | Robot back in the dock, job over, for 1 min (set it) | door closes; beam blocked → the controller reopens, the blueprint waits for a clear beam and tries again (3×), then a message. Dreame: waits while the job still runs in the dock (mop washing, recharge) |
-| Clean button | robot docked → door opens, then the robot starts. Robot out → sent home (or paused / nothing) |
+| Clean button | robot docked → door opens, then the robot starts (not on a door motor fault). Robot out → sent home (or paused / nothing) |
 | Button ring | on while the robot is parked (brightness set it, 0 = off) |
 | Water leak, beam fault, motor fault, stall, supply low, robot error | message to the notify entities you pick, else a notification in HA |
 | Rear fan | after parking (door closed): fan at 60 % for 60 min (set both, 0 % = off), then back to "Vent auto". Stops early when the robot leaves |
-| iOS Live Activities (optional, pick the phones) | door status: opening, open, closing, closed (cleared after 2 min); red alert with every active problem, "✅ Problem solved" when all are clear |
+| iOS Live Activities (optional, pick the phones; English or German) | cleaning job: a bar per room, current room + %, phase (mop wash, to the station, ...), door opening / closing, then done / stopped / error; outside a job the door status. Problems: one red list of every robot, station and garage problem, "✅ Problem solved" when all are clear. Made for the Dreame integration (task status, state, current room, progress, error, station sensors + a text and a toggle helper) |
 | HA or controller restart | door put back where it belongs |
 | Optional | close the door while the robot is out (opens again on "returning"); keep the door open while the drawer is out |
 

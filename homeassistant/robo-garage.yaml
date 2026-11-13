@@ -17,8 +17,9 @@ blueprint:
 
     * Messages for a water leak, beam fault, motor fault, stall, low supply and robot errors.
 
-    * iOS Live Activities (optional): door status (opening, open, closing, closed) and a red alert
-    with every active problem.
+    * iOS Live Activities (optional): one for the cleaning job (a bar per room, current room + %,
+    phase, door opening / closing, then done / stopped / error) and one red alert that lists every
+    active problem of the robot, its station and the garage. Made for the Dreame integration.
 
     * Rear fan: dries the cabinet after the robot is parked (speed + time), then hands the fan back to "Vent auto".
 
@@ -70,6 +71,15 @@ blueprint:
         drawer:
           name: Drawer
           description: Drawer reed ("Drawer"), on = drawer out. Only used when "Keep the door open while the drawer is out" is on.
+          selector:
+            entity:
+              domain: binary_sensor
+              integration: esphome
+        motor_fault:
+          name: Door motor fault
+          description: >
+            "Door motor fault": on = the door was driven but drew no current. The cover then still reads
+            "open", so this counts as "the door did not open" (robot paused, no start).
           selector:
             entity:
               domain: binary_sensor
@@ -201,13 +211,88 @@ blueprint:
         live_devices:
           name: Phones
           description: >
-            Companion-app devices that get the Live Activities (door status, problems).
+            Companion-app devices that get the Live Activities (cleaning job + door, problems).
             Empty = no Live Activities.
           default: []
           selector:
             device:
               integration: mobile_app
               multiple: true
+        la_language:
+          name: Language
+          default: en
+          selector:
+            select:
+              options:
+                - {label: English, value: en}
+                - {label: Deutsch, value: de}
+        vac_task_status:
+          name: Robot task status
+          description: Dreame "Task status" sensor (completed = no job).
+          selector:
+            entity:
+              domain: sensor
+        vac_status:
+          name: Robot status
+          description: Dreame "Status" sensor (cleaning, sleeping, ...).
+          selector:
+            entity:
+              domain: sensor
+        vac_state:
+          name: Robot state
+          description: Dreame "State" sensor (washing, returning, charging, ...).
+          selector:
+            entity:
+              domain: sensor
+        vac_current_room:
+          name: Robot current room
+          description: Dreame "Current room" sensor (attribute room_id).
+          selector:
+            entity:
+              domain: sensor
+        vac_progress:
+          name: Robot cleaning progress
+          selector:
+            entity:
+              domain: sensor
+        vac_rooms_helper:
+          name: Visited rooms helper
+          description: Text helper (max 100 or more) that keeps "planned;visited" room ids during a job.
+          selector:
+            entity:
+              domain: input_text
+        vac_error:
+          name: Robot error
+          description: Dreame "Error" sensor (no_error = OK).
+          selector:
+            entity:
+              domain: sensor
+        vac_low_water:
+          name: Robot low water warning
+          selector:
+            entity:
+              domain: sensor
+        vac_station:
+          name: Station status sensors
+          description: Dust bag, dirty / clean water tank, detergent (installed = OK).
+          selector:
+            entity:
+              domain: sensor
+              multiple: true
+        vac_leak:
+          name: Robot leak sensors
+          description: Extra leak sensors shown in the problem Live Activity (no push from the blueprint).
+          default: []
+          selector:
+            entity:
+              domain: binary_sensor
+              multiple: true
+        problem_flag:
+          name: Problem Live Activity helper
+          description: Toggle helper, on while the problem Live Activity is shown (for the "solved" message).
+          selector:
+            entity:
+              domain: input_boolean
     notify_settings:
       name: Messages
       icon: mdi:message-alert
@@ -228,13 +313,14 @@ blueprint:
             text: {}
 
 mode: parallel
-max: 10
+max: 20
 max_exceeded: silent
 
 variables:
   vacuum: !input vacuum
   door: !input door
   beam: !input beam
+  motor_fault: !input motor_fault
   open_timeout: !input open_timeout
   close_timeout: !input close_timeout
   close_tries: !input close_tries
@@ -248,6 +334,45 @@ variables:
   dry_speed: !input dry_speed
   dry_minutes: !input dry_minutes
   live_devices: !input live_devices
+  la_lang: !input la_language
+  t_task: !input vac_task_status
+  t_status: !input vac_status
+  t_state: !input vac_state
+  t_room: !input vac_current_room
+  t_prog: !input vac_progress
+  t_rooms: !input vac_rooms_helper
+  t_error: !input vac_error
+  t_water: !input vac_low_water
+  t_station: !input vac_station
+  t_leak: !input vac_leak
+  t_flag: !input problem_flag
+  vac_name: "{{ device_attr(device_id(vacuum), 'name') or state_attr(vacuum, 'friendly_name') }}"
+  tr: >
+    {{ {
+      'de': {'returning_to_wash': 'Zur Mopp-Wäsche', 'washing': 'Mopp-Wäsche', 'clean_add_water': 'Mopp-Wäsche',
+             'returning': 'Zur Station', 'auto_emptying': 'Entleeren', 'charging': 'Lädt',
+             'paused': '⏸ Pausiert', 'done': '✓ Fertig', 'stopped': 'Gestoppt', 'error': 'Fehler',
+             'opening': '🚪 Tür öffnet', 'closing': '🚪 Tür schließt',
+             'd_opening': 'Tür öffnet…', 'd_closing': 'Tür schließt…', 'd_open': 'Tür offen',
+             'd_out': 'Roboter unterwegs', 'd_closed': 'Garage zu', 'd_parked': 'Roboter geparkt',
+             'd_drying': 'trocknet', 'min': 'min', 'Opening': 'Öffnet', 'Open': 'Offen', 'Closing': 'Schließt',
+             'Closed': 'Zu', 'problem': 'Problem', 'problems': 'Probleme', 'solved': '✅ Problem behoben',
+             'leak': '🚨 Wasserleck', 'error_state': '⚠️ Fehlerzustand', 'refill': '💧 Wasser nachfüllen',
+             'dust_bag': '🗑️ Staubbeutel', 'dirty_water': '🪣 Schmutzwassertank',
+             'clean_water': '💧 Frischwassertank', 'detergent': '🧴 Reinigungsmittel'},
+      'en': {'returning_to_wash': 'To mop wash', 'washing': 'Mop wash', 'clean_add_water': 'Mop wash',
+             'returning': 'To the station', 'auto_emptying': 'Emptying', 'charging': 'Charging',
+             'paused': '⏸ Paused', 'done': '✓ Done', 'stopped': 'Stopped', 'error': 'Error',
+             'opening': '🚪 Door opening', 'closing': '🚪 Door closing',
+             'd_opening': 'Door opening…', 'd_closing': 'Door closing…', 'd_open': 'Door open',
+             'd_out': 'Robot out', 'd_closed': 'Garage closed', 'd_parked': 'robot parked',
+             'd_drying': 'drying', 'min': 'min', 'Opening': 'Opening', 'Open': 'Open', 'Closing': 'Closing',
+             'Closed': 'Closed', 'problem': 'Problem', 'problems': 'Problems', 'solved': '✅ Problem solved',
+             'leak': '🚨 Water leak', 'error_state': '⚠️ Error state', 'refill': '💧 Refill water',
+             'dust_bag': '🗑️ Dust bag', 'dirty_water': '🪣 Dirty water tank',
+             'clean_water': '💧 Clean water tank', 'detergent': '🧴 Detergent'}
+    }[la_lang] }}
+  phase_keys: [returning_to_wash, washing, clean_add_water, returning, auto_emptying, charging]
 
 triggers:
   - trigger: vacuum.started_returning
@@ -311,11 +436,69 @@ triggers:
   - trigger: vacuum.errored
     target: {entity_id: !input vacuum}
     id: robot_error
+  # ---- Live Activity: cleaning job ----
+  - trigger: state
+    entity_id: !input vac_task_status
+    from: completed
+    not_to: [unavailable, unknown]
+    id: la_start
+  - trigger: state
+    entity_id: !input vac_current_room
+    not_to: [unavailable, unknown]
+    for: {seconds: 20}
+    id: la_room
+  - trigger: state
+    entity_id: !input vac_progress
+    not_to: [unavailable, unknown]
+    id: la_progress
+  - trigger: state
+    entity_id: !input vac_state
+    to: null
+    id: la_phase
+  - trigger: state
+    entity_id: !input vacuum
+    to: paused
+    id: la_phase
+  - trigger: state
+    entity_id: !input vac_task_status
+    to: completed
+    for: {seconds: 10}
+    id: la_end
+  - trigger: state
+    entity_id: !input vacuum
+    to: error
+    for: {minutes: 3}
+    id: la_end
+  - trigger: state
+    entity_id: !input vacuum
+    to: paused
+    for: {minutes: 30}
+    id: la_end
+  # ---- Live Activity: problems ----
   - trigger: state
     entity_id: !input problem_sensors
-    from: "on"
-    to: "off"
-    id: problem_cleared
+    to: null
+    id: la_problem
+  - trigger: state
+    entity_id: !input vac_leak
+    to: null
+    id: la_problem
+  - trigger: state
+    entity_id: !input vac_error
+    to: null
+    id: la_problem
+  - trigger: state
+    entity_id: !input vac_low_water
+    to: null
+    id: la_problem
+  - trigger: state
+    entity_id: !input vac_station
+    to: null
+    id: la_problem
+  - trigger: state
+    entity_id: !input vacuum
+    to: null
+    id: la_problem
   - trigger: state
     entity_id: !input door
     to: [opening, open, closing, closed]
@@ -347,13 +530,17 @@ actions:
               - wait_template: "{{ is_state(door, 'open') }}"
                 timeout: {seconds: "{{ open_timeout }}"}
               - if:
-                  - "{{ not wait.completed }}"
+                  - condition: template
+                    value_template: "{{ not wait.completed or is_state(motor_fault, 'on') }}"
+                    note: the firmware publishes the motor fault before it stops (and the cover reads "open")
                 then:
                   - action: vacuum.pause
                     target: {entity_id: !input vacuum}
                     continue_on_error: true
                   - variables:
-                      message: "The door did not open in {{ open_timeout }} s. The robot is paused."
+                      message: >
+                        The door did not open ({{ 'door motor fault: no current' if is_state(motor_fault, 'on')
+                        else 'not open after ' ~ open_timeout ~ ' s' }}). The robot is paused.
                   - &notify
                     if:
                       - "{{ notify_targets | length > 0 }}"
@@ -467,13 +654,16 @@ actions:
               - wait_template: "{{ is_state(door, 'open') }}"
                 timeout: {seconds: "{{ open_timeout }}"}
               - if:
-                  - "{{ wait.completed }}"
+                  - "{{ wait.completed and not is_state(motor_fault, 'on') }}"
                 then:
                   - action: vacuum.start
                     target: {entity_id: !input vacuum}
                 else:
                   - variables:
-                      message: "Clean button: the door did not open in {{ open_timeout }} s, the robot was not started."
+                      message: >
+                        Clean button: the door did not open ({{ 'door motor fault: no current'
+                        if is_state(motor_fault, 'on') else 'not open after ' ~ open_timeout ~ ' s' }}),
+                        the robot was not started.
                   - *notify
             else:
               - choose:
@@ -538,54 +728,132 @@ actions:
           - action: switch.turn_on
             target: {entity_id: !input vent_auto}
 
-      # ---- Live Activity: door status ----
+      # ---- Live Activity: cleaning job (bar per room, phase, door) ----
       - conditions:
           - condition: trigger
-            id: door_state
+            id: [la_start, la_room, la_progress, la_phase, la_end, door_state]
           - "{{ live_devices | length > 0 }}"
+          - or:
+              - condition: trigger
+                id: la_end
+              - not:
+                  - condition: state
+                    entity_id: !input vac_task_status
+                    state: [completed, unavailable, unknown]
         sequence:
           - variables:
-              st: "{{ trigger.to_state.state }}"
-              out: "{{ not is_state(vacuum, 'docked') }}"
-              la_tag: robo_garage
-              la_silent: true
-              la_message: >
-                {% if st == 'opening' %}Door opening…
-                {% elif st == 'closing' %}Door closing…
-                {% elif st == 'open' %}{{ 'Robot out cleaning' if out else 'Door open' }}
-                {% else %}Garage closed · {{ 'robot out' if out else 'robot parked' }}{{
-                  ' · drying ' ~ dry_minutes ~ ' min' if (not out and dry_speed > 0) else '' }}{% endif %}
-              la_text: "{{ {'opening': 'Opening', 'open': 'Open', 'closing': 'Closing', 'closed': 'Closed'}[st] }}"
-              la_color: "{{ {'opening': '#FF9800', 'open': '#2196F3', 'closing': '#FF9800', 'closed': '#4CAF50'}[st] }}"
-              la_icon: "{{ 'mdi:garage-open-variant' if st in ['opening', 'open'] else 'mdi:garage-variant' }}"
-          - &live
-            repeat:
-              for_each: "{{ live_devices }}"
-              sequence:
-                - action: "notify.mobile_app_{{ device_attr(repeat.item, 'name') | slugify }}"
-                  continue_on_error: true
-                  data:
-                    title: "{{ notify_title }}"
-                    message: "{{ la_message | trim }}"
-                    data:
-                      tag: "{{ la_tag }}"
-                      live_activity: true
-                      live_update: true
-                      silent: "{{ la_silent }}"
-                      critical_text: "{{ la_text }}"
-                      color: "{{ la_color }}"
-                      notification_icon: "{{ la_icon }}"
-                      notification_icon_color: "{{ la_color }}"
-                      url: "entityId:{{ door }}"
+              tid: "{{ trigger.id }}"
+              raw: "{{ '' if tid == 'la_start' else states(t_rooms) }}"
+              planned: >-
+                {% set rooms = (state_attr(vacuum, 'rooms') or {}).get(state_attr(vacuum, 'selected_map'), []) %}
+                {% set seq = state_attr(vacuum, 'cleaning_sequence') or [] %}
+                {% set act = state_attr(vacuum, 'active_segments') or [] %}
+                {% set explicit = (seq if seq | count > 0 else act) | map('int') | list %}
+                {% set parts = raw.split(';') if ';' in raw else ['', ''] %}
+                {% set saved = parts[0].split(',') | reject('eq', '') | map('int') | list %}
+                {{ explicit if explicit else (saved if saved else rooms | map(attribute='id') | map('int') | list) }}
+              old_visited: >-
+                {% set parts = raw.split(';') if ';' in raw else ['', ''] %}
+                {{ parts[1].split(',') | reject('eq', '') | map('int') | list }}
+              cur: >-
+                {{ state_attr(t_room, 'room_id') | int(-1)
+                   if (tid != 'la_end' and is_state(t_status, 'cleaning')) else -1 }}
+              visited: >-
+                {{ (old_visited + [cur])
+                   if (tid in ['la_start', 'la_room'] and cur in planned and cur not in old_visited)
+                   else old_visited }}
+              new_raw: "{{ '' if tid == 'la_end' else (planned | join(',')) ~ ';' ~ (visited | join(',')) }}"
           - if:
-              - "{{ st == 'closed' }}"
+              - condition: trigger
+                id: la_phase
+              - "{{ trigger.entity_id == t_state and tr.get(trigger.from_state.state, '') == tr.get(trigger.to_state.state, '') }}"
             then:
+              - stop: phase unchanged (washing ↔ clean_add_water flicker)
+          - if:
+              - "{{ new_raw != states(t_rooms) }}"
+            then:
+              - action: input_text.set_value
+                target: {entity_id: !input vac_rooms_helper}
+                data: {value: "{{ new_raw }}"}
+          - variables:
+              p: "{{ states(t_prog) | int(0) }}"
+              finished: >-
+                {{ tid == 'la_end' and is_state(t_task, 'completed')
+                   and (visited | select('in', planned) | list | count) >= (planned | count) }}
+              room_bars: >-
+                {% set n = planned | count %}
+                {% set done = visited | select('in', planned) | reject('eq', cur) | list %}
+                {% set rest = planned | reject('in', done) | reject('eq', cur) | list %}
+                {% set seg = [1, [4, 18 // [n, 1] | max] | min] | max %}
+                {% set fill = [0, [1, p * n / 100 - done | count] | min] | max %}
+                {% set fills = ([1] * (planned | count)) if finished else ([1] * (done | count) + ([fill] if cur in planned else []) + [0] * (rest | count)) %}
+                {% set parts = ['', '▏', '▎', '▍', '▌', '▋', '▊', '▉'] %}
+                {% set ns = namespace(out=[]) %}
+                {% for f in fills %}{% set e = (f * seg * 8) | round(0) | int %}{% set full = e // 8 %}{% set rem = e % 8 %}{% set ns.out = ns.out + ['█' * full + parts[rem] + '░' * (seg - full - (1 if rem else 0))] %}{% endfor %}
+                {{ ns.out | join(' ') }}
+              label: >-
+                {% set s = states(t_state) %}{% set d = states(door) %}
+                {% if d in ['opening', 'closing'] %}{{ tr[d] }}
+                {% elif is_state(vacuum, 'paused') %}{{ tr.paused }}
+                {% elif s in phase_keys %}{{ tr[s] }}
+                {% else %}{{ states(t_room) }} · {{ p }} %{% endif %}
+          - choose:
+              - conditions:
+                  - not:
+                      - condition: trigger
+                        id: la_end
+                sequence:
+                  - variables:
+                      la_tag: vacuum_progress
+                      la_title: "{{ vac_name }}"
+                      la_message: "{{ room_bars }}"
+                      la_silent: "{{ tid != 'la_start' }}"
+                      la_text: "{{ label }}"
+                      la_color: "#2196F3"
+                      la_icon: mdi:robot-vacuum
+                      la_url: "{{ vacuum }}"
+                  - &live
+                    repeat:
+                      for_each: "{{ live_devices }}"
+                      sequence:
+                        - action: "notify.mobile_app_{{ device_attr(repeat.item, 'name') | slugify }}"
+                          continue_on_error: true
+                          data:
+                            title: "{{ la_title }}"
+                            message: "{{ la_message | trim }}"
+                            data:
+                              tag: "{{ la_tag }}"
+                              live_activity: true
+                              live_update: true
+                              silent: "{{ la_silent }}"
+                              critical_text: "{{ la_text }}"
+                              color: "{{ la_color }}"
+                              notification_icon: "{{ la_icon }}"
+                              notification_icon_color: "{{ la_color }}"
+                              url: "entityId:{{ la_url }}"
+                              relevance_score: "{{ la_relevance | default(0.5) }}"
+            default:
+              - variables:
+                  err: "{{ is_state(vacuum, 'error') }}"
+                  la_tag: vacuum_progress
+                  la_title: "{{ vac_name }}"
+                  la_message: "{{ room_bars }}"
+                  la_silent: true
+                  la_text: "{{ tr.error if err else (tr.done if finished else tr.stopped) }}"
+                  la_color: "{{ '#F44336' if err else ('#4CAF50' if finished else '#FF9800') }}"
+                  la_icon: "{{ 'mdi:robot-vacuum-alert' if err else 'mdi:robot-vacuum' }}"
+                  la_url: "{{ vacuum }}"
+              - *live
               - wait_for_trigger:
                   - trigger: state
                     entity_id: !input door
+                    to: null
+                  - trigger: state
+                    entity_id: !input vac_task_status
+                    to: null
                 timeout: {minutes: 2}
               - condition: "{{ not wait.trigger }}"
-                note: door moved again → a newer run owns the Live Activity
+                note: door moved or a new job started → that run owns the Live Activity now
               - &live_clear
                 repeat:
                   for_each: "{{ live_devices }}"
@@ -596,6 +864,100 @@ actions:
                         message: clear_notification
                         data: {tag: "{{ la_tag }}"}
 
+      # ---- Live Activity: door outside a cleaning job (same slot) ----
+      - conditions:
+          - condition: trigger
+            id: door_state
+          - "{{ live_devices | length > 0 }}"
+        sequence:
+          - variables:
+              st: "{{ trigger.to_state.state }}"
+              out: "{{ not is_state(vacuum, 'docked') }}"
+              la_tag: vacuum_progress
+              la_title: "{{ notify_title }}"
+              la_silent: true
+              la_message: >-
+                {% if st == 'opening' %}{{ tr.d_opening }}
+                {% elif st == 'closing' %}{{ tr.d_closing }}
+                {% elif st == 'open' %}{{ tr.d_out if out else tr.d_open }}
+                {% else %}{{ tr.d_closed }} · {{ tr.d_out if out else tr.d_parked }}{{
+                  (' · ' ~ tr.d_drying ~ ' ' ~ dry_minutes ~ ' ' ~ tr.min) if (not out and dry_speed > 0) else '' }}{% endif %}
+              la_text: "{{ tr[{'opening': 'Opening', 'open': 'Open', 'closing': 'Closing', 'closed': 'Closed'}[st]] }}"
+              la_color: "{{ {'opening': '#FF9800', 'open': '#2196F3', 'closing': '#FF9800', 'closed': '#4CAF50'}[st] }}"
+              la_icon: "{{ 'mdi:garage-open-variant' if st in ['opening', 'open'] else 'mdi:garage-variant' }}"
+              la_url: "{{ door }}"
+          - *live
+          - if:
+              - "{{ st == 'closed' }}"
+            then:
+              - wait_for_trigger:
+                  - trigger: state
+                    entity_id: !input door
+                    to: null
+                  - trigger: state
+                    entity_id: !input vac_task_status
+                    to: null
+                timeout: {minutes: 2}
+              - condition: "{{ not wait.trigger }}"
+              - *live_clear
+
+      # ---- Live Activity: every active problem (robot, station, garage) ----
+      - conditions:
+          - condition: trigger
+            id: la_problem
+          - "{{ live_devices | length > 0 }}"
+        sequence:
+          - variables:
+              problems: >-
+                {% set bad = ['unavailable', 'unknown'] %}
+                {% set ns = namespace(p=[]) %}
+                {% if expand(t_leak) | selectattr('state', 'eq', 'on') | list | count > 0 %}{% set ns.p = ns.p + [tr.leak] %}{% endif %}
+                {% set err = states(t_error) %}
+                {% if err not in bad + ['no_error'] %}{% set ns.p = ns.p + ['⚠️ ' ~ (err | replace('_', ' ') | capitalize)] %}
+                {% elif is_state(vacuum, 'error') %}{% set ns.p = ns.p + [tr.error_state] %}{% endif %}
+                {% if states(t_water) not in bad + ['no_warning', 'no_water_left_dismiss'] %}{% set ns.p = ns.p + [tr.refill] %}{% endif %}
+                {% for e in t_station %}{% set s = states(e) %}
+                  {% if s not in bad + ['installed'] %}
+                    {% set key = (['dust_bag', 'dirty_water', 'clean_water', 'detergent'] | select('in', e) | list + [none]) | first %}
+                    {% set ns.p = ns.p + [(tr[key] if key else state_attr(e, 'friendly_name')) ~ ': ' ~ (s | replace('_', ' '))] %}
+                  {% endif %}
+                {% endfor %}
+                {% for e in expand(problem_sensors) | selectattr('state', 'eq', 'on') %}{% set ns.p = ns.p + ['⚠️ ' ~ e.name] %}{% endfor %}
+                {{ ns.p }}
+              la_tag: vacuum_error
+              la_silent: true
+              la_relevance: 1
+              la_url: "{{ vacuum }}"
+          - condition: "{{ problems | count > 0 or is_state(t_flag, 'on') }}"
+          - if:
+              - "{{ problems | count > 0 }}"
+            then:
+              - variables:
+                  la_title: "{{ vac_name }} – {{ tr.problem if problems | count == 1 else problems | count ~ ' ' ~ tr.problems }}"
+                  la_message: "{{ problems | join('\n') }}"
+                  la_text: "{{ problems | count }} ⚠️"
+                  la_color: "#F44336"
+                  la_icon: mdi:robot-vacuum-alert
+              - *live
+              - action: input_boolean.turn_on
+                target: {entity_id: !input problem_flag}
+            else:
+              - variables:
+                  la_title: "{{ vac_name }}"
+                  la_message: "{{ tr.solved }}"
+                  la_text: OK
+                  la_color: "#4CAF50"
+                  la_icon: mdi:robot-vacuum
+              - *live
+              - action: input_boolean.turn_off
+                target: {entity_id: !input problem_flag}
+              - delay: {minutes: 1}
+              - condition: state
+                entity_id: !input problem_flag
+                state: "off"
+                note: a new problem came up meanwhile → keep its Live Activity
+              - *live_clear
+
       # ---- messages ----
       - conditions:
           - condition: trigger
@@ -604,42 +966,6 @@ actions:
           - variables:
               message: "{{ trigger.to_state.name }} is on."
           - *notify
-          - variables:
-              active: "{{ expand(problem_sensors) | selectattr('state', 'eq', 'on') | map(attribute='name') | list }}"
-              la_tag: robo_garage_alert
-              la_silent: false
-              la_message: "{{ active | join('\n') }}"
-              la_text: "{{ active | count }} ⚠️"
-              la_color: "#F44336"
-              la_icon: mdi:alert
-          - *live
-      - conditions:
-          - condition: trigger
-            id: problem_cleared
-          - "{{ live_devices | length > 0 }}"
-        sequence:
-          - variables:
-              active: "{{ expand(problem_sensors) | selectattr('state', 'eq', 'on') | map(attribute='name') | list }}"
-              la_tag: robo_garage_alert
-              la_silent: true
-          - if:
-              - "{{ active | count > 0 }}"
-            then:
-              - variables:
-                  la_message: "{{ active | join('\n') }}"
-                  la_text: "{{ active | count }} ⚠️"
-                  la_color: "#F44336"
-                  la_icon: mdi:alert
-              - *live
-            else:
-              - variables:
-                  la_message: ✅ Problem solved
-                  la_text: OK
-                  la_color: "#4CAF50"
-                  la_icon: mdi:check-circle
-              - *live
-              - delay: {minutes: 1}
-              - *live_clear
       - conditions:
           - condition: trigger
             id: robot_error
