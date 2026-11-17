@@ -1,6 +1,7 @@
-# Build Robo-Garage simulator v5.6 (PCB + case version from parts.py / the SCAD file) from v4.9: light barrier + auto vent +
+# Build Robo-Garage simulator v5.7 (PCB + case version from parts.py / the SCAD file) from v4.9: light barrier + auto vent +
 # PCB/case section with downloads, leak probe + valve + buzzer (v1.2), power headroom (v1.3).
-# Run simulator/build_files.py first (download manifests + pictures).
+# Run simulator/build_files.py first (download manifests + pictures). v5.7: three.js + JSZip load from simulator/vendor
+# (publish that folder with the page as vendor/...), no CDN.
 import html
 import os
 import re

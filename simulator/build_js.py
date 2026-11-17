@@ -131,6 +131,26 @@ E('bFault').onclick=()=>{
 """)
 rep("if(S.block){S.block=false;setP(E('bBlock'),false);}if(S.err){S.err=false;}", "if(S.block){S.block=false;setP(E('bBlock'),false);}if(S.err){S.err=false;S.errWhy='';}")
 
+# ---------------- v5.7: three.js ships with the page (vendor/, no CDN); the 3D fallback note says why the view is missing
+rep('{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}',
+    '{"imports":{"three":"./vendor/three/three.module.min.js","three/addons/":"./vendor/three/addons/"}}')
+rep("setTimeout(()=>{if(!window.__3dReady){const f=E('fb');if(f)f.textContent='3D view could not load (needs WebGL and the three.js CDN). The side view and simulation still work.';}},9000);",
+    """/* 3D fallback: 9 s without a 3D view -> say why (no WebGL, a script error, a file that did not load, or a timeout) */
+(()=>{let err='',gl=null,n=0;const ok=()=>window.__3dReady===true;
+ window.addEventListener('error',e=>{if(ok()||err)return;const t=e.target;
+  if(t&&t.tagName==='SCRIPT')err=t.src?'could not load '+t.src.split('/').pop():'the 3D library did not load';
+  else if(e.message)err=e.message;},true);
+ window.addEventListener('unhandledrejection',e=>{if(!ok()&&!err)err=String((e.reason&&e.reason.message)||e.reason);});
+ const chk=()=>{if(ok())return;const f=E('fb');if(!f)return;
+  if(gl===null){gl=false;try{const x=document.createElement('canvas').getContext('webgl2')||document.createElement('canvas').getContext('webgl');
+   if(x){gl=true;const l=x.getExtension('WEBGL_lose_context');if(l)l.loseContext();}}catch(e){}}   /* test context, released at once */
+  const tail=' The side view and simulation still work.';
+  if(!gl)f.textContent='3D view needs WebGL, which is off in this browser (turn on hardware acceleration).'+tail;
+  else if(err)f.textContent='3D view could not load: '+err+'.'+tail;
+  else if(++n>10)f.textContent='3D view did not start – reload the page.'+tail;
+  else setTimeout(chk,3000);};
+ setTimeout(chk,9000);})();""")
+
 # ---------------- 3D
 rep("""add(B(.5,2.8,5.5),M.pcb,-27.7,75.4,-12,carcass,'esp');
 add(B(1.8,5,5),M.pcbRed,-27.1,70,-10.5,carcass,'esp');
@@ -175,7 +195,7 @@ rep('<script type="module">', """<script>
  E('cpYaml').onclick=async()=>{try{await navigator.clipboard.writeText(E('yaml').textContent);E('cpNote').textContent='Copied.';}catch(e){E('cpNote').textContent='Copy is blocked here – select the text and copy it.';}};
  let zipLib=null;
  const loadZip=()=>zipLib||(zipLib=new Promise((res,rej)=>{if(window.JSZip)return res(window.JSZip);
-  const sc=document.createElement('script');sc.src='https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+  const sc=document.createElement('script');sc.src='vendor/jszip/jszip.min.js';
   sc.onload=()=>window.JSZip?res(window.JSZip):rej({message:'zip library missing'});sc.onerror=()=>{zipLib=null;rej({message:'zip library did not load'});};document.head.appendChild(sc);}));
  async function addAll(Z,zip,list){for(const f of list){
   if(f.zip){const inner=new Z();await addAll(Z,inner,f.zip);zip.file(f.path,await inner.generateAsync({type:'uint8array',compression:'DEFLATE'}));}
