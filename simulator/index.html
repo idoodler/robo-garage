@@ -655,8 +655,11 @@ logger:
   logs:
     pulse_counter: INFO                                        # fan tach: no extra "Retrieved counter" line every 10 s
 api:
+  encryption:
+    key: !secret api_encryption_key                          # 32 random bytes, base64 (esphome.io/components/api)
 ota:
   - platform: esphome
+    password: !secret ota_password
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password

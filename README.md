@@ -19,7 +19,7 @@ ESP32 + ESPHome + Home Assistant: motorised door, light barrier, reed contacts, 
 
 | Folder | What is inside |
 |---|---|
-| `esphome/` | ESPHome config for the board (needs `secrets.yaml` with `wifi_ssid`, `wifi_password`) |
+| `esphome/` | ESPHome config for the board (needs `secrets.yaml` with `wifi_ssid`, `wifi_password`, `api_encryption_key`, `ota_password`; never committed) |
 | `homeassistant/` | Home Assistant blueprint `robo-garage.yaml`: door follows the robot vacuum, clean button, button ring + status LED, rear fan drying, iOS Live Activities, messages (see below) |
 | `pcb/gen/` | PCB generator (Python + KiCad `pcbnew`). `parts.py` = single source of truth, `fplib.py` makes the own footprints (`pcb/lib/robo.pretty`) |
 | `pcb/robo-garage/` | Work folder. Only `robo-garage.ses` (Freerouting result) is in git |
