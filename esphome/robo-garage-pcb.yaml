@@ -593,6 +593,7 @@ light:
   - platform: esp32_rmt_led_strip
     id: status_led
     name: "Robo-Garage Status LED"
+    restore_mode: ALWAYS_OFF                                   # dark after every boot / power loss; HA lights it only when needed
     pin: GPIO16                                                # via 74AHCT1G125 level shifter
     # Line: SK6812 RGBW 144 LEDs/m, natural white (RGBNW), one 50 cm segment = 72 LEDs.
     # Dot / Ring 12 / Underglow (WS2812B): num_leds 1 / 12 / 16, chipset WS2812, channel_colors GRB, no color_correct.

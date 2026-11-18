@@ -15,7 +15,8 @@ blueprint:
     (or pause it, or do nothing).
 
     * Lights follow the robot: status LED shows problems (red strobe), door moving (orange chase),
-    the job progress as a blue bar, returning (spinner), washing in the dock (pulse) and "done" (green).
+    the job progress as a blue bar and returning (spinner) while the robot is out, a warning (dim amber pulse).
+    It stays off while the robot sits in the dock (charging, washing, drying) and whenever nothing needs attention.
     The clean button ring is on while parked, pulses during a job in the dock, blinks on a problem.
 
     * Messages for a water leak, beam fault, motor fault, stall, low supply and robot errors.
@@ -206,8 +207,8 @@ blueprint:
             number: {min: 5, max: 100, unit_of_measurement: "%", mode: slider}
         done_minutes:
           name: Show "done" for
-          description: Green after a finished job, then off.
-          default: 2
+          description: Green after a finished job, then off. 0 = never (status LED stays off in the dock).
+          default: 0
           selector:
             number: {min: 0, max: 60, unit_of_measurement: min, mode: box}
     fan_settings:
@@ -605,11 +606,9 @@ actions:
         {% if problem %}{{ {'c': [255, 0, 0], 'e': 'Error strobe'} }}
         {% elif ds in ['opening', 'closing'] %}{{ {'c': [255, 120, 0], 'e': 'Chase'} }}
         {% elif job and vs == 'paused' %}{{ {'c': [255, 160, 0], 'e': 'None'} }}
-        {% elif job and home %}{{ {'c': [0, 200, 255], 'e': 'Slow pulse'} }}
-        {% elif job and vs == 'returning' %}{{ {'c': [0, 200, 255], 'e': 'Spinner'} }}
-        {% elif job %}{{ {'c': [0, 80, 255], 'e': 'Progress'} }}
+        {% elif job and not home and vs == 'returning' %}{{ {'c': [0, 200, 255], 'e': 'Spinner'} }}
+        {% elif job and not home %}{{ {'c': [0, 80, 255], 'e': 'Progress'} }}
         {% elif done %}{{ {'c': [0, 255, 60], 'e': 'None'} }}
-        {% elif home and vs == 'cleaning' %}{{ {'c': [0, 200, 255], 'e': 'Slow pulse', 'b': 0.3} }}
         {% elif warning %}{{ {'c': [255, 160, 0], 'e': 'Slow pulse', 'b': 0.3} }}
         {% else %}{{ {'e': 'off'} }}{% endif %}
       ring_mode: >-
