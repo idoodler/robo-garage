@@ -29,7 +29,7 @@
 | 12 V IN | 6 A continuous (board ≤ 40 °C). PSU 12 V / 5 A recommended, a 3 A PSU still works | F1 PTC 7 A hold / 14 A trip, reverse-polarity P-FET, TVS 15 V |
 | ACTUATOR | 3 A moving, **4.9 A hardware limit** | DRV8874 current regulation + over-current + thermal shutdown, INA219 stall stop (firmware) |
 | VALVE | 12 V, **3 A** continuous, inductive OK | F4 PTC 4 A hold (≈ 3.2 A at 50 °C), SS34 flyback |
-| LED 5 V | 1.5 A (16 WS2812 at full white ≈ 1 A; Line: 72 SK6812 RGBW capped at 25 % in ESPHome ≈ 1.44 A) | F2 PTC 2 A |
+| LED 5 V | 1.5 A (16 WS2812 at full white ≈ 1 A; Line: 72 SK6812 RGBW, ESPHome current limit 1.4 A) | F2 PTC 2 A |
 | 5 V rail total | 3 A | LMR51430 current limit + hiccup |
 | FAN + BEAM + LEAK 12 V | 1.1 A together | F7 1.1 A, F3 / F5 0.2 A per sensor feed |
 | BUTTON LED 12 V | 0.2 A | F8 0.2 A |

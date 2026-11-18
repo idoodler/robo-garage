@@ -112,7 +112,10 @@ rep('<p class="note">IKEA/Amazon prices from current listings; AliExpress change
 
 # ---------------------------------------------------------------- PCB + case section
 yaml_txt = open(YAML, encoding='utf-8').read()
-CC_LINE = '    color_correct: [25%, 25%, 25%, 25%]                        # <= 1.44 A at full RGBW: the LED clamp gives 1.5 A (F2)\n'
+CC_LINE = ('    power_estimation:                                          # current limit AFTER gamma, so the full colour depth\n'
+           '      max_current_ma: 1400                                     # stays (color_correct 25 % left ~6 levels per channel).\n'
+           '                                                               # 20 mA per channel + 1 mA idle per LED (defaults):\n'
+           '                                                               # <= 1.4 A, the LED clamp gives 1.5 A (F2)\n')   # Line only: the current limit block
 for k in ('num_leds: 72', 'chipset: SK6812', 'channel_colors: GRBW', CC_LINE):
     assert yaml_txt.count(k) == 1, k
 yaml_html = (html.escape(yaml_txt, quote=False)

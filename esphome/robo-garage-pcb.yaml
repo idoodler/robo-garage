@@ -232,7 +232,7 @@ binary_sensor:
     on_press:
       - logger.log: "WATER LEAK -> valve powered, alarm"
       - switch.turn_on: valve
-      - light.turn_on: {id: status_led, red: 100%, green: 0%, blue: 0%, white: 0%, effect: "Error strobe"}
+      - light.turn_on: {id: status_led, brightness: 100%, red: 100%, green: 0%, blue: 0%, white: 0%, effect: "Error strobe"}
       - rtttl.play: "leak:d=4,o=7,b=140:e,p,e,p,e,p,e,p,e,p,e"
     on_release:
       - light.turn_off: status_led                             # the valve stays powered until you switch it off in HA
@@ -585,39 +585,78 @@ cover:
 
 light:
   - platform: monochromatic
+    id: btn_ring
     name: "Clean button ring"
     output: btn_ring_out
-    effects:                                                   # used by the HA blueprint: job in the dock / problem
-      - pulse: {name: "Pulse", transition_length: 1s, update_interval: 1s}
-      - strobe: {name: "Blink"}
+    default_transition_length: 0s                              # a 1 s fade would write over Pulse / Blink each time
+                                                               # HA re-sends the brightness
+    effects:                                                   # used by the HA blueprint: job in the dock / problem.
+      - lambda:                                                # Both stay at the brightness set in HA (the stock
+          name: "Pulse"                                        # pulse / strobe drive the ring to 100 %).
+          update_interval: 16ms                                # smooth breathing, 2 s per breath
+          lambda: |-
+            const float f = 0.5f - 0.5f * cosf(6.2831853f * (millis() % 2000) / 2000.0f);
+            id(btn_ring_out).set_level(it.gamma_correct_lut(it.remote_values.get_brightness() * f));
+      - lambda:
+          name: "Blink"                                        # 0.5 s on, 0.5 s off
+          update_interval: 16ms
+          lambda: |-
+            const bool on = millis() % 1000 < 500;
+            id(btn_ring_out).set_level(on ? it.gamma_correct_lut(it.remote_values.get_brightness()) : 0.0f);
   - platform: esp32_rmt_led_strip
     id: status_led
     name: "Robo-Garage Status LED"
     restore_mode: ALWAYS_OFF                                   # dark after every boot / power loss; HA lights it only when needed
     pin: GPIO16                                                # via 74AHCT1G125 level shifter
     # Line: SK6812 RGBW 144 LEDs/m, natural white (RGBNW), one 50 cm segment = 72 LEDs.
-    # Dot / Ring 12 / Underglow (WS2812B): num_leds 1 / 12 / 16, chipset WS2812, channel_colors GRB, no color_correct.
+    # Dot / Ring 12 / Underglow (WS2812B): num_leds 1 / 12 / 16, chipset WS2812, channel_colors GRB.
     num_leds: 72
     chipset: SK6812
     channel_colors: GRBW
-    color_correct: [25%, 25%, 25%, 25%]                        # <= 1.44 A at full RGBW: the LED clamp gives 1.5 A (F2)
-    effects:
-      - pulse: {name: "Slow pulse", transition_length: 1s, update_interval: 1s}
-      - strobe: {name: "Error strobe"}
-      - addressable_scan: {name: "Chase"}
-      - addressable_color_wipe: {name: "Spinner"}
+    default_transition_length: 0s                              # a new colour shows at once (a 1 s fade restarted on
+                                                               # every colour picker step = stutter)
+    rmt_symbols: 512                                           # all RMT memory: fewer refills, no Wi-Fi glitches
+    power_estimation:                                          # current limit AFTER gamma, so the full colour depth
+      max_current_ma: 1400                                     # stays (color_correct 25 % left ~6 levels per channel).
+                                                               # 20 mA per channel + 1 mA idle per LED (defaults):
+                                                               # <= 1.4 A, the LED clamp gives 1.5 A (F2)
+    effects:                                                   # all follow the colour and brightness set in HA
+      - addressable_lambda:
+          name: "Slow pulse"                                   # smooth breathing, 2 s per breath
+          update_interval: 16ms
+          lambda: |-
+            const float f = 0.5f - 0.5f * cosf(6.2831853f * (millis() % 2000) / 2000.0f);
+            it.all() = current_color * (uint8_t) (255.0f * f);
+      - addressable_lambda:
+          name: "Error strobe"                                 # 0.5 s on, 0.5 s off (the stock strobe flashes white)
+          update_interval: 16ms
+          lambda: |-
+            it.all() = millis() % 1000 < 500 ? current_color : Color::BLACK;
+      - addressable_scan:                                      # 6-LED block sweeps back and forth, ~1.1 s per pass
+          name: "Chase"
+          move_interval: 16ms                                  # = the 16 ms main loop (longer rounds up to 32 ms)
+          scan_width: 6
+      - addressable_lambda:
+          name: "Spinner"                                      # comet with a fading tail runs along the strip, 1.2 s
+          update_interval: 16ms
+          lambda: |-
+            const int n = it.size();
+            const int head = (millis() / 16) % n;
+            for (int i = 0; i < n; i++) {
+              const int d = (head - i + n) % n;                // LEDs behind the head
+              it[i] = d < 12 ? current_color * (uint8_t) (255 - d * 20) : Color::BLACK;
+            }
       - addressable_lambda:                                    # bar = "Status LED progress" %, rest dimmed, tip blinks
           name: "Progress"
-          update_interval: 100ms
+          update_interval: 50ms
           lambda: |-
             const int n = it.size();
             const float p = id(led_progress).state;
             const int lit = std::isnan(p) ? 0 : std::min(n, (int) roundf(n * p / 100.0f));
             const bool tip_on = (millis() / 500) % 2;
             for (int i = 0; i < n; i++) {
-              if (i < lit) it[i] = current_color;
-              else if (i == lit && tip_on) it[i] = current_color;
-              else it[i] = current_color * 20;
+              if (i < lit || (i == lit && tip_on)) it[i] = current_color;
+              else it[i] = current_color * 64;                 // 25 % before gamma = ~2 %: a faint glow
             }
 
 # Optional VL53L1X (robot in bay) on the I2C clamp: needs an external ESPHome component.
